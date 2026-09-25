@@ -1,7 +1,14 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireSchoolAdmin } from "@/services/shared";
+import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import type { Parent, Student, Teacher } from "@/types/database";
+
+function invalidatePeopleCounts() {
+  invalidateCacheByPrefix("dash:school-counts:");
+  invalidateCacheByPrefix("platform:schools");
+  invalidateCacheByPrefix("platform:analytics");
+}
 
 function defaultPassword(): string {
   return (
@@ -72,6 +79,7 @@ export async function createTeacher(input: {
   email?: string | null;
   title?: string | null;
 }): Promise<void> {
+  invalidatePeopleCounts();
   const { schoolId } = await requireSchoolAdmin();
 
   const admin = createAdminClient();
@@ -141,6 +149,7 @@ export async function createStudent(input: {
   dateOfBirth?: string | null;
   guardianPhone?: string | null;
 }): Promise<void> {
+  invalidatePeopleCounts();
   const { schoolId } = await requireSchoolAdmin();
 
   const admin = createAdminClient();
@@ -244,6 +253,7 @@ export type ImportSummary = {
  * numbers within the school and reports individual row errors.
  */
 export async function importStudents(rows: ImportRow[]): Promise<ImportSummary> {
+  invalidatePeopleCounts();
   const { schoolId } = await requireSchoolAdmin();
   const admin = createAdminClient();
 
@@ -333,6 +343,7 @@ export async function createParent(input: {
   relationship?: string | null;
   linkedStudentIds: string[];
 }): Promise<void> {
+  invalidatePeopleCounts();
   const { schoolId } = await requireSchoolAdmin();
 
   const admin = createAdminClient();

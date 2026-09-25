@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlatformAdmin } from "@/services/billing";
+import { getServerData } from "@/lib/server-cache";
 
 export type PlatformSchoolRow = {
   id: string;
@@ -21,8 +22,8 @@ export type PlatformSchoolRow = {
 export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
   await requirePlatformAdmin();
   const admin = createAdminClient();
-
-  const [schoolsRes, studentsRes, teachersRes, subsRes] = await Promise.all([
+  return getServerData("platform:schools", 30_000, async () => {
+    const [schoolsRes, studentsRes, teachersRes, subsRes] = await Promise.all([
     admin
       .from("schools")
       .select(
@@ -94,6 +95,7 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
       createdAt: s.created_at,
     };
   });
+  });
 }
 
 export type PlatformAnalytics = {
@@ -112,7 +114,7 @@ export type PlatformAnalytics = {
 export async function getPlatformAnalytics(): Promise<PlatformAnalytics> {
   await requirePlatformAdmin();
   const admin = createAdminClient();
-
+  return getServerData("platform:analytics", 30_000, async () => {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
@@ -186,6 +188,7 @@ export async function getPlatformAnalytics(): Promise<PlatformAnalytics> {
       createdAt: s.created_at,
     })),
   };
+  });
 }
 
 export type SupportTicket = {

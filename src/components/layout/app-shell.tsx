@@ -13,7 +13,7 @@ type ShellProps = {
   userName?: string;
   userEmail?: string;
   avatarUrl?: string | null;
-  notificationUnread?: number;
+  notificationUnread?: React.ReactNode;
   profileHref?: string;
 };
 

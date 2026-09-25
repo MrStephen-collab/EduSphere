@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSchoolAdmin } from "@/services/shared";
+import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import { sendWelcomeEmail } from "@/email/hooks";
 import { z } from "zod";
 
@@ -40,6 +41,8 @@ export async function createSchoolWithOwner(
   ownerId: string,
   input: SchoolBasicsInput,
 ): Promise<{ schoolId: string }> {
+  invalidateCacheByPrefix("platform:analytics");
+  invalidateCacheByPrefix("platform:schools");
   const data = schoolBasicsSchema.parse(input);
   const admin = createAdminClient();
 
@@ -105,6 +108,8 @@ export async function createSchoolWithOwner(
 }
 
 export async function ensureSchoolSession(schoolId: string) {
+  invalidateCacheByPrefix("platform:analytics");
+  invalidateCacheByPrefix("dash:school-counts:");
   const admin = createAdminClient();
 
   const { data: existing, error: existingError } = await admin

@@ -4,6 +4,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireContentEditor } from "@/services/shared";
 import { requireStudent } from "@/services/learning";
+import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import type {
   AttemptStatus,
   ContentStatus,
@@ -1139,6 +1140,8 @@ export async function submitPracticeAttempt(
   attemptId: string,
   answers: z.infer<typeof practiceAnswerSchema>[],
 ): Promise<PracticeResult> {
+  invalidateCacheByPrefix("dash:student:");
+  invalidateCacheByPrefix("dash:child-results:");
   const { schoolId, studentId } = await requireStudent();
   const safeAnswers = z.array(practiceAnswerSchema).parse(answers ?? []);
   const admin = createAdminClient();

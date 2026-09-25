@@ -4,6 +4,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
+import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import type {
   ContentStatus,
   Course,
@@ -152,6 +153,7 @@ export async function getCourseDetail(
 }
 
 export async function createCourse(input: z.infer<typeof courseSchema>): Promise<string> {
+  invalidateCacheByPrefix("dash:teacher:");
   const { schoolId, teacherId } = await requireContentEditor();
   const data = courseSchema.parse(input);
   const admin = createAdminClient();
@@ -195,6 +197,8 @@ export async function updateCourse(
 }
 
 export async function setCourseStatus(id: string, status: ContentStatus): Promise<void> {
+  invalidateCacheByPrefix("dash:teacher:");
+  invalidateCacheByPrefix("dash:student:");
   const { schoolId } = await requireContentEditor();
   const admin = createAdminClient();
   const { error } = await admin
@@ -206,6 +210,8 @@ export async function setCourseStatus(id: string, status: ContentStatus): Promis
 }
 
 export async function deleteCourse(id: string): Promise<void> {
+  invalidateCacheByPrefix("dash:teacher:");
+  invalidateCacheByPrefix("dash:student:");
   const { schoolId } = await requireContentEditor();
   const admin = createAdminClient();
   const { error } = await admin
@@ -761,6 +767,7 @@ export async function setLessonCompletion(
   lessonId: string,
   completed: boolean,
 ): Promise<void> {
+  invalidateCacheByPrefix("dash:student:");
   const supabase = await createSupabaseServerClient();
 
   const now = new Date().toISOString();

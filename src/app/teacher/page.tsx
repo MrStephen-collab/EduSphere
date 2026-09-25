@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
 import { BookOpen, ClipboardList, FileText, BarChart3, ArrowRight, Plus } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { getTeacherAnnouncements } from "@/services/announcements";
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getServerData } from "@/lib/server-cache";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { StatCard } from "@/components/dashboard/stat-card";
+import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -17,44 +19,68 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function TeacherDashboardPage() {
-  const context = await getAuthContext();
-  if (!context.user) redirect("/auth/login");
-  if (!context.roles.includes("TEACHER")) redirect("/dashboard");
+async function getTeacherDashboardBundle() {
+  const { schoolId, teacherId, userId } = await requireContentEditor();
+  return getServerData(`dash:teacher:${schoolId}:${userId}`, 20_000, async () => {
+    const admin = createAdminClient();
+    const [coursesRes, assignmentsRes, announcements] = await Promise.all([
+      teacherId
+        ? admin
+            .from("courses")
+            .select("id, status")
+            .eq("school_id", schoolId)
+            .eq("teacher_id", teacherId)
+            .is("deleted_at", null)
+        : Promise.resolve({ data: [] as { id: string; status: string }[], error: null }),
+      admin
+        .from("assignments")
+        .select("id")
+        .eq("school_id", schoolId)
+        .eq("created_by", userId)
+        .is("deleted_at", null),
+      teacherId ? getTeacherAnnouncements(schoolId, teacherId) : Promise.resolve([]),
+    ]);
 
-  const { schoolId, teacherId } = await requireContentEditor();
-  const admin = createAdminClient();
+    const courses = coursesRes.data ?? [];
+    return {
+      publishedCount: courses.filter((c) => c.status === "published").length,
+      draftCount: courses.length - courses.filter((c) => c.status === "published").length,
+      assignmentCount: assignmentsRes.data?.length ?? 0,
+      announcements,
+    };
+  });
+}
 
-  const [coursesRes, assignmentsRes, announcements] = await Promise.all([
-    teacherId
-      ? admin
-          .from("courses")
-          .select("id, status")
-          .eq("school_id", schoolId)
-          .eq("teacher_id", teacherId)
-          .is("deleted_at", null)
-      : Promise.resolve({ data: [] as { id: string; status: string }[], error: null }),
-    admin
-      .from("assignments")
-      .select("id")
-      .eq("school_id", schoolId)
-      .eq("created_by", context.user.id)
-      .is("deleted_at", null),
-    teacherId ? getTeacherAnnouncements(schoolId, teacherId) : Promise.resolve([]),
-  ]);
+function TeacherDashboardSkeleton() {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        {[0, 1].map((i) => (
+          <StatCardSkeleton key={i} index={i} />
+        ))}
+      </div>
+      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="relative h-72 overflow-hidden rounded-2xl ring-1 ring-foreground/10">
+            <div className="skeleton absolute inset-0" />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
 
-  const courses = coursesRes.data ?? [];
-  const publishedCount = courses.filter((c) => c.status === "published").length;
-  const assignmentCount = assignmentsRes.data?.length ?? 0;
+async function TeacherDashboardContent() {
+  const bundle = await getTeacherDashboardBundle();
 
   return (
-    <DashboardShell title="Teacher Dashboard" badge="Teacher">
+    <>
       <div className="grid grid-cols-2 gap-3">
-        <StatCard title="Active Courses" value={publishedCount} icon={BookOpen} href="/teacher/courses" tone="indigo" hint={`${courses.length - publishedCount} draft`} />
-        <StatCard title="My Assignments" value={assignmentCount} icon={ClipboardList} href="/teacher/assignments" tone="amber" index={1} />
+        <StatCard title="Active Courses" value={bundle.publishedCount} icon={BookOpen} href="/teacher/courses" tone="indigo" hint={`${bundle.draftCount} draft`} />
+        <StatCard title="My Assignments" value={bundle.assignmentCount} icon={ClipboardList} href="/teacher/assignments" tone="amber" index={1} />
       </div>
 
-      <AnnouncementBanner announcements={announcements} className="mt-5" />
+      <AnnouncementBanner announcements={bundle.announcements} className="mt-5" />
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
         <Card className="animate-card-enter" style={{ animationDelay: "200ms" }}>
@@ -124,6 +150,20 @@ export default async function TeacherDashboardPage() {
           </CardContent>
         </Card>
       </div>
+    </>
+  );
+}
+
+export default async function TeacherDashboardPage() {
+  const context = await getAuthContext();
+  if (!context.user) redirect("/auth/login");
+  if (!context.roles.includes("TEACHER")) redirect("/dashboard");
+
+  return (
+    <DashboardShell title="Teacher Dashboard" badge="Teacher">
+      <Suspense fallback={<TeacherDashboardSkeleton />}>
+        <TeacherDashboardContent />
+      </Suspense>
     </DashboardShell>
   );
 }

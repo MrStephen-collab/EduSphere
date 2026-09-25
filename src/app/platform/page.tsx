@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { School, Wallet } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { StatCard } from "@/components/dashboard/stat-card";
+import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import {
   Card,
   CardContent,
@@ -28,19 +29,30 @@ function formatMoney(value: number): string {
   return `₦${value.toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
 }
 
-export default async function PlatformDashboardPage() {
-  const context = await getAuthContext();
-  if (!context.user) {
-    redirect("/auth/login");
-  }
-  if (!context.roles.includes("SUPER_ADMIN")) {
-    redirect("/dashboard");
-  }
+function PlatformDashboardSkeleton() {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        {[0, 1].map((i) => (
+          <StatCardSkeleton key={i} index={i} />
+        ))}
+      </div>
+      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="relative h-56 overflow-hidden rounded-2xl ring-1 ring-foreground/10">
+            <div className="skeleton absolute inset-0" />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
 
+async function PlatformDashboardContent() {
   const data = await getPlatformAnalytics();
 
   return (
-    <DashboardShell title="Platform Dashboard" badge="Super Admin">
+    <>
       <div className="grid grid-cols-2 gap-3">
         <StatCard title="Schools" value={data.totalSchools} icon={School} href="/platform/schools" tone="indigo" hint={`${data.activeSchools} active`} />
         <StatCard
@@ -102,6 +114,24 @@ export default async function PlatformDashboardPage() {
           </CardContent>
         </Card>
       </div>
+    </>
+  );
+}
+
+export default async function PlatformDashboardPage() {
+  const context = await getAuthContext();
+  if (!context.user) {
+    redirect("/auth/login");
+  }
+  if (!context.roles.includes("SUPER_ADMIN")) {
+    redirect("/dashboard");
+  }
+
+  return (
+    <DashboardShell title="Platform Dashboard" badge="Super Admin">
+      <Suspense fallback={<PlatformDashboardSkeleton />}>
+        <PlatformDashboardContent />
+      </Suspense>
     </DashboardShell>
   );
 }

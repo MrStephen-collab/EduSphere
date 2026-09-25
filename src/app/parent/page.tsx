@@ -12,6 +12,7 @@ import { getAuthContext } from "@/lib/auth/auth-context";
 import { getParentChildren, requireParent } from "@/services/parent";
 import { getStudentResults } from "@/services/analytics";
 import { getParentAnnouncements } from "@/services/announcements";
+import { getServerData } from "@/lib/server-cache";
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
@@ -49,26 +50,30 @@ function ParentDashboardSkeleton() {
   );
 }
 
-async function ParentDashboardContent({
-  schoolId,
-  parentId,
-  kids,
-}: {
-  schoolId: string;
-  parentId: string;
-  kids: Awaited<ReturnType<typeof getParentChildren>>;
-}) {
-  const [announcements, rows] = await Promise.all([
-    getParentAnnouncements(schoolId, parentId),
-    Promise.all(
-      kids.map((c) =>
-        getStudentResults(schoolId, c.studentId).then((r) => ({
-          child: c,
-          data: r,
-        })),
-      ),
+async function getChildResults(schoolId: string, studentId: string) {
+  return getServerData(`dash:child-results:${studentId}`, 20_000, () =>
+    getStudentResults(schoolId, studentId),
+  );
+}
+
+async function ParentDashboardContent() {
+  const { schoolId, parentId } = await requireParent();
+
+  const [kids, announcements] = await Promise.all([
+    getServerData(`dash:parent-children:${parentId}`, 20_000, () =>
+      getParentChildren(schoolId, parentId),
     ),
+    getParentAnnouncements(schoolId, parentId),
   ]);
+
+  const rows = await Promise.all(
+    kids.map((c) =>
+      getChildResults(schoolId, c.studentId).then((r) => ({
+        child: c,
+        data: r,
+      })),
+    ),
+  );
 
   const overallAverage = avg(rows.map((r) => r.data.overallAverage));
 
@@ -165,13 +170,10 @@ export default async function ParentDashboardPage() {
   if (!context.user) redirect("/auth/login");
   if (!context.roles.includes("PARENT")) redirect("/dashboard");
 
-  const { schoolId, parentId } = await requireParent();
-  const children = await getParentChildren(schoolId, parentId);
-
   return (
     <DashboardShell title="Parent Dashboard" badge="Parent">
       <Suspense fallback={<ParentDashboardSkeleton />}>
-        <ParentDashboardContent schoolId={schoolId} parentId={parentId} kids={children} />
+        <ParentDashboardContent />
       </Suspense>
     </DashboardShell>
   );

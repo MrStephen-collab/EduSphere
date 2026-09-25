@@ -8,12 +8,19 @@ import {
   sendAssignmentCreatedEmails,
   sendAssignmentGradedEmail,
 } from "@/email/hooks";
+import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import type {
   Assignment,
   AssignmentStatus,
   AssignmentSubmission,
   ContentStatus,
 } from "@/types/database";
+
+function invalidateAssignmentDashboards() {
+  invalidateCacheByPrefix("dash:teacher:");
+  invalidateCacheByPrefix("dash:student:");
+  invalidateCacheByPrefix("dash:child-results:");
+}
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -163,6 +170,7 @@ export async function getAssignmentDetail(
 export async function createAssignment(
   input: z.infer<typeof assignmentSchema>,
 ): Promise<string> {
+  invalidateAssignmentDashboards();
   const { schoolId, userId } = await requireContentEditor();
   const data = assignmentSchema.parse(input);
   const admin = createAdminClient();
@@ -256,6 +264,7 @@ export async function gradeSubmission(
   submissionId: string,
   input: z.infer<typeof gradeSchema>,
 ): Promise<void> {
+  invalidateAssignmentDashboards();
   const { schoolId, userId, role } = await requireContentEditor();
   const data = gradeSchema.parse(input);
 

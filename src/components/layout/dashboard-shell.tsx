@@ -1,9 +1,6 @@
 import { redirect } from "next/navigation";
-import {
-  getAuthContext,
-  type AuthContext,
-  type Membership,
-} from "@/lib/auth/auth-context";
+import { Suspense } from "react";
+import { getAuthContext, type AuthContext, type Membership } from "@/lib/auth/auth-context";
 import { AppShell } from "./app-shell";
 import { getUnreadNotificationCount } from "@/services/notifications";
 import {
@@ -94,6 +91,16 @@ const navFor: Record<ShellKind, { sections: NavSection[]; bottom: NavItem[]; pro
   },
 };
 
+async function NotificationUnreadBadge({ userId }: { userId: string }) {
+  const unread = await getUnreadNotificationCount(userId);
+  if (unread === 0) return null;
+  return (
+    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
+      {unread > 9 ? "9+" : unread}
+    </span>
+  );
+}
+
 export async function DashboardShell({
   children,
   title,
@@ -116,9 +123,11 @@ export async function DashboardShell({
   }
 
   const firstMembership: Membership | undefined = context.memberships[0];
-  const notificationUnread = context.user
-    ? await getUnreadNotificationCount(context.user.id)
-    : 0;
+  const notificationUnread = context.user ? (
+    <Suspense fallback={null}>
+      <NotificationUnreadBadge userId={context.user.id} />
+    </Suspense>
+  ) : undefined;
 
   return (
     <AppShell

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   Users,
   GraduationCap,
@@ -12,8 +13,9 @@ import {
 } from "lucide-react";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth/auth-context";
+import { getServerData } from "@/lib/server-cache";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { StatCard } from "@/components/dashboard/stat-card";
+import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
@@ -29,42 +31,67 @@ const QUICK_ACTIONS = [
   { title: "Parents", href: "/school/parents", icon: HeartHandshake, hint: "Link students' parents" },
 ];
 
-export default async function SchoolDashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ welcome?: string }>;
-}) {
-  const { welcome } = await searchParams;
-  const context = await getAuthContext();
-  if (!context.user) redirect("/auth/login");
+type SchoolCounts = {
+  students: number;
+  teachers: number;
+  classes: number;
+  subjects: number;
+  sessions: number;
+};
 
-  const isSchoolStaff = context.roles.some((role) =>
-    ["SCHOOL_OWNER", "SCHOOL_ADMIN", "PRINCIPAL"].includes(role),
+const COUNT_KEYS: { key: keyof SchoolCounts; table: string }[] = [
+  { key: "students", table: "students" },
+  { key: "teachers", table: "teachers" },
+  { key: "classes", table: "classes" },
+  { key: "subjects", table: "subjects" },
+  { key: "sessions", table: "academic_sessions" },
+];
+
+async function getSchoolDashboardCounts(schoolId: string | undefined): Promise<SchoolCounts> {
+  if (!schoolId) return { students: 0, teachers: 0, classes: 0, subjects: 0, sessions: 0 };
+  return getServerData(`dash:school-counts:${schoolId}`, 15_000, async () => {
+    const supabase = await createSupabaseServerClient();
+    const results = await Promise.all(
+      COUNT_KEYS.map(({ table }) =>
+        supabase.from(table).select("*", { count: "exact", head: true }).eq("school_id", schoolId),
+      ),
+    );
+    return COUNT_KEYS.reduce((acc, { key }, i) => {
+      acc[key] = results[i]?.count ?? 0;
+      return acc;
+    }, {} as SchoolCounts);
+  });
+}
+
+function SchoolDashboardSkeleton() {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        {[0, 1].map((i) => (
+          <StatCardSkeleton key={i} index={i} />
+        ))}
+      </div>
+      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="relative h-64 overflow-hidden rounded-2xl ring-1 ring-foreground/10">
+            <div className="skeleton absolute inset-0" />
+          </div>
+        ))}
+      </div>
+    </>
   );
-  if (!isSchoolStaff) redirect("/dashboard");
+}
 
-  const membership = context.memberships[0];
-  const schoolId = membership?.school.id;
-
-  const supabase = await createSupabaseServerClient();
-
-  const [studentsRes, teachersRes, classesRes, subjectsRes, sessionsRes] = schoolId
-    ? await Promise.all([
-        supabase.from("students").select("*", { count: "exact", head: true }).eq("school_id", schoolId),
-        supabase.from("teachers").select("*", { count: "exact", head: true }).eq("school_id", schoolId),
-        supabase.from("classes").select("*", { count: "exact", head: true }).eq("school_id", schoolId),
-        supabase.from("subjects").select("*", { count: "exact", head: true }).eq("school_id", schoolId),
-        supabase.from("academic_sessions").select("*", { count: "exact", head: true }).eq("school_id", schoolId),
-      ])
-    : [null, null, null, null, null];
-
-  const counts = {
-    students: studentsRes?.count ?? 0,
-    teachers: teachersRes?.count ?? 0,
-    classes: classesRes?.count ?? 0,
-    subjects: subjectsRes?.count ?? 0,
-    sessions: sessionsRes?.count ?? 0,
-  };
+async function SchoolDashboardContent({
+  schoolId,
+  welcome,
+  schoolName,
+}: {
+  schoolId: string | undefined;
+  welcome: boolean;
+  schoolName: string | undefined;
+}) {
+  const counts = await getSchoolDashboardCounts(schoolId);
 
   const setupSteps = [
     { label: "Create an academic session", done: counts.sessions > 0, href: "/school/sessions" },
@@ -76,13 +103,11 @@ export default async function SchoolDashboardPage({
   const setupDone = setupSteps.filter((s) => s.done).length;
 
   return (
-    <DashboardShell title="School Dashboard" badge="Administrator">
+    <>
       {welcome && (
         <div className="mb-4 flex items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
           <CheckCircle2 className="size-4 text-primary" aria-hidden="true" />
-          <span>
-            Your school is set up. Welcome to {membership?.school.name ?? "EduSphere"}!
-          </span>
+          <span>Your school is set up. Welcome to {schoolName ?? "EduSphere"}!</span>
         </div>
       )}
 
@@ -147,6 +172,35 @@ export default async function SchoolDashboardPage({
           </CardContent>
         </Card>
       </div>
+    </>
+  );
+}
+
+export default async function SchoolDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ welcome?: string }>;
+}) {
+  const { welcome } = await searchParams;
+  const context = await getAuthContext();
+  if (!context.user) redirect("/auth/login");
+
+  const isSchoolStaff = context.roles.some((role) =>
+    ["SCHOOL_OWNER", "SCHOOL_ADMIN", "PRINCIPAL"].includes(role),
+  );
+  if (!isSchoolStaff) redirect("/dashboard");
+
+  const membership = context.memberships[0];
+
+  return (
+    <DashboardShell title="School Dashboard" badge="Administrator">
+      <Suspense fallback={<SchoolDashboardSkeleton />}>
+        <SchoolDashboardContent
+          schoolId={membership?.school.id}
+          welcome={!!welcome}
+          schoolName={membership?.school.name}
+        />
+      </Suspense>
     </DashboardShell>
   );
 }

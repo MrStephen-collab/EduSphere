@@ -4,11 +4,18 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { requireSchoolAdmin } from "@/services/shared";
 import { fanOutAnnouncement } from "@/services/notifications";
 import { sendAnnouncementEmails } from "@/email/hooks";
+import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import type {
   Announcement,
   AnnouncementTarget,
   UserRoleName,
 } from "@/types/database";
+
+function invalidateAnnouncementDashboards() {
+  invalidateCacheByPrefix("dash:teacher:");
+  invalidateCacheByPrefix("dash:student:");
+  invalidateCacheByPrefix("dash:parent-children:");
+}
 
 const targetSchema = z.enum(["school", "class", "students", "teachers", "parents"]);
 
@@ -81,6 +88,7 @@ export async function getAnnouncements(schoolId: string): Promise<AnnouncementRo
 }
 
 export async function createAnnouncement(input: AnnouncementInput): Promise<void> {
+  invalidateAnnouncementDashboards();
   const { schoolId, userId } = await requireSchoolAdmin();
   const data = announcementInputSchema.parse(input);
   const admin = createAdminClient();
@@ -133,6 +141,7 @@ export async function updateAnnouncement(
   id: string,
   input: AnnouncementInput,
 ): Promise<void> {
+  invalidateAnnouncementDashboards();
   const { schoolId } = await requireSchoolAdmin();
   const data = announcementInputSchema.parse(input);
   const admin = createAdminClient();
@@ -163,6 +172,7 @@ export async function updateAnnouncement(
 }
 
 export async function deleteAnnouncement(id: string): Promise<void> {
+  invalidateAnnouncementDashboards();
   const { schoolId } = await requireSchoolAdmin();
   const admin = createAdminClient();
 

@@ -47,7 +47,7 @@ export function Header({
   userName?: string;
   userEmail?: string;
   avatarUrl?: string | null;
-  notificationUnread?: number;
+  notificationUnread?: React.ReactNode;
   profileHref?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -100,18 +100,14 @@ export function Header({
 
       <SearchDialog />
 
-      {typeof notificationUnread !== "undefined" && (
+      {notificationUnread !== undefined && (
         <Link
           href="/notifications"
-          aria-label={`Notifications${notificationUnread > 0 ? `, ${notificationUnread} unread` : ""}`}
+          aria-label="Notifications"
           className="relative inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Bell className="size-5" aria-hidden="true" />
-          {notificationUnread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
-              {notificationUnread > 9 ? "9+" : notificationUnread}
-            </span>
-          )}
+          {notificationUnread}
         </Link>
       )}
 

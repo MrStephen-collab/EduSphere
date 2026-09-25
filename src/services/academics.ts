@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSchoolAdmin } from "@/services/shared";
+import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import type {
   AcademicSession,
   SchoolClass,
@@ -9,6 +10,10 @@ import type {
   Subject,
   Term,
 } from "@/types/database";
+
+function invalidateSchoolCounts() {
+  invalidateCacheByPrefix("dash:school-counts:");
+}
 
 export const classNameSchema = z.object({
   name: z.string().trim().min(2, "Class name is required").max(40),
@@ -49,6 +54,7 @@ export async function getClasses(schoolId: string): Promise<SchoolClass[]> {
 }
 
 export async function createClass(input: { name: string; order?: number }): Promise<void> {
+  invalidateSchoolCounts();
   const { schoolId } = await requireSchoolAdmin();
   const parsed = classNameSchema.parse(input);
   const supabase = await createSupabaseServerClient();
@@ -64,6 +70,7 @@ export async function createClass(input: { name: string; order?: number }): Prom
 }
 
 export async function deleteClass(id: string): Promise<void> {
+  invalidateSchoolCounts();
   const { schoolId } = await requireSchoolAdmin();
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
@@ -89,6 +96,7 @@ export async function createSubject(input: {
   name: string;
   code?: string | null;
 }): Promise<void> {
+  invalidateSchoolCounts();
   const { schoolId } = await requireSchoolAdmin();
   const parsed = subjectSchema.parse(input);
   const supabase = await createSupabaseServerClient();
@@ -104,6 +112,7 @@ export async function createSubject(input: {
 }
 
 export async function deleteSubject(id: string): Promise<void> {
+  invalidateSchoolCounts();
   const { schoolId } = await requireSchoolAdmin();
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
@@ -126,6 +135,7 @@ export async function getStreams(schoolId: string): Promise<SchoolStream[]> {
 }
 
 export async function createStream(input: { name: string }): Promise<void> {
+  invalidateSchoolCounts();
   const { schoolId } = await requireSchoolAdmin();
   const parsed = streamSchema.parse(input);
   const supabase = await createSupabaseServerClient();
@@ -153,6 +163,7 @@ export async function createSession(input: {
   startDate?: string | null;
   endDate?: string | null;
 }): Promise<void> {
+  invalidateSchoolCounts();
   const { schoolId } = await requireSchoolAdmin();
   const parsed = sessionSchema.parse(input);
   const admin = createAdminClient();

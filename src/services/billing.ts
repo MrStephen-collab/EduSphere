@@ -13,7 +13,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createPublicClient } from "@/lib/supabase/public";
 import { requireSchoolAdmin } from "@/services/shared";
 import { getAuthContext } from "@/lib/auth/auth-context";
+import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import { sendSubscriptionConfirmedEmail } from "@/email/hooks";
+
+function invalidatePlatformCache() {
+  invalidateCacheByPrefix("platform:analytics");
+  invalidateCacheByPrefix("platform:schools");
+}
 import {
   initializePayment,
   isPaystackConfigured,
@@ -352,6 +358,7 @@ export type VerifyOutcome =
 export async function confirmPaystackPayment(
   reference: string,
 ): Promise<VerifyOutcome | null> {
+  invalidatePlatformCache();
   const admin = createAdminClient();
   const { data: payment } = await admin
     .from("payments")
@@ -663,6 +670,7 @@ export async function platformSetPlanStatus(
   id: string,
   status: "active" | "inactive",
 ): Promise<void> {
+  invalidatePlatformCache();
   await requirePlatformAdmin();
   const admin = createAdminClient();
   const { error } = await admin
