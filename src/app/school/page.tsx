@@ -86,11 +86,9 @@ export default async function SchoolDashboardPage({
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3">
         <StatCard title="Students" value={counts.students} icon={Users} href="/school/students" tone="emerald" />
         <StatCard title="Teachers" value={counts.teachers} icon={GraduationCap} href="/school/teachers" tone="sky" index={1} />
-        <StatCard title="Classes" value={counts.classes} icon={BookOpen} href="/school/classes" tone="indigo" index={2} />
-        <StatCard title="Subjects" value={counts.subjects} icon={CalendarClock} href="/school/subjects" tone="amber" index={3} />
       </div>
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">

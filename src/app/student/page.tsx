@@ -14,7 +14,6 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireStudent, getContinueLearning } from "@/services/learning";
 import { getStudentAssignments } from "@/services/assignments";
-import { getStudentExamSeries } from "@/services/exam";
 import { getStudentAnnouncements } from "@/services/announcements";
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -49,9 +48,7 @@ export default async function StudentDashboardPage() {
 
   const [
     coursesRes,
-    examSeries,
     assignmentsRes,
-    resultsRes,
     continueItem,
     announcements,
   ] =
@@ -62,31 +59,17 @@ export default async function StudentDashboardPage() {
             .select("*", { count: "exact", head: true })
             .eq("school_id", schoolId)
             .eq("status", "published"),
-          getStudentExamSeries(schoolId, studentId),
           getStudentAssignments(schoolId, studentId),
-          supabase
-            .from("results")
-            .select("percentage")
-            .eq("school_id", schoolId)
-            .eq("student_id", studentId),
           getContinueLearning(schoolId, studentId),
           getStudentAnnouncements(schoolId, studentId),
         ])
-      : [null, null, null, null, null, []];
-
-  const percentages = (resultsRes?.data ?? []) as { percentage: number | null }[];
-  const valid = percentages.filter((r) => r.percentage != null) as { percentage: number }[];
-  const average = valid.length
-    ? Math.round(valid.reduce((sum, r) => sum + r.percentage, 0) / valid.length)
-    : null;
+      : [null, null, null, []];
 
   return (
     <DashboardShell title={`Good day, ${name}`} badge="Student">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3">
         <StatCard title="My Courses" value={coursesRes?.count ?? 0} icon={BookOpen} href="/student/courses" tone="indigo" />
         <StatCard title="Pending Assignments" value={assignmentsRes?.filter((a) => !a.graded).length ?? 0} icon={ClipboardList} href="/student/assignments" tone="amber" index={1} hint="Awaiting your submission or grade" />
-        <StatCard title="Exam Series" value={examSeries?.length ?? 0} icon={FileText} href="/student/exam-series" tone="rose" index={2} hint="Past question series for practice" />
-        <StatCard title="Average Score" value={average ?? "—"} icon={BarChart3} href="/student/results" tone="emerald" index={3} hint={average == null ? "Evaluated after your first result" : "Across published results"} />
       </div>
 
       <AnnouncementBanner announcements={announcements} className="mt-5" />

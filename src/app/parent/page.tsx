@@ -4,8 +4,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import {
   BarChart3,
-  BookOpenCheck,
-  ClipboardList,
   GraduationCap,
   UserRoundCheck,
   UsersRound,
@@ -35,8 +33,8 @@ function avg(values: (number | null)[]): number | null {
 function ParentDashboardSkeleton() {
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid grid-cols-2 gap-3">
+        {[0, 1].map((i) => (
           <StatCardSkeleton key={i} index={i} />
         ))}
       </div>
@@ -73,15 +71,10 @@ async function ParentDashboardContent({
   ]);
 
   const overallAverage = avg(rows.map((r) => r.data.overallAverage));
-  const practiceAttempts = rows.reduce((s, r) => s + r.data.practiceAttempts, 0);
-  const gradedWork = rows.reduce(
-    (s, r) => s + r.data.gradedAssignments.length + r.data.results.length,
-    0,
-  );
 
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3">
         <StatCard title="My Children" value={kids.length} icon={UsersRound} href="/parent/children" tone="indigo" />
         <StatCard
           title="Average Performance"
@@ -91,24 +84,6 @@ async function ParentDashboardContent({
           tone="emerald"
           index={1}
           hint="Across linked children"
-        />
-        <StatCard
-          title="Practice Attempts"
-          value={practiceAttempts}
-          icon={BookOpenCheck}
-          href="/parent/progress"
-          tone="rose"
-          index={2}
-          hint="Across your children"
-        />
-        <StatCard
-          title="Graded Work"
-          value={gradedWork}
-          icon={ClipboardList}
-          href="/parent/assignments"
-          tone="amber"
-          index={3}
-          hint="Results + graded assignments"
         />
       </div>
 

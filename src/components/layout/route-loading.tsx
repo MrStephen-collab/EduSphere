@@ -15,8 +15,8 @@ export function RouteLoading() {
 
         <main className="flex-1 overflow-hidden px-4 pt-5 md:px-6">
           <Skeleton className="h-7 w-44" />
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
+          <div className="mt-6 grid grid-cols-2 gap-4">
+            {Array.from({ length: 2 }).map((_, i) => (
               <Skeleton key={i} className="h-24" />
             ))}
           </div>

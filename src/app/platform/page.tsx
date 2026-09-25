@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Users, School, Wallet, Activity, CalendarRange } from "lucide-react";
+import { School, Wallet } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -41,31 +41,16 @@ export default async function PlatformDashboardPage() {
 
   return (
     <DashboardShell title="Platform Dashboard" badge="Super Admin">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3">
         <StatCard title="Schools" value={data.totalSchools} icon={School} href="/platform/schools" tone="indigo" hint={`${data.activeSchools} active`} />
-        <StatCard title="Students" value={data.totalStudents} icon={Users} href="/platform/users" tone="emerald" index={1} />
-        <StatCard title="Teachers" value={data.totalTeachers} icon={Activity} href="/platform/users" tone="sky" index={2} />
-        <StatCard title="Active Subscriptions" value={data.activeSubscriptions} icon={Wallet} href="/platform/subscriptions" tone="amber" index={3} />
-      </div>
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <StatCard
           title="Monthly Revenue"
           value={formatMoney(data.monthlyRevenue)}
           icon={Wallet}
           href="/platform/analytics"
           tone="rose"
-          index={4}
+          index={1}
           hint="Paid since the start of this month"
-        />
-        <StatCard
-          title="Annual Revenue"
-          value={formatMoney(data.annualRevenue)}
-          icon={CalendarRange}
-          href="/platform/analytics"
-          tone="fuchsia"
-          index={5}
-          hint="Paid this calendar year"
         />
       </div>
 
