@@ -76,7 +76,7 @@ export function Header({
         </SheetTrigger>
         <SheetContent side="left" className="w-72 p-0">
           <SheetHeader className="flex h-16 flex-row items-center gap-3 border-b px-5 text-left">
-            <EduSphereLogo size={36} className="shrink-0" />
+            <EduSphereLogo variant="icon" size="md" className="shrink-0" />
             <SheetTitle>EduSphere</SheetTitle>
           </SheetHeader>
           <div className="overflow-y-auto">

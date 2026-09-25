@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 70 70" width="512" height="512" role="img" aria-label="EduSphere">
+  <defs>
+    <mask id="es-mono">
+      <rect x="-3" y="-3" width="70" height="70" fill="#FFFFFF" />
+      <path d="M21.5 19 L40 19 L37.4 21.8 H24.1 Z" fill="#000000" stroke-linejoin="round" />
+      <rect x="27.2" y="21.8" width="9.6" height="4.2" rx="2.1" fill="#000000" />
+      <g fill="none" stroke="#000000" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.5 33.5 Q26.5 41 32 42" />
+        <path d="M43.5 33.5 Q37.5 41 32 42" />
+        <path d="M32 42 V46" />
+      </g>
+    </mask>
+  </defs>
+
+  <ellipse cx="32" cy="36" rx="27.5" ry="9.5" transform="rotate(-22 32 36)" fill="none" stroke="#123B8E" stroke-width="3" stroke-linecap="round" />
+  <circle cx="32" cy="36" r="21" fill="#123B8E" mask="url(#es-mono)" />
+  <path d="M39.6 19.6 Q45.5 17.5 48 21" fill="none" stroke="#123B8E" stroke-width="1.7" stroke-linecap="round" />
+  <circle cx="48.2" cy="21.6" r="1.4" fill="#123B8E" />
+</svg>
