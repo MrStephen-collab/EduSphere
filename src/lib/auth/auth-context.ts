@@ -21,9 +21,9 @@ export type AuthContext = {
 // (each read opens a fresh TLS connection, ~500ms here). Auth data rarely
 // changes, so the resolved context is cached per access token. The token
 // rotates on refresh (~1h) and the TTL bounds staleness after role changes.
-// Ten minutes means a warmed user session renders every navigation locally;
-// any write that changes roles/memberships calls invalidateAuthContexts().
-const AUTH_CONTEXT_TTL_MS = 10 * 60 * 1000;
+// An hour means a warmed user session renders every navigation locally; any
+// write that changes roles/memberships calls invalidateAuthContexts().
+const AUTH_CONTEXT_TTL_MS = 60 * 60 * 1000;
 const contextCache = new Map<
   string,
   { value: AuthContext; userId: string; expiresAt: number }
@@ -89,6 +89,11 @@ async function buildAuthContext(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   user: User,
 ): Promise<AuthContext> {
+  // Memberships are resolved with one embedded join (user_roles -> schools)
+  // instead of a second round trip, so a cold auth build costs a single
+  // PostgREST query round instead of two back-to-back.
+  type RoleRow = Pick<UserRole, "role" | "school_id"> & { school: School | null };
+
   const [profileQuery, roleQuery] = await Promise.all([
     supabase
       .from("profiles")
@@ -97,34 +102,44 @@ async function buildAuthContext(
       .maybeSingle<Profile>(),
     supabase
       .from("user_roles")
-      .select("role, school_id")
+      .select("role, school_id, school:schools(*)")
       .eq("user_id", user.id)
-      .returns<Pick<UserRole, "role" | "school_id">[]>(),
+      .returns<RoleRow[]>(),
   ]);
 
   const profile = profileQuery.data;
   const roleRows = roleQuery.data ?? [];
   const roles = [...new Set(roleRows.map((r) => r.role))];
 
-  const schoolIds = roleRows.map((r) => r.school_id).filter(Boolean) as string[];
-
   const memberships: Membership[] = [];
+  for (const row of roleRows) {
+    const school = row.school;
+    if (school && school.status === "active") {
+      memberships.push({ school, role: row.role });
+    }
+  }
 
-  if (schoolIds.length > 0) {
-    const { data: schools } = await supabase
-      .from("schools")
-      .select("*")
-      .in("id", schoolIds)
-      .eq("status", "active")
-      .returns<School[]>();
+  // Fallback for deployments that hide the user_roles -> schools relationship
+  // from PostgREST: fetch the member schools in a separate query instead.
+  if (roleRows.length > 0 && memberships.length === 0) {
+    const schoolIds = roleRows.map((r) => r.school_id).filter(Boolean) as string[];
+    if (schoolIds.length > 0) {
+      const { data: schools } = await supabase
+        .from("schools")
+        .select("*")
+        .in("id", schoolIds)
+        .eq("status", "active")
+        .returns<School[]>();
 
-    const schoolById = new Map((schools ?? []).map((s) => [s.id, s]));
-
-    for (const row of roleRows) {
-      const school = row.school_id ? schoolById.get(row.school_id) : null;
-      if (school) {
-        memberships.push({ school, role: row.role });
+      const schoolById = new Map((schools ?? []).map((s) => [s.id, s]));
+      const fallback: Membership[] = [];
+      for (const row of roleRows) {
+        const school = row.school_id ? schoolById.get(row.school_id) : undefined;
+        if (school) {
+          fallback.push({ school, role: row.role });
+        }
       }
+      return { user, profile, roles, memberships: fallback };
     }
   }
 

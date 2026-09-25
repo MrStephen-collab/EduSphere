@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { AuthError } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/auth-context";
 import {
   forgotPasswordSchema,
   loginSchema,
@@ -71,6 +72,16 @@ export async function loginAction(
       return { error: "Could not reach the server. Check your connection and try again." };
     }
     return { error: "Invalid email or password" };
+  }
+
+  // Warm the auth-context cache with the freshly-issued session token so the
+  // redirected dashboard renders from cache instead of paying the cold
+  // profile/role/membership round trips again. Never fail the login if the
+  // warm-up hits a transient network error.
+  try {
+    await getAuthContext();
+  } catch (err) {
+    console.error("[loginAction] warm-up failed", err);
   }
 
   revalidatePath("/", "layout");

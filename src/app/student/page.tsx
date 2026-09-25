@@ -36,7 +36,7 @@ export const metadata: Metadata = {
 
 async function getStudentDashboardBundle() {
   const { schoolId, studentId } = await requireStudent();
-  return getServerData(`dash:student:${schoolId}:${studentId}`, 10_000, async () => {
+  return getServerData(`dash:student:${schoolId}:${studentId}`, 20_000, async () => {
     const supabase = await createSupabaseServerClient();
     const [coursesRes, assignmentsRes, continueItem, announcements] = await Promise.all([
       supabase
