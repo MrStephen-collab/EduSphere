@@ -21,8 +21,25 @@ export type AuthContext = {
 // (each read opens a fresh TLS connection, ~500ms here). Auth data rarely
 // changes, so the resolved context is cached per access token. The token
 // rotates on refresh (~1h) and the TTL bounds staleness after role changes.
-const AUTH_CONTEXT_TTL_MS = 45_000;
-const contextCache = new Map<string, { value: AuthContext; expiresAt: number }>();
+// Ten minutes means a warmed user session renders every navigation locally;
+// any write that changes roles/memberships calls invalidateAuthContexts().
+const AUTH_CONTEXT_TTL_MS = 10 * 60 * 1000;
+const contextCache = new Map<
+  string,
+  { value: AuthContext; userId: string; expiresAt: number }
+>();
+
+export function invalidateAuthContexts(userId?: string): void {
+  if (userId === undefined) {
+    contextCache.clear();
+    return;
+  }
+  for (const [key, entry] of contextCache) {
+    if (entry.userId === userId) {
+      contextCache.delete(key);
+    }
+  }
+}
 
 export const getAuthContext = cache(async function getAuthContext(): Promise<AuthContext> {
   if (!isSupabaseConfigured()) {
@@ -43,19 +60,24 @@ export const getAuthContext = cache(async function getAuthContext(): Promise<Aut
     }
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // The session object already carries the user identity decoded from the
+  // access token, so there is no need for a round trip to /auth/v1/user on
+  // every cold start. Only fall back to the API when the local claims are
+  // somehow missing.
+  const user = session?.user ?? null;
+  const resolvedUser =
+    user ?? (await supabase.auth.getUser()).data.user ?? null;
 
-  if (!user) {
+  if (!resolvedUser) {
     return { user: null, profile: null, roles: [], memberships: [] };
   }
 
-  const context = await buildAuthContext(supabase, user);
+  const context = await buildAuthContext(supabase, resolvedUser);
 
   if (cacheKey) {
     contextCache.set(cacheKey, {
       value: context,
+      userId: resolvedUser.id,
       expiresAt: Date.now() + AUTH_CONTEXT_TTL_MS,
     });
   }

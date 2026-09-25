@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSchoolAdmin } from "@/services/shared";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
+import { invalidateAuthContexts } from "@/lib/auth/auth-context";
 import { sendWelcomeEmail } from "@/email/hooks";
 import { z } from "zod";
 
@@ -98,6 +99,8 @@ export async function createSchoolWithOwner(
   if (roleError) {
     throw new Error("We couldn't assign your school owner role.");
   }
+
+  invalidateAuthContexts(ownerId);
 
   await sendWelcomeEmail({
     ownerUserId: ownerId,

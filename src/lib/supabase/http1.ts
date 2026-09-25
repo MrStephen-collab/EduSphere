@@ -9,8 +9,29 @@ import https from "node:https";
 // trips per page load is kept small (React cache() dedupes the auth chain and
 // page queries run in parallel). A single direct retry covers a one-off
 // transport failure without ever reusing a poisoned socket.
+//
+// To stop every page render from paying a fresh ~500ms-onwards trip, GET/HEAD
+// responses to the PostgREST tables are memoized here for a few seconds
+// (keyed by URL + auth header). Any write to a table clears its cached reads,
+// so reads never go stale for more than a mutation cycle. Reads that change
+// are rare within 15s, and this keeps repeated navigation effectively local.
 
 const SOCKET_TIMEOUT_MS = 20000;
+const HTTP_CACHE_TTL_MS = 15_000;
+const MAX_HTTP_CACHE_ENTRIES = 400;
+
+type HttpCacheEntry = {
+  table: string | null;
+  response: Response;
+  expiresAt: number;
+};
+
+const httpCache = new Map<string, HttpCacheEntry>();
+
+function tableFromPath(pathname: string): string | null {
+  const match = /^\/rest\/v1\/([a-zA-Z_]+)/.exec(pathname);
+  return match ? match[1] : null;
+}
 
 class H1Response {
   readonly status: number;
@@ -154,6 +175,40 @@ function http1Fetch(
   }
 
   const startMs = Date.now();
+  const table = tableFromPath(url.pathname);
+  const authToken = headerMap["Authorization"] ?? "anon";
+  const cacheKey = `${url.pathname}${url.search}|${authToken}`;
+
+  const now = Date.now();
+
+  if (table !== null) {
+    if (method === "GET" || method === "HEAD") {
+      const hit = httpCache.get(cacheKey);
+      if (hit && hit.expiresAt > now) {
+        return Promise.resolve(hit.response.clone());
+      }
+    } else {
+      // A write to a table invalidates every cached read of that table.
+      for (const [key, entry] of httpCache) {
+        if (entry.table === table) {
+          httpCache.delete(key);
+        }
+      }
+    }
+  }
+
+  if (httpCache.size >= MAX_HTTP_CACHE_ENTRIES) {
+    let oldestKey: string | null = null;
+    let oldestAt = Number.POSITIVE_INFINITY;
+    for (const [key, entry] of httpCache) {
+      if (entry.expiresAt < oldestAt) {
+        oldestAt = entry.expiresAt;
+        oldestKey = key;
+      }
+    }
+    if (oldestKey) httpCache.delete(oldestKey);
+  }
+
   const attempt = () =>
     performOnce(url, method, headerMap, body, init?.signal ?? undefined);
 
@@ -161,6 +216,16 @@ function http1Fetch(
     .catch((err: unknown) => {
       console.error("[http1] request failed; retrying once on a fresh connection", err);
       return attempt();
+    })
+    .then((response) => {
+      if (table !== null && (method === "GET" || method === "HEAD") && response.ok) {
+        httpCache.set(cacheKey, {
+          table,
+          response,
+          expiresAt: Date.now() + HTTP_CACHE_TTL_MS,
+        });
+      }
+      return response;
     })
     .finally(() => {
       const ms = Date.now() - startMs;

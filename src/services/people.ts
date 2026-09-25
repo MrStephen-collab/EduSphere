@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireSchoolAdmin } from "@/services/shared";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
+import { invalidateAuthContexts } from "@/lib/auth/auth-context";
 import type { Parent, Student, Teacher } from "@/types/database";
 
 function invalidatePeopleCounts() {
@@ -109,6 +110,7 @@ export async function createTeacher(input: {
     if (roleError && roleError.code !== "23505") {
       throw new Error("We couldn't assign the teacher role.");
     }
+    invalidateAuthContexts(userId);
   }
 
   await logAudit({
@@ -191,6 +193,7 @@ export async function createStudent(input: {
     if (roleError && roleError.code !== "23505") {
       throw new Error("We couldn't assign the student role.");
     }
+    invalidateAuthContexts(userId);
   }
 
   await logAudit({
@@ -323,6 +326,10 @@ export async function importStudents(rows: ImportRow[]): Promise<ImportSummary> 
     created += 1;
   }
 
+  if (created > 0) {
+    invalidateAuthContexts();
+  }
+
   await logAudit({
     schoolId,
     action: "students_imported",
@@ -370,6 +377,7 @@ export async function createParent(input: {
       user_id: userId,
       role: "PARENT",
     });
+    invalidateAuthContexts(userId);
   }
 
   const links = input.linkedStudentIds.map((studentId) => ({
