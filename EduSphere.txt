@@ -1,0 +1,3389 @@
+## PROJECT: SCHOOL DIGITAL LEARNING, ASSESSMENT & ENGAGEMENT PLATFORM
+
+### PROJECT CODENAME
+
+`EduSphere` — use this as the temporary internal project name. Make the product name configurable so it can be changed later without restructuring the application.
+
+---
+
+# 1. YOUR ROLE
+
+You are the lead software architect, senior full-stack engineer, UI/UX designer, database engineer, security engineer, DevOps engineer and QA engineer responsible for building this production-ready SaaS application.
+
+Do not build a simple prototype.
+
+Build a scalable, modern, secure, mobile-first, multi-tenant SaaS platform that can eventually serve thousands of Nigerian schools and hundreds of thousands of students.
+
+The application must be:
+
+* Production-ready
+* Responsive
+* Mobile-first
+* PWA-ready
+* Multi-tenant
+* Secure
+* Fast
+* Accessible
+* SEO-friendly where applicable
+* Easy to maintain
+* Modular
+* Scalable
+* Designed for Nigerian schools
+* Ready for future Android/iOS applications
+* Ready for future AI functionality
+
+Do not implement fake functionality where real functionality is reasonably possible.
+
+Do not leave major features as placeholders.
+
+Where a third-party service is required, create a clean provider abstraction and environment-variable configuration.
+
+---
+
+# 2. PRODUCT VISION
+
+The platform gives every school its own digital academic environment.
+
+The core concept is:
+
+> YOUR SCHOOL. YOUR STUDENTS. YOUR DIGITAL CLASSROOM.
+
+Each school gets its own branded environment where:
+
+Teachers can:
+
+* Create lessons
+* Upload teaching materials
+* Add videos
+* Create assignments
+* Create quizzes
+* Build CBT examinations
+* Manage question banks
+* Grade submissions
+* Monitor student performance
+
+Students can:
+
+* Access lessons
+* Watch educational videos
+* Read learning materials
+* Practise questions
+* Submit assignments
+* Take CBT examinations
+* View results
+* Track academic progress
+
+Parents can:
+
+* Monitor their children's learning
+* View results
+* Monitor assignments
+* Receive academic notifications
+* See performance trends
+
+School administrators can:
+
+* Manage students
+* Manage teachers
+* Manage classes
+* Manage subjects
+* Manage academic sessions
+* Monitor learning activity
+* Monitor examinations
+* View academic analytics
+
+The platform should eventually become the school's:
+
+> Digital Classroom + LMS + CBT + Assessment + Academic Engagement Platform.
+
+---
+
+# 3. IMPORTANT PRODUCT POSITIONING
+
+Do NOT position this product as merely:
+
+"An e-learning platform."
+
+Do NOT build it like a generic file storage system.
+
+The platform must follow this academic workflow:
+
+Teacher creates content
+
+↓
+
+Student learns
+
+↓
+
+Student practises
+
+↓
+
+Student completes assignment
+
+↓
+
+Student takes assessment
+
+↓
+
+System marks assessment
+
+↓
+
+Student receives result
+
+↓
+
+Teacher sees performance
+
+↓
+
+Parent sees progress
+
+↓
+
+School identifies weak areas
+
+This learning loop is the heart of the product.
+
+---
+
+# 4. TARGET MARKET
+
+Initial target:
+
+Private primary and secondary schools in Nigeria.
+
+Initial geographical pilot:
+
+Akure, Ondo State.
+
+Expansion:
+
+Akure
+→ Ondo State
+→ Southwest Nigeria
+→ Lagos
+→ Nationwide Nigeria
+→ Other African markets
+
+Design all architecture so geography is not hard-coded.
+
+---
+
+# 5. CORE PRODUCT MODEL
+
+This is a MULTI-TENANT SaaS.
+
+One installation serves multiple schools.
+
+Example:
+
+School A
+
+School B
+
+School C
+
+Each school must have completely isolated:
+
+* Students
+* Teachers
+* Parents
+* Classes
+* Subjects
+* Courses
+* Lessons
+* Assignments
+* Questions
+* Examinations
+* Results
+* Announcements
+* Branding
+* Settings
+* Academic records
+
+School A must NEVER be able to access School B's data.
+
+Tenant isolation is a critical security requirement.
+
+---
+
+# 6. USER ROLES
+
+Implement a robust RBAC system.
+
+## Platform Roles
+
+### SUPER_ADMIN
+
+Platform owner.
+
+Can:
+
+* Manage all schools
+* Approve schools
+* Suspend schools
+* View platform analytics
+* Manage subscriptions
+* Manage plans
+* Manage platform settings
+* Manage support tickets
+* Manage system announcements
+* View audit logs
+* Manage integrations
+
+---
+
+# 7. SCHOOL ROLES
+
+## SCHOOL_OWNER
+
+School proprietor/owner.
+
+Can:
+
+* Manage school
+* Manage administrators
+* View academic analytics
+* Manage subscription
+* Manage branding
+* View students
+* View teachers
+* View classes
+* View reports
+* Manage school settings
+
+## SCHOOL_ADMIN
+
+Can:
+
+* Manage students
+* Manage teachers
+* Manage classes
+* Manage subjects
+* Manage sessions
+* Manage terms
+* Manage school content
+* Manage examinations
+* View results
+* Manage announcements
+
+## PRINCIPAL
+
+Can:
+
+* View academic dashboard
+* View teachers
+* View students
+* View classes
+* View results
+* Monitor examinations
+* View academic analytics
+* Publish announcements
+
+## TEACHER
+
+Can:
+
+* View assigned classes
+* View assigned subjects
+* Create lessons
+* Upload materials
+* Create assignments
+* Create quizzes
+* Create examinations
+* Manage question banks
+* Grade assignments
+* View student performance
+
+## STUDENT
+
+Can:
+
+* View assigned courses
+* View lessons
+* Watch videos
+* Read documents
+* Take practice quizzes
+* Submit assignments
+* Take examinations
+* View results
+* View progress
+
+## PARENT
+
+Can:
+
+* View linked children
+* View results
+* View assignments
+* View academic progress
+* View learning activity
+* Receive notifications
+
+---
+
+# 8. FUTURE ROLES
+
+Architect the RBAC system so these can be added later:
+
+* Accountant
+* Librarian
+* Exam Officer
+* Counsellor
+* Content Manager
+* Vice Principal
+* Head Teacher
+* School Secretary
+
+Do not hard-code permissions directly into UI components.
+
+Create centralized permission definitions.
+
+---
+
+# 9. TECHNOLOGY STACK
+
+Use:
+
+### Frontend
+
+Next.js
+TypeScript
+React
+Tailwind CSS
+shadcn/ui
+Lucide icons
+
+Use the latest stable versions compatible with the project.
+
+### Backend
+
+Next.js server architecture.
+
+Use:
+
+* Server Actions where appropriate
+* Route Handlers/API endpoints where appropriate
+* Server-side authorization
+* Validation on server
+
+### Database
+
+Supabase PostgreSQL.
+
+### Authentication
+
+Supabase Auth.
+
+Support:
+
+* Email/password
+* Password reset
+* Email verification
+* Future phone authentication
+
+### Storage
+
+Supabase Storage.
+
+Create private buckets for:
+
+* School logos
+* Learning materials
+* Student submissions
+* Profile images
+* School gallery
+* Documents
+
+Do not expose sensitive files publicly.
+
+### Payments
+
+Create payment abstraction supporting:
+
+* Paystack
+* Flutterwave
+
+Paystack can be the initial implementation.
+
+### Email
+
+Create email provider abstraction.
+
+Prepare for:
+
+* Resend
+* SMTP
+
+### Notifications
+
+Architecture must support:
+
+* In-app notifications
+* Email
+* Push notifications
+* SMS
+* WhatsApp
+
+Only implement providers required for MVP.
+
+---
+
+# 10. APPLICATION ARCHITECTURE
+
+Use a modular architecture.
+
+Recommended structure:
+
+```text
+src/
+├── app/
+│   ├── (marketing)/
+│   ├── auth/
+│   ├── platform/
+│   ├── school/
+│   ├── teacher/
+│   ├── student/
+│   ├── parent/
+│   ├── api/
+│   └── ...
+│
+├── components/
+│   ├── ui/
+│   ├── layout/
+│   ├── dashboard/
+│   ├── learning/
+│   ├── assessments/
+│   ├── assignments/
+│   ├── students/
+│   ├── teachers/
+│   ├── parents/
+│   ├── analytics/
+│   └── ...
+│
+├── lib/
+│   ├── supabase/
+│   ├── auth/
+│   ├── permissions/
+│   ├── validation/
+│   ├── payments/
+│   ├── notifications/
+│   ├── video/
+│   ├── storage/
+│   └── utils/
+│
+├── services/
+│   ├── schools/
+│   ├── students/
+│   ├── teachers/
+│   ├── learning/
+│   ├── assessments/
+│   ├── assignments/
+│   ├── analytics/
+│   ├── notifications/
+│   └── subscriptions/
+│
+├── hooks/
+├── types/
+├── constants/
+└── config/
+```
+
+Keep business logic out of UI components.
+
+---
+
+# 11. DATABASE DESIGN
+
+Create PostgreSQL migrations.
+
+Every table containing school-specific information must have a `school_id`.
+
+Core tables:
+
+```text
+schools
+school_settings
+school_branches
+school_domains
+school_branding
+
+profiles
+user_roles
+
+academic_sessions
+terms
+
+classes
+streams
+subjects
+
+teachers
+students
+parents
+
+parent_student_relationships
+
+teacher_classes
+teacher_subjects
+
+courses
+course_modules
+lessons
+
+lesson_materials
+content_categories
+
+video_resources
+
+assignments
+assignment_submissions
+
+question_banks
+questions
+question_options
+
+examinations
+examination_sections
+examination_questions
+
+examination_attempts
+examination_answers
+
+results
+grades
+
+student_progress
+lesson_progress
+
+announcements
+notifications
+
+school_events
+
+subscriptions
+subscription_plans
+payments
+
+audit_logs
+
+support_tickets
+```
+
+---
+
+# 12. DATABASE REQUIREMENTS
+
+Every important table should include appropriate:
+
+* UUID primary key
+* created_at
+* updated_at
+
+Use foreign keys.
+
+Use indexes for:
+
+* school_id
+* student_id
+* teacher_id
+* class_id
+* subject_id
+* session_id
+* term_id
+* examination_id
+
+Use unique constraints where appropriate.
+
+Use soft deletion where appropriate.
+
+Do not permanently delete important academic records casually.
+
+---
+
+# 13. SCHOOL TABLE
+
+Create:
+
+```text
+schools
+```
+
+Fields:
+
+```text
+id
+name
+slug
+motto
+description
+logo_url
+favicon_url
+email
+phone
+address
+city
+state
+country
+website
+status
+owner_id
+created_at
+updated_at
+```
+
+Status:
+
+```text
+active
+pending
+suspended
+inactive
+```
+
+Slug must be unique.
+
+Example:
+
+```text
+greenfield-college
+```
+
+---
+
+# 14. SCHOOL BRANDING
+
+Each school must be able to configure:
+
+* Logo
+* Primary colour
+* Secondary colour
+* Accent colour
+* School name
+* Motto
+* Favicon
+* Contact information
+* Social links
+
+The student-facing environment should automatically use the school's branding.
+
+Example:
+
+```text
+greenfield.yourplatform.com
+```
+
+Future custom domain:
+
+```text
+learn.greenfieldschool.edu.ng
+```
+
+Architect for custom domains even if custom domain support is implemented later.
+
+---
+
+# 15. ACADEMIC STRUCTURE
+
+Support:
+
+Academic Session:
+
+```text
+2026/2027
+```
+
+Terms:
+
+```text
+First Term
+Second Term
+Third Term
+```
+
+Classes:
+
+```text
+Primary 1
+Primary 2
+Primary 3
+
+JSS 1
+JSS 2
+JSS 3
+
+SS 1
+SS 2
+SS 3
+```
+
+Streams:
+
+```text
+A
+B
+C
+```
+
+Subjects:
+
+```text
+Mathematics
+English Language
+Physics
+Chemistry
+Biology
+Economics
+Government
+Literature
+Computer Studies
+etc.
+```
+
+Do not hard-code subjects.
+
+Schools must create their own subjects.
+
+---
+
+# 16. COURSE SYSTEM
+
+The central learning hierarchy must be:
+
+```text
+Course
+    ↓
+Module
+    ↓
+Lesson
+    ↓
+Learning Materials
+    ↓
+Practice
+    ↓
+Assignment
+    ↓
+Assessment
+```
+
+Example:
+
+```text
+SS2 Mathematics
+    ↓
+Quadratic Equations
+    ↓
+Introduction to Quadratic Equations
+    ↓
+Video
+PDF
+Notes
+    ↓
+Practice Quiz
+    ↓
+Assignment
+    ↓
+CBT
+```
+
+---
+
+# 17. LESSON SYSTEM
+
+Teachers can create lessons containing:
+
+* Title
+* Description
+* Rich text
+* Images
+* Video
+* PDF
+* Documents
+* Audio
+* External resources
+
+Lesson statuses:
+
+```text
+draft
+published
+archived
+```
+
+Teachers should be able to preview lessons before publishing.
+
+---
+
+# 18. VIDEO SYSTEM
+
+Implement a provider abstraction.
+
+Initial provider:
+
+YouTube.
+
+Create something similar to:
+
+```text
+VideoProvider
+```
+
+with methods for:
+
+```text
+getEmbedUrl()
+validateUrl()
+getMetadata()
+```
+
+Do not tightly couple the application to YouTube.
+
+Future providers:
+
+* Supabase Storage
+* Vimeo
+* Cloudflare Stream
+* Mux
+* DRM providers
+
+Videos should play inside the platform.
+
+Do not claim that videos are impossible to download.
+
+The UI may discourage downloading and avoid exposing direct video URLs.
+
+Use controlled embedding.
+
+---
+
+# 19. LEARNING MATERIALS
+
+Supported:
+
+* PDF
+* DOC
+* DOCX
+* PPT
+* PPTX
+* Images
+* Audio
+* Video
+* Text
+* External links
+
+Teachers should be able to:
+
+Upload
+Preview
+Replace
+Archive
+Delete
+
+Files must be associated with:
+
+* School
+* Course
+* Module
+* Lesson
+* Teacher
+
+---
+
+# 20. STUDENT LEARNING DASHBOARD
+
+Create a beautiful mobile-first student dashboard.
+
+Display:
+
+* Welcome message
+* Profile
+* Current class
+* Continue learning
+* My courses
+* Upcoming tests
+* Pending assignments
+* Recent results
+* Learning progress
+* Announcements
+
+Example:
+
+```text
+Good morning, David 👋
+
+Continue Learning
+[Mathematics]
+Quadratic Equations
+65% complete
+[Continue]
+
+Upcoming Test
+Physics
+Friday 10:00 AM
+
+Pending Assignment
+English Language
+Due tomorrow
+
+Recent Result
+Mathematics
+82%
+```
+
+---
+
+# 21. STUDENT COURSE EXPERIENCE
+
+Student opens:
+
+```text
+Mathematics
+```
+
+Sees:
+
+```text
+Course overview
+
+Modules
+
+1. Algebra
+2. Quadratic Equations
+3. Geometry
+4. Statistics
+```
+
+Opening a module shows lessons.
+
+Lesson page:
+
+```text
+Lesson title
+
+Video player
+
+Lesson notes
+
+Learning materials
+
+Practice quiz
+
+Assignment
+
+Mark lesson complete
+```
+
+Track progress.
+
+---
+
+# 22. LESSON PROGRESS
+
+Track:
+
+```text
+student_id
+lesson_id
+started_at
+completed_at
+progress_percentage
+last_position
+```
+
+For video:
+
+Track approximate viewing progress where technically possible.
+
+Do not over-engineer tracking for MVP.
+
+---
+
+# 23. ASSIGNMENT SYSTEM
+
+Teachers create assignments.
+
+Fields:
+
+```text
+title
+description
+instructions
+course_id
+lesson_id
+class_id
+subject_id
+due_date
+max_score
+attachment
+status
+```
+
+Students can submit:
+
+* Text
+* PDF
+* Image
+* Document
+
+Statuses:
+
+```text
+not_started
+draft
+submitted
+late
+graded
+```
+
+Teacher can:
+
+* Open submission
+* Score
+* Add comment
+* Return submission
+* Mark as graded
+
+---
+
+# 24. CBT / EXAMINATION ENGINE
+
+This is a major feature.
+
+Do not implement it as a simple quiz.
+
+Build a serious CBT engine.
+
+Support:
+
+* Multiple choice
+* True/false
+* Multiple-answer
+
+Architect for:
+
+* Short answer
+* Fill in the blank
+* Essay
+* Matching
+
+later.
+
+---
+
+# 25. QUESTION BANK
+
+Question bank filters:
+
+* School
+* Subject
+* Class
+* Topic
+* Session
+* Term
+* Difficulty
+* Question type
+* Teacher
+* Status
+
+Question fields:
+
+```text
+question_text
+question_type
+subject_id
+class_id
+topic
+difficulty
+marks
+explanation
+created_by
+```
+
+Options:
+
+```text
+option_text
+is_correct
+position
+```
+
+---
+
+# 26. EXAM CREATION
+
+Teacher creates:
+
+```text
+Exam title
+Instructions
+Subject
+Class
+Duration
+Start date
+End date
+Number of questions
+Total marks
+Pass mark
+Attempt limit
+```
+
+Question selection:
+
+### Manual
+
+Teacher selects questions.
+
+### Random
+
+System selects questions from question bank.
+
+Allow:
+
+```text
+20 questions from Mathematics
+Topic: Quadratic Equations
+Difficulty: Mixed
+```
+
+---
+
+# 27. CBT EXAMINATION EXPERIENCE
+
+Create a professional CBT interface.
+
+Desktop:
+
+Left:
+
+Question navigator.
+
+Center:
+
+Question.
+
+Right:
+
+Timer / exam information.
+
+Mobile:
+
+Optimized single-question interface.
+
+Display:
+
+```text
+Question 4 of 30
+
+[Question]
+
+A.
+B.
+C.
+D.
+
+[Previous] [Next]
+```
+
+Navigator states:
+
+* Unanswered
+* Answered
+* Marked for review
+* Current
+
+---
+
+# 28. CBT FEATURES
+
+Implement:
+
+* Countdown timer
+* Auto-save answers
+* Question navigation
+* Mark for review
+* Randomized options
+* Randomized questions
+* Attempt restrictions
+* Automatic submission when time expires
+* Auto marking for objective questions
+* Exam result calculation
+* Attempt history
+* Anti-duplicate submission protection
+
+Never rely exclusively on frontend timers.
+
+The server must validate examination timing.
+
+---
+
+# 29. BASIC ANTI-CHEATING
+
+Implement reasonable controls.
+
+Examples:
+
+* Detect tab visibility changes
+* Record suspicious activity
+* Record device/session information
+* Prevent multiple active attempts
+* Randomize questions
+* Randomize options
+* Enforce time limits
+
+Do not claim the system provides perfect anti-cheating protection.
+
+Architect future support for:
+
+* Secure browser
+* Proctoring
+* Webcam monitoring
+* AI-assisted monitoring
+
+---
+
+# 30. RESULTS SYSTEM
+
+After examination:
+
+Student sees:
+
+```text
+Exam Completed
+
+Score:
+82 / 100
+
+Percentage:
+82%
+
+Grade:
+A
+
+Correct:
+41
+
+Wrong:
+9
+
+Time Used:
+37 minutes
+```
+
+Teachers see:
+
+* Student score
+* Average
+* Highest
+* Lowest
+* Pass rate
+* Question performance
+
+---
+
+# 31. ACADEMIC ANALYTICS
+
+Create analytics dashboards.
+
+Examples:
+
+```text
+Class Average
+78%
+
+Mathematics
+82%
+
+English
+74%
+
+Physics
+68%
+```
+
+Identify weak topics:
+
+```text
+Quadratic Equations — 46%
+Algebra — 71%
+Geometry — 82%
+Statistics — 76%
+```
+
+Create charts for:
+
+* Student performance
+* Class performance
+* Subject performance
+* Topic performance
+* Assignment performance
+* Examination performance
+* Learning engagement
+
+---
+
+# 32. PARENT PORTAL
+
+Parent dashboard:
+
+```text
+My Children
+
+David
+SS2
+
+Sarah
+JSS1
+```
+
+Parent can select child.
+
+Display:
+
+* Results
+* Assignments
+* Test scores
+* Learning progress
+* Upcoming examinations
+* Teacher comments
+* Announcements
+
+Never allow a parent to access another student's information.
+
+Parent-child relationships must be explicitly stored in the database.
+
+---
+
+# 33. TEACHER DASHBOARD
+
+Display:
+
+```text
+My Classes
+My Subjects
+Students
+Lessons
+Assignments
+Examinations
+Question Bank
+Results
+Analytics
+```
+
+Statistics:
+
+```text
+Students
+124
+
+Active Courses
+8
+
+Pending Assignments
+23
+
+Upcoming Tests
+4
+```
+
+---
+
+# 34. SCHOOL ADMIN DASHBOARD
+
+Display:
+
+```text
+Students
+Teachers
+Classes
+Subjects
+Courses
+Lessons
+Assignments
+Examinations
+Results
+Announcements
+Analytics
+Settings
+```
+
+Include charts.
+
+Important alerts:
+
+* Students with declining performance
+* Pending assignments
+* Upcoming examinations
+* Inactive students
+* Low-performing subjects
+
+---
+
+# 35. ANNOUNCEMENT SYSTEM
+
+School administrators can create announcements.
+
+Target:
+
+* Entire school
+* Class
+* Students
+* Teachers
+* Parents
+
+Fields:
+
+```text
+title
+message
+target_type
+published_at
+expires_at
+```
+
+Display announcements on relevant dashboards.
+
+---
+
+# 36. NOTIFICATION SYSTEM
+
+Create centralized notifications.
+
+Types:
+
+```text
+assignment_due
+assignment_graded
+exam_upcoming
+exam_result
+new_lesson
+announcement
+system
+```
+
+Notification table:
+
+```text
+id
+user_id
+school_id
+type
+title
+message
+read_at
+created_at
+```
+
+Implement in-app notifications for MVP.
+
+Architect email/push/SMS later.
+
+---
+
+# 37. SCHOOL MEDIA
+
+Create optional school media section.
+
+Support:
+
+* School gallery
+* Events
+* Graduation
+* Sports
+* Cultural activities
+* Awards
+* Excursions
+
+This can eventually become part of the school's public digital presence.
+
+---
+
+# 38. SCHOOL WEBSITE LAYER
+
+Architect the platform so each school can eventually have a public-facing mini website.
+
+Potential pages:
+
+```text
+Home
+About
+Academics
+Admissions
+News
+Events
+Gallery
+Contact
+Student Login
+Parent Login
+```
+
+Do not make this the primary MVP.
+
+Keep the architecture extensible.
+
+---
+
+# 39. ONLINE ADMISSION
+
+Architect for future admission functionality.
+
+Future workflow:
+
+```text
+Applicant
+↓
+Application
+↓
+Payment
+↓
+Entrance Examination
+↓
+Automatic Scoring
+↓
+Admission Decision
+↓
+Admission Letter
+```
+
+Do not implement the entire admission system before the core learning platform is stable unless the architecture allows it cleanly.
+
+---
+
+# 40. SCHOOL SUBSCRIPTIONS
+
+The platform is SaaS.
+
+Create subscription plans.
+
+Example:
+
+### Starter
+
+Small schools.
+
+### Professional
+
+Growing schools.
+
+### Premium
+
+Larger schools.
+
+### Enterprise
+
+Custom.
+
+Do not hard-code prices.
+
+Create:
+
+```text
+subscription_plans
+```
+
+with:
+
+```text
+name
+description
+price
+billing_interval
+student_limit
+teacher_limit
+feature_limits
+status
+```
+
+Support:
+
+```text
+monthly
+annual
+```
+
+---
+
+# 41. PAYMENT SYSTEM
+
+Implement provider abstraction:
+
+```text
+PaymentProvider
+```
+
+Methods:
+
+```text
+initializePayment()
+verifyPayment()
+refundPayment()
+```
+
+Initial provider:
+
+Paystack.
+
+Use environment variables.
+
+Never expose secret keys to client-side code.
+
+---
+
+# 42. PLATFORM ADMIN
+
+Create `/platform`.
+
+Platform admin dashboard:
+
+```text
+Schools
+Subscriptions
+Revenue
+Active Students
+Active Teachers
+System Activity
+Support
+Settings
+```
+
+Metrics:
+
+```text
+Total Schools
+Active Schools
+Total Students
+Total Teachers
+Monthly Revenue
+Annual Revenue
+```
+
+---
+
+# 43. AUTHENTICATION
+
+Implement:
+
+* Login
+* Logout
+* Registration
+* Password reset
+* Email verification
+* Session persistence
+* Protected routes
+
+After login determine:
+
+```text
+user
+school
+role
+permissions
+```
+
+Redirect accordingly.
+
+---
+
+# 44. ROUTING
+
+Suggested routes:
+
+```text
+/
+ /pricing
+ /about
+ /contact
+
+/auth/login
+/auth/register
+/auth/forgot-password
+/auth/reset-password
+
+/platform
+/platform/schools
+/platform/subscriptions
+/platform/users
+/platform/analytics
+/platform/settings
+
+/school
+/school/dashboard
+/school/students
+/school/teachers
+/school/classes
+/school/subjects
+/school/courses
+/school/lessons
+/school/assignments
+/school/examinations
+/school/question-bank
+/school/results
+/school/analytics
+/school/announcements
+/school/settings
+
+/teacher
+/teacher/dashboard
+/teacher/classes
+/teacher/courses
+/teacher/lessons
+/teacher/assignments
+/teacher/examinations
+/teacher/question-bank
+/teacher/results
+/teacher/analytics
+
+/student
+/student/dashboard
+/student/courses
+/student/lessons
+/student/assignments
+/student/examinations
+/student/results
+/student/progress
+/student/profile
+
+/parent
+/parent/dashboard
+/parent/children
+/parent/results
+/parent/assignments
+/parent/progress
+/parent/notifications
+```
+
+Use route guards.
+
+---
+
+# 45. MOBILE DESIGN
+
+This platform will be heavily used on phones.
+
+Design mobile-first.
+
+Do not simply shrink desktop UI.
+
+Mobile navigation:
+
+Bottom navigation for students where appropriate:
+
+```text
+Home
+Learn
+Tests
+Results
+Profile
+```
+
+Teacher:
+
+```text
+Home
+Classes
+Content
+Tests
+More
+```
+
+Parent:
+
+```text
+Home
+Children
+Results
+Notifications
+Profile
+```
+
+Desktop should use sidebar navigation.
+
+---
+
+# 46. UI DESIGN DIRECTION
+
+Create a premium modern education SaaS interface.
+
+Visual characteristics:
+
+* Clean
+* Elegant
+* Professional
+* Friendly
+* Modern
+* Spacious
+* Excellent typography
+* Rounded cards
+* Subtle shadows
+* Smooth transitions
+* Strong visual hierarchy
+* Excellent empty states
+* Beautiful charts
+* Responsive tables
+
+Avoid:
+
+* Clutter
+* Excessive gradients
+* Excessive animations
+* Tiny text
+* Generic template appearance
+
+The product should look commercially credible.
+
+---
+
+# 47. DASHBOARD DESIGN
+
+Use cards such as:
+
+```text
+Students
+Teachers
+Courses
+Upcoming Tests
+Pending Assignments
+Average Performance
+```
+
+Use:
+
+* Line charts
+* Bar charts
+* Donut charts
+* Progress bars
+
+Charts must be responsive.
+
+---
+
+# 48. ACCESSIBILITY
+
+Implement:
+
+* Keyboard navigation
+* Semantic HTML
+* Proper labels
+* Accessible buttons
+* Focus states
+* Screen-reader-friendly controls
+* Sufficient contrast
+
+---
+
+# 49. PERFORMANCE
+
+Optimize for Nigerian internet conditions.
+
+Implement:
+
+* Lazy loading
+* Image optimization
+* Dynamic imports
+* Pagination
+* Server-side fetching where appropriate
+* Efficient database queries
+* Caching where appropriate
+
+Avoid downloading huge datasets.
+
+---
+
+# 50. LOW-DATA MODE
+
+Create a future-ready data saver system.
+
+Students should eventually be able to select:
+
+```text
+Data Saver
+Balanced
+High Quality
+```
+
+Video quality:
+
+```text
+360p
+480p
+720p
+```
+
+For MVP, prepare the UI and provider abstraction without building unnecessary video transcoding infrastructure.
+
+---
+
+# 51. OFFLINE SUPPORT
+
+Make the application PWA-ready.
+
+Support future offline functionality.
+
+Potential offline content:
+
+* Previously cached lessons
+* PDFs
+* Text lessons
+* Selected learning materials
+
+CBT offline mode should be considered a future advanced feature because it requires careful synchronization and security.
+
+---
+
+# 52. PWA
+
+Configure:
+
+* Manifest
+* Icons
+* Installability
+* Service worker
+* Offline fallback
+* App metadata
+
+Students should be able to install the platform on Android devices through the browser.
+
+---
+
+# 53. SECURITY
+
+Security is critical.
+
+Implement:
+
+* Supabase RLS
+* RBAC
+* Server-side authorization
+* Tenant isolation
+* Input validation
+* Zod validation
+* Rate limiting where appropriate
+* Secure file access
+* Secure sessions
+* CSRF-aware architecture
+* XSS prevention
+* SQL injection protection through parameterized queries
+* Audit logging
+
+Never trust client-side role checks.
+
+Authorization must also happen server-side.
+
+---
+
+# 54. ROW LEVEL SECURITY
+
+Every school-owned table must have RLS enabled.
+
+Users can only access records belonging to their school.
+
+Examples:
+
+A teacher from School A cannot query:
+
+```text
+School B students
+School B courses
+School B results
+```
+
+A parent can only access their linked children.
+
+A student can only access:
+
+* Their own results
+* Their assigned classes
+* Their assigned courses
+* Their own submissions
+* Their own attempts
+
+Write actual Supabase RLS policies.
+
+Do not leave this as documentation only.
+
+---
+
+# 55. AUDIT LOGGING
+
+Record sensitive operations.
+
+Examples:
+
+```text
+student_created
+student_updated
+teacher_created
+exam_created
+exam_published
+result_modified
+assignment_graded
+school_settings_changed
+subscription_changed
+```
+
+Store:
+
+```text
+user_id
+school_id
+action
+entity_type
+entity_id
+metadata
+ip_address
+created_at
+```
+
+---
+
+# 56. DATA PRIVACY
+
+Design the application with Nigerian data protection requirements in mind.
+
+Minimize collection of unnecessary personal information.
+
+Protect student records.
+
+Provide architecture for:
+
+* Privacy policy
+* Consent workflows where applicable
+* Data access
+* Data correction
+* Data deletion policies
+* Auditability
+
+Do not expose student information publicly.
+
+---
+
+# 57. SEARCH
+
+Implement contextual search.
+
+Examples:
+
+Teacher searches:
+
+```text
+quadratic
+```
+
+Results:
+
+* Lessons
+* Questions
+* Assignments
+* Courses
+
+Admin searches:
+
+```text
+David
+```
+
+Results:
+
+* Student profile
+* Class
+* Results
+
+Use debounced search.
+
+---
+
+# 58. IMPORT STUDENTS
+
+School administrators should be able to import students using CSV.
+
+CSV fields:
+
+```text
+first_name
+last_name
+email
+phone
+admission_number
+class
+stream
+gender
+date_of_birth
+```
+
+Validate before import.
+
+Show preview:
+
+```text
+Valid records
+Invalid records
+Duplicate records
+```
+
+Allow administrator to fix errors.
+
+---
+
+# 59. STUDENT ADMISSION NUMBER
+
+Students should have unique admission numbers within a school.
+
+Example:
+
+```text
+GFC/2026/001
+```
+
+Do not require student email if the school does not have one.
+
+Design authentication so schools can eventually support:
+
+* Admission number + password
+* Phone + OTP
+* Email + password
+
+---
+
+# 60. SEED DATA
+
+Create realistic development seed data.
+
+Create:
+
+School:
+
+```text
+Greenfield College
+```
+
+Academic session:
+
+```text
+2026/2027
+```
+
+Classes:
+
+```text
+JSS 1
+JSS 2
+JSS 3
+SS 1
+SS 2
+SS 3
+```
+
+Subjects:
+
+```text
+Mathematics
+English Language
+Physics
+Chemistry
+Biology
+Computer Studies
+Economics
+Government
+```
+
+Create sample:
+
+* Teachers
+* Students
+* Parents
+* Courses
+* Modules
+* Lessons
+* Assignments
+* Questions
+* Examinations
+* Results
+
+This must allow the complete student journey to be tested immediately.
+
+---
+
+# 61. DEMO USER ACCOUNTS
+
+Create development-only demo accounts.
+
+Examples:
+
+```text
+admin@greenfield.test
+teacher@greenfield.test
+student@greenfield.test
+parent@greenfield.test
+```
+
+Use safe development passwords through environment variables.
+
+Never hard-code production credentials.
+
+---
+
+# 62. ONBOARDING
+
+Create an elegant school onboarding wizard.
+
+Step 1:
+
+```text
+School Name
+```
+
+Step 2:
+
+```text
+Logo
+School Motto
+Contact Information
+```
+
+Step 3:
+
+```text
+Academic Session
+```
+
+Step 4:
+
+```text
+Classes
+```
+
+Step 5:
+
+```text
+Subjects
+```
+
+Step 6:
+
+```text
+Import Teachers
+```
+
+Step 7:
+
+```text
+Import Students
+```
+
+Step 8:
+
+```text
+Ready!
+```
+
+The objective is:
+
+> A school should be able to start using the platform with minimal technical knowledge.
+
+---
+
+# 63. EMPTY STATES
+
+Every dashboard/module must have meaningful empty states.
+
+Example:
+
+```text
+No lessons yet.
+
+Create your first lesson to start teaching students digitally.
+
+[Create Lesson]
+```
+
+Do not display blank screens.
+
+---
+
+# 64. LOADING STATES
+
+Implement:
+
+* Skeleton loaders
+* Button loading states
+* Upload progress
+* Exam submission progress
+* Page loading states
+
+Never leave users wondering whether something is loading.
+
+---
+
+# 65. ERROR HANDLING
+
+Create user-friendly errors.
+
+Never expose:
+
+* Database errors
+* Stack traces
+* Secret information
+* Internal implementation details
+
+Example:
+
+```text
+Something went wrong.
+
+We couldn't save this lesson. Please try again.
+```
+
+Log technical details server-side.
+
+---
+
+# 66. FILE UPLOAD
+
+Implement:
+
+* File type validation
+* File size validation
+* Upload progress
+* Secure storage
+* File metadata
+* Delete/archive support
+
+Prevent dangerous file uploads.
+
+---
+
+# 67. API DESIGN
+
+Use clean server actions/services.
+
+Do not place database queries directly throughout components.
+
+Create service functions such as:
+
+```text
+createSchool()
+getSchool()
+createStudent()
+getStudents()
+createCourse()
+createLesson()
+createAssignment()
+submitAssignment()
+createExam()
+startExam()
+saveAnswer()
+submitExam()
+calculateResult()
+getStudentAnalytics()
+```
+
+---
+
+# 68. VALIDATION
+
+Use Zod.
+
+Create schemas for:
+
+* Authentication
+* School
+* Student
+* Teacher
+* Class
+* Subject
+* Course
+* Lesson
+* Assignment
+* Question
+* Examination
+* Payment
+* Subscription
+
+Validate on server.
+
+---
+
+# 69. TRANSACTIONS
+
+Use database transactions for operations requiring atomicity.
+
+Example:
+
+Exam submission:
+
+```text
+submit attempt
++
+calculate score
++
+create result
++
+update attempt
+```
+
+These operations should not leave the system partially completed.
+
+---
+
+# 70. EXAM SECURITY
+
+Important:
+
+Never calculate final exam results exclusively in the browser.
+
+The server must:
+
+* Validate attempt
+* Validate exam timing
+* Retrieve correct answers
+* Calculate score
+* Store result
+
+Never send correct answers unnecessarily to the client.
+
+---
+
+# 71. STUDENT RESULT SECURITY
+
+Students cannot edit results.
+
+Teachers cannot arbitrarily modify published results unless explicitly authorized.
+
+Important result changes should generate audit logs.
+
+---
+
+# 72. ADMIN ANALYTICS
+
+Platform administrators need:
+
+```text
+Schools onboarded
+Active schools
+Active students
+Active teachers
+Tests completed
+Assignments submitted
+Lessons created
+Monthly revenue
+Subscription status
+```
+
+Use aggregated queries efficiently.
+
+---
+
+# 73. SCHOOL ANALYTICS
+
+School dashboard:
+
+```text
+Total students
+Active students
+Total teachers
+Courses
+Lessons
+Assignments
+Examinations
+Average performance
+```
+
+Include date filtering.
+
+---
+
+# 74. STUDENT ANALYTICS
+
+Student:
+
+```text
+Overall average
+Subject averages
+Completed lessons
+Completed tests
+Assignments
+Learning streak
+```
+
+Keep analytics understandable.
+
+---
+
+# 75. TEACHER ANALYTICS
+
+Teacher:
+
+```text
+Classes
+Students
+Average class score
+Assignment completion
+Exam performance
+Weak topics
+```
+
+---
+
+# 76. FUTURE AI ARCHITECTURE
+
+Do not implement expensive AI features in the initial MVP.
+
+However, structure services so AI can later be added.
+
+Future features:
+
+### AI Lesson Assistant
+
+Teacher enters:
+
+```text
+SS2 Mathematics
+Quadratic Equations
+```
+
+AI generates:
+
+* Lesson outline
+* Explanation
+* Examples
+* Practice questions
+* Assignment
+
+Teacher must review before publishing.
+
+### AI Question Generator
+
+Generate questions based on:
+
+* Subject
+* Class
+* Topic
+* Difficulty
+* Number of questions
+
+### AI Student Tutor
+
+Student asks:
+
+```text
+Explain quadratic equations.
+```
+
+AI responds using school-approved learning materials.
+
+### AI Analytics
+
+Detect:
+
+* Weak students
+* Weak topics
+* Falling performance
+* Engagement decline
+
+---
+
+# 77. EMAIL NOTIFICATIONS
+
+Prepare email templates:
+
+* Welcome
+* Password reset
+* Assignment created
+* Assignment graded
+* Exam reminder
+* Exam result
+* School announcement
+* Subscription confirmation
+
+---
+
+# 78. FUTURE WHATSAPP INTEGRATION
+
+Architect notifications so WhatsApp can later be plugged in.
+
+Potential messages:
+
+```text
+Your child David scored 82% in Mathematics.
+```
+
+or:
+
+```text
+David has an assignment due tomorrow.
+```
+
+Do not implement WhatsApp until core architecture is stable.
+
+---
+
+# 79. INTERNATIONALIZATION
+
+Keep strings centralized.
+
+Prepare architecture for:
+
+```text
+English
+```
+
+Initially.
+
+Future:
+
+```text
+Yoruba
+Hausa
+Igbo
+French
+```
+
+Do not hard-code UI strings everywhere if avoidable.
+
+---
+
+# 80. SEO
+
+Public pages should have:
+
+* Metadata
+* Open Graph
+* Twitter cards
+* Structured headings
+* Sitemap
+* Robots.txt
+
+Private dashboards should not be indexed.
+
+---
+
+# 81. LANDING PAGE
+
+Create a professional SaaS landing page.
+
+Hero:
+
+> Your School. Your Digital Classroom.
+
+Supporting text:
+
+> Give your school a modern digital learning environment where teachers teach, students learn, assessments happen and parents stay connected.
+
+CTA:
+
+```text
+Get Started
+Book a Demo
+```
+
+Sections:
+
+* How it works
+* Features
+* For Schools
+* For Teachers
+* For Students
+* For Parents
+* CBT
+* Digital Learning
+* Analytics
+* Pricing
+* FAQ
+* CTA
+
+---
+
+# 82. CORE USER JOURNEY
+
+This journey MUST work end-to-end.
+
+1. School registers.
+2. School completes onboarding.
+3. Admin creates academic session.
+4. Admin creates classes.
+5. Admin creates subjects.
+6. Admin creates teacher.
+7. Admin creates students.
+8. Teacher logs in.
+9. Teacher creates course.
+10. Teacher creates module.
+11. Teacher creates lesson.
+12. Teacher adds video.
+13. Teacher adds PDF.
+14. Teacher publishes lesson.
+15. Student logs in.
+16. Student sees course.
+17. Student opens lesson.
+18. Student watches video.
+19. Student reads material.
+20. Student marks/completes lesson.
+21. Student takes practice quiz.
+22. Teacher creates assignment.
+23. Student submits assignment.
+24. Teacher grades assignment.
+25. Teacher creates CBT examination.
+26. Student starts examination.
+27. Student answers questions.
+28. Timer expires/submission occurs.
+29. Server calculates result.
+30. Student sees result.
+31. Teacher sees class performance.
+32. Parent sees child's result.
+
+This entire workflow must work.
+
+---
+
+# 83. DESIGN SYSTEM
+
+Create reusable design tokens.
+
+Define:
+
+```text
+spacing
+radius
+typography
+shadows
+breakpoints
+transitions
+```
+
+Use shadcn/ui components where appropriate.
+
+Create reusable:
+
+* DataTable
+* Modal
+* Drawer
+* Form
+* Select
+* FileUploader
+* VideoPlayer
+* ProgressBar
+* EmptyState
+* StatCard
+* ChartCard
+* NotificationBell
+* UserAvatar
+* ConfirmDialog
+
+---
+
+# 84. TABLES
+
+Admin tables must support:
+
+* Search
+* Filtering
+* Sorting
+* Pagination
+* Bulk selection where useful
+* Export where useful
+
+Mobile tables should become:
+
+* Cards
+* Horizontal scrolling
+* Responsive layouts
+
+Do not create unusable desktop-only tables.
+
+---
+
+# 85. RESPONSIVE BREAKPOINTS
+
+Design for:
+
+```text
+Mobile
+Tablet
+Laptop
+Desktop
+Large desktop
+```
+
+Test at minimum:
+
+```text
+360px
+390px
+768px
+1024px
+1280px
+1440px
+```
+
+---
+
+# 86. TESTING
+
+Create tests for:
+
+### Authentication
+
+* Login
+* Logout
+* Password reset
+* Unauthorized access
+
+### Multi-tenancy
+
+* School A cannot access School B
+* Teacher cannot access another school
+* Parent only sees linked children
+
+### Learning
+
+* Course creation
+* Lesson creation
+* Lesson publishing
+* Student progress
+
+### Assignment
+
+* Creation
+* Submission
+* Grading
+
+### CBT
+
+* Exam creation
+* Question selection
+* Attempt creation
+* Answer saving
+* Timer
+* Submission
+* Result calculation
+
+### Payments
+
+* Initialization
+* Verification
+* Subscription update
+
+---
+
+# 87. CRITICAL ACCEPTANCE TEST
+
+Before considering the project complete, test this scenario:
+
+```text
+Create School A
+
+Create Teacher A
+
+Create Student A
+
+Create Class SS2
+
+Create Mathematics
+
+Assign Mathematics to Teacher A
+
+Create Mathematics Course
+
+Create Quadratic Equations Module
+
+Create lesson
+
+Attach YouTube video
+
+Attach PDF
+
+Publish lesson
+
+Login as Student A
+
+Open Mathematics
+
+Open Quadratic Equations
+
+Watch video
+
+Read PDF
+
+Complete lesson
+
+Take practice quiz
+
+Create assignment
+
+Submit assignment
+
+Teacher grades assignment
+
+Teacher creates CBT
+
+Student takes CBT
+
+Student submits CBT
+
+System calculates score
+
+Student sees result
+
+Teacher sees result
+
+Parent sees Student A result
+```
+
+Then create:
+
+```text
+School B
+```
+
+Verify School B cannot access School A data.
+
+This tenant-isolation test is mandatory.
+
+---
+
+# 88. ENVIRONMENT VARIABLES
+
+Create `.env.example`.
+
+Include placeholders such as:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+NEXT_PUBLIC_APP_URL=
+
+PAYSTACK_SECRET_KEY=
+NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=
+
+EMAIL_PROVIDER_API_KEY=
+
+NEXT_PUBLIC_PLATFORM_NAME=
+```
+
+Never commit real credentials.
+
+---
+
+# 89. README
+
+Create a comprehensive README containing:
+
+* Project overview
+* Features
+* Architecture
+* Tech stack
+* Local setup
+* Environment variables
+* Database setup
+* Supabase setup
+* Seed data
+* Development commands
+* Testing
+* Production build
+* Deployment
+* Security notes
+
+---
+
+# 90. DEVELOPMENT COMMANDS
+
+Ensure these work:
+
+```bash
+npm install
+npm run dev
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+Fix all TypeScript and build errors.
+
+Do not finish with a broken build.
+
+---
+
+# 91. GIT STRUCTURE
+
+Create meaningful commits during development.
+
+Suggested:
+
+```text
+feat: initialize project architecture
+feat: implement authentication
+feat: implement multi-tenant school architecture
+feat: implement school onboarding
+feat: implement academic management
+feat: implement learning system
+feat: implement assignments
+feat: implement CBT engine
+feat: implement results
+feat: implement parent portal
+feat: implement analytics
+feat: implement subscriptions
+feat: implement PWA
+test: add critical application tests
+```
+
+---
+
+# 92. DEVELOPMENT PHASES
+
+Do not attempt to implement everything blindly at once.
+
+Build in phases.
+
+## PHASE 1 — FOUNDATION
+
+Implement:
+
+* Next.js
+* TypeScript
+* Tailwind
+* shadcn/ui
+* Supabase
+* Authentication
+* Database
+* RBAC
+* Multi-tenancy
+* RLS
+* Layout
+* Navigation
+
+---
+
+## PHASE 2 — SCHOOL MANAGEMENT
+
+Implement:
+
+* School onboarding
+* Branding
+* Sessions
+* Terms
+* Classes
+* Streams
+* Subjects
+* Teachers
+* Students
+* Parents
+
+---
+
+## PHASE 3 — DIGITAL LEARNING
+
+Implement:
+
+* Courses
+* Modules
+* Lessons
+* Materials
+* YouTube integration
+* Student learning interface
+* Progress tracking
+
+---
+
+## PHASE 4 — ASSIGNMENTS
+
+Implement:
+
+* Assignment creation
+* Submission
+* File uploads
+* Grading
+* Teacher feedback
+
+---
+
+## PHASE 5 — CBT ENGINE
+
+Implement:
+
+* Question bank
+* Questions
+* Options
+* Exams
+* Randomization
+* Timer
+* Attempts
+* Answer autosave
+* Submission
+* Automatic marking
+* Results
+
+---
+
+## PHASE 6 — ANALYTICS
+
+Implement:
+
+* Student analytics
+* Teacher analytics
+* School analytics
+* Topic performance
+* Class performance
+
+---
+
+## PHASE 7 — PARENT PORTAL
+
+Implement:
+
+* Parent accounts
+* Child relationships
+* Results
+* Assignments
+* Progress
+* Notifications
+
+---
+
+## PHASE 8 — SUBSCRIPTIONS
+
+Implement:
+
+* Plans
+* School subscriptions
+* Paystack
+* Payment verification
+* Subscription status
+* Billing history
+
+---
+
+## PHASE 9 — PWA
+
+Implement:
+
+* Manifest
+* Service worker
+* Installability
+* Offline shell
+* Caching strategy
+
+---
+
+## PHASE 10 — POLISH
+
+Implement:
+
+* Empty states
+* Loading states
+* Error states
+* Accessibility
+* Responsive optimization
+* Performance optimization
+* SEO
+* Security audit
+* Testing
+* Documentation
+
+---
+
+# 93. IMPORTANT IMPLEMENTATION RULE
+
+Do NOT ask me to manually create files one by one.
+
+Create the required project structure and files yourself.
+
+Do not stop after creating a plan.
+
+Begin implementation.
+
+When a decision is required, choose the most production-appropriate solution rather than waiting for unnecessary clarification.
+
+However, do not invent external credentials.
+
+Use `.env.example` placeholders for services requiring credentials.
+
+---
+
+# 94. NO FAKE DATA IN PRODUCTION
+
+Seed data is allowed for development.
+
+Production UI must retrieve real database data.
+
+Do not create fake hard-coded dashboard numbers such as:
+
+```text
+1,250 students
+87% performance
+```
+
+unless they come from seeded development data.
+
+---
+
+# 95. NO MOCK BUTTONS
+
+Buttons must perform actual actions.
+
+Avoid:
+
+```text
+<button>Coming Soon</button>
+```
+
+for core MVP functionality.
+
+If a feature is deliberately deferred, hide it or clearly label it as future functionality.
+
+---
+
+# 96. ERROR-FREE BUILD REQUIREMENT
+
+Before declaring success:
+
+Run:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+Resolve all errors.
+
+Do not leave:
+
+* TypeScript errors
+* ESLint errors
+* Broken imports
+* Invalid routes
+* Database migration errors
+* RLS policy errors
+
+---
+
+# 97. FINAL PRODUCT QUALITY
+
+The finished application should feel like a serious commercial SaaS product.
+
+It should NOT feel like:
+
+* A school assignment
+* A basic CRUD dashboard
+* A generic LMS template
+* A WordPress plugin
+* A simple quiz application
+
+It should feel like a platform that a Nigerian private school proprietor would confidently pay for.
+
+---
+
+# 98. FUTURE PRODUCT ECOSYSTEM
+
+Architect the product so it can eventually connect with the user's existing School Management SaaS.
+
+Eventually:
+
+```text
+                    SCHOOL OS
+                        |
+        ┌───────────────┼────────────────┐
+        │               │                │
+ School Management   Digital Learning   Communication
+        │               │                │
+ Fees                Courses            Parents
+ Attendance          Lessons            Notifications
+ Students            Videos             Announcements
+ Staff               Assignments        Events
+ Payroll             CBT
+ Results             Analytics
+```
+
+The current product should focus primarily on:
+
+> DIGITAL LEARNING + ASSESSMENT + ACADEMIC ENGAGEMENT
+
+Do not allow the existing school management system to unnecessarily bloat this MVP.
+
+---
+
+# 99. FINAL COMMAND
+
+Start building the application now.
+
+First inspect the existing project directory.
+
+If the project is empty, initialize the application using the specified stack.
+
+If an existing application already exists, inspect it carefully before modifying it.
+
+Do not destroy existing functionality without understanding it.
+
+Then:
+
+1. Set up the architecture.
+2. Install required dependencies.
+3. Configure Supabase.
+4. Create database migrations.
+5. Create RLS policies.
+6. Create authentication.
+7. Create RBAC.
+8. Create multi-tenant school architecture.
+9. Build the UI shell.
+10. Build the school onboarding.
+11. Build school management.
+12. Build digital learning.
+13. Build assignments.
+14. Build CBT.
+15. Build results.
+16. Build analytics.
+17. Build parent portal.
+18. Build subscription architecture.
+19. Configure PWA.
+20. Seed development data.
+21. Test the complete user journey.
+22. Run lint.
+23. Run typecheck.
+24. Run tests.
+25. Run production build.
+26. Fix all errors.
+27. Document the project.
+
+Do not merely describe what should be built.
+
+BUILD IT.
+
+The priority order is:
+
+```text
+SECURITY
+↓
+MULTI-TENANCY
+↓
+CORE DATA MODEL
+↓
+AUTHENTICATION/RBAC
+↓
+SCHOOL MANAGEMENT
+↓
+LEARNING
+↓
+ASSIGNMENTS
+↓
+CBT
+↓
+RESULTS
+↓
+ANALYTICS
+↓
+PARENT EXPERIENCE
+↓
+SUBSCRIPTIONS
+↓
+PWA
+↓
+POLISH
+```
+
+The ultimate objective is to create a commercially viable Nigerian School Digital Learning Platform that can be deployed to the first pilot schools in Akure and later scaled nationwide.
