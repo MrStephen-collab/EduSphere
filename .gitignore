@@ -47,6 +47,7 @@ next-env.d.ts
 
 # local preview server artifacts
 .tmp-*
+*.pid.txt
 
 # server/log artifacts
 *.log
