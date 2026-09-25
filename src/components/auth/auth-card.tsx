@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GraduationCap } from "lucide-react";
+import { EduSphereLogo } from "@/components/brand/logo";
 import { siteConfig } from "@/config/site";
 
 export function AuthCard({
@@ -17,9 +17,7 @@ export function AuthCard({
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 px-4 py-10">
       <div className="w-full max-w-sm">
         <Link href="/" className="mb-8 flex items-center justify-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <GraduationCap className="size-6" aria-hidden="true" />
-          </div>
+          <EduSphereLogo size={40} className="shrink-0" />
           <span className="text-xl font-semibold">{siteConfig.name}</span>
         </Link>
         <div className="rounded-xl border bg-card p-6 shadow-sm">
