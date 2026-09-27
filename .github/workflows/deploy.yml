@@ -1,0 +1,50 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One production deploy at a time. Never cancel a deploy that is already
+# promoting itself to the production alias, or the alias can land on a
+# half-finished build.
+concurrency:
+  group: vercel-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # Must match the Vercel project's Node version (24.x), otherwise the
+          # typecheck gate runs on a different runtime than the real build.
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Gate before deploying. Vercel runs the real build remotely with the
+      # project's own env vars, so we deliberately do not build here — that
+      # would mean maintaining build env vars in two places.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@59.15.1 deploy --prod --yes
