@@ -56,3 +56,5 @@ next-env.d.ts
 
 # supabase cli temp state
 /supabase/.temp/
+
+.vercel
