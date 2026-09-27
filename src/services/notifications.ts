@@ -1,6 +1,7 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notificationTypeLabel } from "@/lib/notification-labels";
+import { asArray } from "@/lib/embed";
 import type {
   AnnouncementTarget,
   Notification,
@@ -36,7 +37,7 @@ export async function getNotifications(
   })[];
   const items: NotificationView[] = raw.map((n) => ({
     ...n,
-    schoolName: n.schools?.[0]?.name ?? null,
+    schoolName: asArray(n.schools)[0]?.name ?? null,
   }));
 
   return { items, unreadCount: unreadRes.count ?? 0, now: Date.now() };
@@ -119,9 +120,9 @@ export async function resolveAnnouncementRecipients(input: {
         .eq("school_id", schoolId)
         .in("student_id", classStudentIds);
       for (const r of (links ?? []) as {
-        parents: { user_id: string }[] | null;
+        parents: { user_id: string } | { user_id: string }[] | null;
       }[]) {
-        const userId = r.parents?.[0]?.user_id;
+        const userId = asArray(r.parents)[0]?.user_id;
         if (userId) parentIds.add(userId);
       }
     }

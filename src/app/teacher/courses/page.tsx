@@ -21,6 +21,7 @@ import {
   CourseDeleteButton,
 } from "@/components/learning/course-forms";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "My courses",
@@ -83,8 +84,12 @@ export default async function TeacherCoursesPage() {
                           </Badge>
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                          {course.subjects?.name && <span>{course.subjects.name}</span>}
-                          {course.classes?.name && <span>{course.classes.name}</span>}
+                          {asArray(course.subjects)[0]?.name && (
+                            <span>{asArray(course.subjects)[0]?.name}</span>
+                          )}
+                          {asArray(course.classes)[0]?.name && (
+                            <span>{asArray(course.classes)[0]?.name}</span>
+                          )}
                           <span className="inline-flex items-center gap-1">
                             <ListTree className="size-3.5" aria-hidden="true" />
                             {moduleCount} module{moduleCount === 1 ? "" : "s"}

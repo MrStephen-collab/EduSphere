@@ -26,6 +26,7 @@ import {
   LessonCreateForm,
   LessonRow,
 } from "@/components/learning/course-forms";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "Course builder",
@@ -92,8 +93,9 @@ export default async function TeacherCourseDetailPage({
           <CardHeader>
             <CardTitle>Details</CardTitle>
             <CardDescription>
-              {course.subjects?.name ?? "No subject"} · {course.classes?.name ?? "All classes"} ·{" "}
-              {totalLessons} lesson{totalLessons === 1 ? "" : "s"}
+              {asArray(course.subjects)[0]?.name ?? "No subject"} ·{" "}
+              {asArray(course.classes)[0]?.name ?? "All classes"} · {totalLessons} lesson
+              {totalLessons === 1 ? "" : "s"}
               <span className="mx-2">·</span>
               <Badge variant={course.status === "published" ? "default" : "outline"}>
                 {course.status === "published" ? "Published" : "Draft"}

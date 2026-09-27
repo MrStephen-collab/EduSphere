@@ -2,13 +2,14 @@
   "name": "edusphere",
   "version": "0.1.0",
   "private": true,
+  "browserslist": ["last 2 versions", "not dead", "not op_mini all", "since 2021"],
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "next build --webpack",
     "start": "next start",
     "app": "next start -p 3100",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --incremental false",
     "test": "vitest run"
   },
   "dependencies": {

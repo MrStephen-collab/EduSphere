@@ -33,6 +33,7 @@ import {
   AssignmentDeleteButton,
   GradeSubmissionForm,
 } from "@/components/assignments/assignment-forms";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "Assignment",
@@ -99,7 +100,7 @@ export default async function TeacherAssignmentPage({
   const renderSubmission = (
     submission: (typeof submissions)[number],
   ) => {
-    const studentName = submission.students?.display_name ?? "Student";
+    const studentName = asArray(submission.students)[0]?.display_name ?? "Student";
     return (
       <Card key={submission.id}>
         <CardContent className="grid gap-3 pt-4">
@@ -194,9 +195,13 @@ export default async function TeacherAssignmentPage({
           <CardHeader>
             <CardTitle>Details</CardTitle>
             <CardDescription>
-              {assignment.classes?.name ?? "All classes"}
-              {assignment.subjects?.name ? ` · ${assignment.subjects.name}` : ""}
-              {assignment.courses?.title ? ` · ${assignment.courses.title}` : ""}
+              {asArray(assignment.classes)[0]?.name ?? "All classes"}
+              {asArray(assignment.subjects)[0]?.name
+                ? ` · ${asArray(assignment.subjects)[0]?.name}`
+                : ""}
+              {asArray(assignment.courses)[0]?.title
+                ? ` · ${asArray(assignment.courses)[0]?.title}`
+                : ""}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">

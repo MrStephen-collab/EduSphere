@@ -5,6 +5,14 @@ import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import { invalidateAuthContexts } from "@/lib/auth/auth-context";
 import type { Parent, Student, Teacher } from "@/types/database";
 
+/** PostgREST returns a to-one embed as an object; some client typings model it
+ *  as a single-element array. Read it through `asArray()` either way. */
+type NameEmbed = { name: string } | { name: string }[] | null;
+type ProfileEmbed =
+  | { full_name: string | null; email: string | null }
+  | { full_name: string | null; email: string | null }[]
+  | null;
+
 function invalidatePeopleCounts() {
   invalidateCacheByPrefix("dash:school-counts:");
   invalidateCacheByPrefix("platform:schools");
@@ -123,14 +131,14 @@ export async function createTeacher(input: {
 }
 
 export type TeacherRow = Teacher & {
-  profile: { full_name: string; email: string | null } | null;
+  profile: ProfileEmbed;
 };
 
 export async function getTeachers(schoolId: string): Promise<TeacherRow[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("teachers")
-    .select("*, teacher_profile:profiles!teachers_user_id_fkey(full_name, email)")
+    .select("*, profile:profiles!teachers_user_id_fkey(full_name, email)")
     .eq("school_id", schoolId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -206,9 +214,9 @@ export async function createStudent(input: {
 }
 
 export type StudentRow = Student & {
-  profile: { full_name: string; email: string | null } | null;
-  classes: { name: string } | null;
-  streams: { name: string } | null;
+  profile: ProfileEmbed;
+  classes: NameEmbed;
+  streams: NameEmbed;
 };
 
 export async function getStudents(
@@ -219,7 +227,7 @@ export async function getStudents(
   let query = supabase
     .from("students")
     .select(
-      "*, student_profile:profiles!students_user_id_fkey(full_name, email), classes(name), streams(name)",
+      "*, profile:profiles!students_user_id_fkey(full_name, email), classes(name), streams(name)",
     )
     .eq("school_id", schoolId)
     .order("created_at", { ascending: false });
@@ -403,14 +411,14 @@ export async function createParent(input: {
 }
 
 export type ParentRow = Parent & {
-  profile: { full_name: string; email: string | null } | null;
+  profile: ProfileEmbed;
 };
 
 export async function getParents(schoolId: string): Promise<ParentRow[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("parents")
-    .select("*, parent_profile:profiles!parents_user_id_fkey(full_name, email)")
+    .select("*, profile:profiles!parents_user_id_fkey(full_name, email)")
     .eq("school_id", schoolId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);

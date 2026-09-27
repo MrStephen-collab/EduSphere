@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { StudentForm } from "@/components/school/people-form";
 import { StudentImport } from "@/components/school/student-import";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "Students",
@@ -35,11 +36,11 @@ export default async function StudentsPage({
 
   const rows = students.map((s) => ({
     id: s.id,
-    userName: s.profile?.full_name ?? s.display_name ?? "Unnamed",
-    email: s.profile?.email ?? null,
+    userName: asArray(s.profile)[0]?.full_name ?? s.display_name ?? "Unnamed",
+    email: asArray(s.profile)[0]?.email ?? null,
     admissionNumber: s.admission_number,
-    className: s.classes?.name ?? null,
-    streamName: s.streams?.name ?? null,
+    className: asArray(s.classes)[0]?.name ?? null,
+    streamName: asArray(s.streams)[0]?.name ?? null,
     gender: s.gender ?? null,
   }));
 

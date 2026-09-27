@@ -22,6 +22,7 @@ import {
   AssignmentDeleteButton,
 } from "@/components/assignments/assignment-forms";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "My assignments",
@@ -90,9 +91,15 @@ export default async function TeacherAssignmentsPage() {
                         </Badge>
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        {assignment.classes?.name && <span>{assignment.classes.name}</span>}
-                        {assignment.subjects?.name && <span>{assignment.subjects.name}</span>}
-                        {assignment.courses?.title && <span>{assignment.courses.title}</span>}
+                        {asArray(assignment.classes)[0]?.name && (
+                          <span>{asArray(assignment.classes)[0]?.name}</span>
+                        )}
+                        {asArray(assignment.subjects)[0]?.name && (
+                          <span>{asArray(assignment.subjects)[0]?.name}</span>
+                        )}
+                        {asArray(assignment.courses)[0]?.title && (
+                          <span>{asArray(assignment.courses)[0]?.title}</span>
+                        )}
                         {assignment.due_date && (
                           <span className="inline-flex items-center gap-1">
                             <CalendarDays className="size-3.5" aria-hidden="true" />

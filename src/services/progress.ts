@@ -1,4 +1,5 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { asArray } from "@/lib/embed";
 
 export type StudentProgressCourse = {
   courseId: string | null;
@@ -31,7 +32,7 @@ export async function getStudentProgress(
     supabase
       .from("student_progress")
       .select(
-        "course_id, overall_percentage, lessons_completed, assignments_completed, tests_completed, learning_streak, last_activity_at, courses(name)",
+        "course_id, overall_percentage, lessons_completed, assignments_completed, tests_completed, learning_streak, last_activity_at, courses(title)",
       )
       .eq("school_id", schoolId)
       .eq("student_id", studentId),
@@ -50,14 +51,14 @@ export async function getStudentProgress(
     tests_completed: number;
     learning_streak: number;
     last_activity_at: string | null;
-    courses: Array<{ name: string }>;
+    courses: { title: string } | { title: string }[] | null;
   }>;
 
   const lessonRows = (lessonsRes.data ?? []) as Array<{
     started_at: string | null;
     progress_percentage: number;
     completed_at: string | null;
-    lessons: Array<{ course_id: string | null }>;
+    lessons: { course_id: string | null } | { course_id: string | null }[] | null;
   }>;
 
   const courseNames = new Map<string, string>();
@@ -71,7 +72,7 @@ export async function getStudentProgress(
 
   for (const row of progressRows) {
     if (row.course_id) {
-      courseNames.set(row.course_id, row.courses[0]?.name ?? "Course");
+      courseNames.set(row.course_id, asArray(row.courses)[0]?.title ?? "Course");
       if (row.overall_percentage != null) overallByCourse.set(row.course_id, row.overall_percentage);
     }
     if (row.overall_percentage != null) {
@@ -81,7 +82,7 @@ export async function getStudentProgress(
   }
 
   for (const row of lessonRows) {
-    const courseId = row.lessons[0]?.course_id ?? "";
+    const courseId = asArray(row.lessons)[0]?.course_id ?? "";
     startedByCourse.set(courseId, (startedByCourse.get(courseId) ?? 0) + 1);
     if (row.completed_at || row.progress_percentage >= 100) {
       totalCompleted += 1;

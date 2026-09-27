@@ -6,6 +6,7 @@ import { getTeachers } from "@/services/people";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TeacherForm } from "@/components/school/people-form";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "Teachers",
@@ -20,8 +21,8 @@ export default async function TeachersPage() {
 
   const rows = teachers.map((t) => ({
     id: t.id,
-    name: t.profile?.full_name ?? t.display_name ?? "Unnamed teacher",
-    email: t.profile?.email ?? null,
+    name: asArray(t.profile)[0]?.full_name ?? t.display_name ?? "Unnamed teacher",
+    email: asArray(t.profile)[0]?.email ?? null,
     hasAccount: !!t.user_id,
   }));
 

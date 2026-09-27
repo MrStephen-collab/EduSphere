@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
+import { asArray } from "@/lib/embed";
 import type {
   ContentStatus,
   Course,
@@ -60,10 +61,18 @@ export { materialTypeLabels } from "@/lib/material-types";
 // Row helpers
 // ---------------------------------------------------------------------------
 
+/** PostgREST returns a to-one embed as an object; some client typings model it
+ *  as a single-element array. Read it through `asArray()` either way. */
+type NameEmbed = { name: string } | { name: string }[] | null;
+type TeacherEmbed =
+  | { display_name: string | null }
+  | { display_name: string | null }[]
+  | null;
+
 export type CourseListItem = Course & {
-  subjects: { name: string } | null;
-  classes: { name: string } | null;
-  teachers: { display_name: string | null } | null;
+  subjects: NameEmbed;
+  classes: NameEmbed;
+  teachers: TeacherEmbed;
   course_modules?: CourseModule[] | null;
   lessons?: Lesson[] | null;
 };
@@ -96,11 +105,11 @@ export async function getCourseDetail(
   schoolId: string,
   courseId: string,
 ): Promise<{
-  course: Course & {
-    subjects: { name: string } | null;
-    classes: { name: string } | null;
-    teachers: { display_name: string | null } | null;
-  } | null;
+  course: (Course & {
+    subjects: NameEmbed;
+    classes: NameEmbed;
+    teachers: TeacherEmbed;
+  }) | null;
   modules: (CourseModule & { lessons: LessonWithMaterials[] })[];
   unassignedLessons: LessonWithMaterials[];
 }> {
@@ -143,9 +152,9 @@ export async function getCourseDetail(
 
   return {
     course: course as Course & {
-      subjects: { name: string } | null;
-      classes: { name: string } | null;
-      teachers: { display_name: string | null } | null;
+      subjects: NameEmbed;
+      classes: NameEmbed;
+      teachers: TeacherEmbed;
     },
     modules: grouped,
     unassignedLessons: lessons.filter((l) => !l.module_id),
@@ -490,8 +499,8 @@ export async function getStudentCourses(
   if (error) throw new Error(error.message);
 
   const rows = (courses ?? []) as (Course & {
-    subjects: { name: string } | null;
-    classes: { name: string } | null;
+    subjects: NameEmbed;
+    classes: NameEmbed;
     lessons?: Lesson[] | null;
   })[];
 
@@ -522,8 +531,8 @@ export async function getStudentCourses(
       title: c.title,
       description: c.description,
       cover_url: c.cover_url,
-      subject: c.subjects?.name ?? null,
-      className: c.classes?.name ?? null,
+      subject: asArray(c.subjects)[0]?.name ?? null,
+      className: asArray(c.classes)[0]?.name ?? null,
       lessonCount: total,
       completedLessons: completed,
       overallPercentage: overall,
@@ -626,9 +635,9 @@ export async function getStudentCourseDetail(
 
   return {
     course: course as Course,
-    subject: course.subjects?.name ?? null,
-    className: course.classes?.name ?? null,
-    teacherName: course.teachers?.display_name ?? null,
+    subject: asArray(course.subjects)[0]?.name ?? null,
+    className: asArray(course.classes)[0]?.name ?? null,
+    teacherName: asArray(course.teachers)[0]?.display_name ?? null,
     modules: grouped,
     unassignedLessons: unassigned,
     totalLessons: total,
@@ -872,12 +881,13 @@ export async function getContinueLearning(
     .limit(1);
 
   const pick = inProgress?.[0];
-  if (pick) {
+  const lesson = pick ? asArray(pick.lessons)[0] : undefined;
+  if (pick && lesson) {
     return {
-      courseId: pick.lessons.course_id,
-      courseTitle: pick.lessons.courses.title,
-      lessonId: pick.lessons.id,
-      lessonTitle: pick.lessons.title,
+      courseId: lesson.course_id,
+      courseTitle: asArray(lesson.courses)[0]?.title ?? "",
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
       progress: pick.progress_percentage,
     };
   }
@@ -892,13 +902,14 @@ export async function getContinueLearning(
     .limit(1);
 
   const lastDone = completed?.[0];
-  if (!lastDone) return null;
+  const doneLesson = lastDone ? asArray(lastDone.lessons)[0] : undefined;
+  if (!lastDone || !doneLesson) return null;
 
   return {
-    courseId: lastDone.lessons.course_id,
-    courseTitle: lastDone.lessons.courses.title,
-    lessonId: lastDone.lessons.id,
-    lessonTitle: lastDone.lessons.title,
+    courseId: doneLesson.course_id,
+    courseTitle: asArray(doneLesson.courses)[0]?.title ?? "",
+    lessonId: doneLesson.id,
+    lessonTitle: doneLesson.title,
     progress: 100,
   };
 }

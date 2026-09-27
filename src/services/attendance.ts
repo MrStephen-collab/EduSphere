@@ -3,6 +3,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireContentEditor } from "@/services/shared";
 import { ATTENDANCE_STATUSES } from "@/lib/attendance-labels";
+import { asArray } from "@/lib/embed";
 
 export type ClassRegisterEntry = {
   studentId: string;
@@ -22,7 +23,7 @@ type RegisterStudentRow = {
   admission_number: string;
   display_name: string | null;
   user_id: string | null;
-  streams: { name: string } | null;
+  streams: { name: string } | { name: string }[] | null;
 };
 
 type RegisterRecordRow = Pick<AttendanceRecord, "student_id" | "status">;
@@ -107,7 +108,7 @@ export async function getClassRegister(
       studentId: s.id,
       admissionNumber: s.admission_number,
       displayName: s.display_name ?? "Student",
-      streamName: s.streams?.name ?? null,
+      streamName: asArray(s.streams)[0]?.name ?? null,
       status: statusByStudent.get(s.id) ?? null,
     })),
   };

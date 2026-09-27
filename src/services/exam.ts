@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireContentEditor } from "@/services/shared";
 import { requireStudent } from "@/services/learning";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
+import { asArray } from "@/lib/embed";
 import type {
   AttemptStatus,
   ContentStatus,
@@ -104,8 +105,8 @@ export const practiceAnswerSchema = z
 // ---------------------------------------------------------------------------
 
 export type ExamSeriesListItem = ExamSeries & {
-  subjects: { name: string } | null;
-  classes: { name: string } | null;
+  subjects: { name: string } | { name: string }[] | null;
+  classes: { name: string } | { name: string }[] | null;
   question_banks?: { questions?: { id: string }[] | null }[] | null;
 };
 
@@ -777,8 +778,8 @@ export async function getStudentExamSeries(
       title: series.title,
       year: series.year,
       description: series.description,
-      subject: series.subjects?.name ?? null,
-      className: series.classes?.name ?? null,
+      subject: asArray(series.subjects)[0]?.name ?? null,
+      className: asArray(series.classes)[0]?.name ?? null,
       questionCount: counts.get(series.id) ?? 0,
       attempts: stats.attempts,
       bestScore: stats.best,
@@ -1481,7 +1482,7 @@ export async function getSeriesMarkingQueue(
 
   const stats = new Map<string, { essayCount: number; pending: number }>();
   for (const row of answers) {
-    if (row.questions[0]?.question_type !== "essay") continue;
+    if (asArray(row.questions)[0]?.question_type !== "essay") continue;
     const entry = stats.get(row.attempt_id) ?? { essayCount: 0, pending: 0 };
     entry.essayCount += 1;
     if (row.marks_awarded == null) entry.pending += 1;
@@ -1494,9 +1495,9 @@ export async function getSeriesMarkingQueue(
     return [
       {
         attemptId: a.id,
-        studentName: a.students[0]?.display_name ?? "Student",
-        admissionNumber: a.students[0]?.admission_number ?? "",
-        className: a.students[0]?.classes?.[0]?.name ?? null,
+        studentName: asArray(a.students)[0]?.display_name ?? "Student",
+        admissionNumber: asArray(a.students)[0]?.admission_number ?? "",
+        className: asArray(asArray(a.students)[0]?.classes)[0]?.name ?? null,
         submittedAt: a.submitted_at,
         essayCount: s.essayCount,
         pendingCount: s.pending,
@@ -1558,24 +1559,27 @@ export async function getAttemptForMarking(
   return {
     attemptId: attempt.id,
     seriesId,
-    studentName: attempt.students[0]?.display_name ?? "Student",
-    admissionNumber: attempt.students[0]?.admission_number ?? "",
-    className: attempt.students[0]?.classes?.[0]?.name ?? null,
+    studentName: asArray(attempt.students)[0]?.display_name ?? "Student",
+    admissionNumber: asArray(attempt.students)[0]?.admission_number ?? "",
+    className: asArray(asArray(attempt.students)[0]?.classes)[0]?.name ?? null,
     submittedAt: attempt.submitted_at,
     autoScore: attempt.score,
     autoTotal: attempt.total_marks,
     essayAnswers: answers
-      .filter((a) => a.questions[0]?.question_type === "essay")
-      .map((a) => ({
-        answerId: a.id,
-        questionId: a.questions[0].id,
-        questionText: a.questions[0].question_text,
-        marks: a.questions[0].marks,
-        answerGuide: a.questions[0].answer_guide,
-        answerText: a.answer_text ?? null,
-        marksAwarded: a.marks_awarded,
-        markedAt: a.marked_at,
-      })),
+      .filter((a) => asArray(a.questions)[0]?.question_type === "essay")
+      .map((a) => {
+        const q = asArray(a.questions)[0]!;
+        return {
+          answerId: a.id,
+          questionId: q.id,
+          questionText: q.question_text,
+          marks: q.marks,
+          answerGuide: q.answer_guide,
+          answerText: a.answer_text ?? null,
+          marksAwarded: a.marks_awarded,
+          markedAt: a.marked_at,
+        };
+      }),
   };
 }
 
@@ -1625,7 +1629,7 @@ export async function saveEssayMarks(
   const nowIso = new Date().toISOString();
 
   for (const a of answersList) {
-    const awarded = Math.min(marksById.get(a.id) ?? 0, a.questions[0]?.marks ?? 0);
+    const awarded = Math.min(marksById.get(a.id) ?? 0, asArray(a.questions)[0]?.marks ?? 0);
     const { error } = await admin
       .from("practice_answers")
       .update({

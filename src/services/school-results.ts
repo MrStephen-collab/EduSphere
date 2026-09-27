@@ -1,4 +1,5 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { asArray } from "@/lib/embed";
 
 export type SchoolResultsFilters = {
   classId: string | null;
@@ -114,11 +115,11 @@ export async function getSchoolResults(
   const rows: SchoolResultRow[] = raw.map((r) => ({
     id: r.id,
     studentId: r.student_id,
-    studentName: r.students?.[0]?.display_name ?? null,
-    admissionNumber: r.students?.[0]?.admission_number ?? null,
-    className: r.students?.[0]?.classes?.[0]?.name ?? null,
-    subject: r.subjects?.[0]?.name ?? null,
-    examination: r.examinations?.[0]?.title ?? null,
+    studentName: asArray(r.students)[0]?.display_name ?? null,
+    admissionNumber: asArray(r.students)[0]?.admission_number ?? null,
+    className: asArray(asArray(r.students)[0]?.classes)[0]?.name ?? null,
+    subject: asArray(r.subjects)[0]?.name ?? null,
+    examination: asArray(r.examinations)[0]?.title ?? null,
     score: r.score,
     percentage: r.percentage,
     pass: r.pass,

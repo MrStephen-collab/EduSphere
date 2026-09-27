@@ -6,6 +6,7 @@ import type {
   Term,
 } from "@/types/database";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { asArray } from "@/lib/embed";
 
 // ---------------------------------------------------------------------------
 // Pure helpers
@@ -109,15 +110,15 @@ type AssignmentRow = {
   assignments: {
     subject_id: string | null;
     max_score: number | null;
-    subjects: { name: string } | null;
-  } | null;
+    subjects: { name: string } | { name: string }[] | null;
+  } | { subject_id: string | null; max_score: number | null; subjects: { name: string } | { name: string }[] | null }[] | null;
 };
 
 type AttemptRow = PracticeAttempt & {
   exam_series: {
     subject_id: string | null;
-    subjects: { name: string } | null;
-  } | null;
+    subjects: { name: string } | { name: string }[] | null;
+  } | { subject_id: string | null; subjects: { name: string } | { name: string }[] | null }[] | null;
 };
 
 type SubjectAgg = {
@@ -147,18 +148,24 @@ function groupRows(
   };
 
   for (const a of assignments) {
-    if (!a.assignments) continue;
+    const assignment = asArray(a.assignments)[0];
+    if (!assignment) continue;
     const agg = touch(
       a.student_id,
-      a.assignments.subject_id,
-      a.assignments.subjects?.name ?? "General",
+      assignment.subject_id,
+      asArray(assignment.subjects)[0]?.name ?? "General",
     );
-    agg.assignmentPcts.push(pct(a.score, a.assignments.max_score));
+    agg.assignmentPcts.push(pct(a.score, assignment.max_score));
   }
 
   for (const t of attempts) {
-    if (!t.exam_series) continue;
-    const agg = touch(t.student_id, t.exam_series.subject_id, t.exam_series.subjects?.name ?? "General");
+    const series = asArray(t.exam_series)[0];
+    if (!series) continue;
+    const agg = touch(
+      t.student_id,
+      series.subject_id,
+      asArray(series.subjects)[0]?.name ?? "General",
+    );
     agg.practicePcts.push(pct(t.score, t.total_marks));
   }
 
@@ -369,14 +376,14 @@ async function loadBands(schoolId: string): Promise<GradeBand[]> {
 async function loadStudents(
   schoolId: string,
   classId: string,
-): Promise<(Student & { streams: { name: string } | null })[]> {
+): Promise<(Student & { streams: { name: string } | { name: string }[] | null })[]> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("students")
     .select("*, streams(name)")
     .eq("school_id", schoolId)
     .eq("class_id", classId);
-  return (data ?? []) as (Student & { streams: { name: string } | null })[];
+  return (data ?? []) as (Student & { streams: { name: string } | { name: string }[] | null })[];
 }
 
 async function loadSubjectTeachers(
@@ -392,8 +399,9 @@ async function loadSubjectTeachers(
   const map = new Map<string, string | null>();
   for (const row of data ?? []) {
     if (!row.subject_id || map.has(row.subject_id)) continue;
-    const teachers = (row as { teachers?: { display_name: string | null }[] }).teachers;
-    map.set(row.subject_id, teachers?.[0]?.display_name ?? null);
+    const teachers = (row as { teachers?: { display_name: string | null } | { display_name: string | null }[] })
+      .teachers;
+    map.set(row.subject_id, asArray(teachers)[0]?.display_name ?? null);
   }
   return map;
 }
@@ -594,14 +602,14 @@ export async function getStudentReport(
 }
 
 function toStudentMeta(
-  student: Student & { streams: { name: string } | null },
+  student: Student & { streams: { name: string } | { name: string }[] | null },
 ): StudentMeta {
   return {
     id: student.id,
     displayName: student.display_name ?? "Student",
     admissionNumber: student.admission_number,
     className: null,
-    streamName: student.streams?.name ?? null,
+    streamName: asArray(student.streams)[0]?.name ?? null,
     gender: student.gender,
   };
 }

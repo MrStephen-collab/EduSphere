@@ -22,6 +22,7 @@ import {
   SeriesDeleteButton,
 } from "@/components/exam/series-forms";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "Exam series",
@@ -81,8 +82,12 @@ export default async function TeacherExamSeriesPage() {
                         </Badge>
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        {series.classes?.name && <span>{series.classes.name}</span>}
-                        {series.subjects?.name && <span>{series.subjects.name}</span>}
+                        {asArray(series.classes)[0]?.name && (
+                          <span>{asArray(series.classes)[0]?.name}</span>
+                        )}
+                        {asArray(series.subjects)[0]?.name && (
+                          <span>{asArray(series.subjects)[0]?.name}</span>
+                        )}
                         {series.year && (
                           <span className="inline-flex items-center gap-1">
                             <CalendarClock className="size-3.5" aria-hidden="true" />

@@ -17,6 +17,7 @@ import {
   AnnouncementList,
 } from "@/components/school/announcement-form";
 import type { Announcement } from "@/types/database";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "Announcements",
@@ -55,8 +56,8 @@ export default async function AnnouncementsPage() {
   })[] = announcements.map((a) => ({
     ...a,
     status: announcementStatus(a),
-    className: a.classes?.name ?? null,
-    authorName: a.author?.full_name ?? null,
+    className: asArray(a.classes)[0]?.name ?? null,
+    authorName: asArray(a.author)[0]?.full_name ?? null,
   }));
 
   const classes = (classesRes.data ?? []).map((c) => ({

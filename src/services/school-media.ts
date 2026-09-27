@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSchoolAdmin } from "@/services/shared";
+import { asArray } from "@/lib/embed";
 
 export const eventSchema = z.object({
   title: z.string().trim().min(3, "Event title is required").max(160),
@@ -44,7 +45,9 @@ export async function getSchoolEvents(schoolId: string): Promise<SchoolEvent[]> 
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("school_events")
-    .select("id, title, description, starts_at, ends_at, venue, cover_url, published, created_at, profiles(name)")
+    .select(
+      "id, title, description, starts_at, ends_at, venue, cover_url, published, created_at, profiles(full_name)",
+    )
     .eq("school_id", schoolId)
     .order("starts_at", { ascending: false });
   if (!data) return [];
@@ -59,7 +62,7 @@ export async function getSchoolEvents(schoolId: string): Promise<SchoolEvent[]> 
     cover_url: string | null;
     published: boolean;
     created_at: string;
-    profiles: Array<{ name: string | null }>;
+    profiles: { full_name: string | null } | { full_name: string | null }[] | null;
   }>).map((e) => ({
     id: e.id,
     title: e.title,
@@ -69,7 +72,7 @@ export async function getSchoolEvents(schoolId: string): Promise<SchoolEvent[]> 
     venue: e.venue,
     coverUrl: e.cover_url,
     published: e.published,
-    authorName: e.profiles[0]?.name ?? null,
+    authorName: asArray(e.profiles)[0]?.full_name ?? null,
     createdAt: e.created_at,
   }));
 }

@@ -9,6 +9,7 @@ import {
   sendAssignmentGradedEmail,
 } from "@/email/hooks";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
+import { asArray } from "@/lib/embed";
 import type {
   Assignment,
   AssignmentStatus,
@@ -54,9 +55,9 @@ export const submissionSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export type TeacherAssignmentRow = Assignment & {
-  classes: { name: string } | null;
-  subjects: { name: string } | null;
-  courses: { title: string } | null;
+  classes: { name: string } | { name: string }[] | null;
+  subjects: { name: string } | { name: string }[] | null;
+  courses: { title: string } | { title: string }[] | null;
 };
 
 export type TeacherAssignmentItem = {
@@ -124,7 +125,7 @@ export async function listTeacherAssignments(
 export type AssignmentDetail = {
   assignment: TeacherAssignmentRow;
   submissions: (AssignmentSubmission & {
-    students: { display_name: string | null } | null;
+    students: { display_name: string | null } | { display_name: string | null }[] | null;
   })[];
 };
 
@@ -403,9 +404,9 @@ export async function getStudentAssignments(
       description: a.description,
       dueDate: a.due_date,
       maxScore: a.max_score,
-      subject: a.subjects?.name ?? null,
-      className: a.classes?.name ?? null,
-      courseTitle: a.courses?.title ?? null,
+      subject: asArray(a.subjects)[0]?.name ?? null,
+      className: asArray(a.classes)[0]?.name ?? null,
+      courseTitle: asArray(a.courses)[0]?.title ?? null,
       status: state.status,
       score: submission?.score ?? null,
       graded: state.graded,

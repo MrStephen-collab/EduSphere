@@ -5,6 +5,7 @@ import { requireSchoolAdmin } from "@/services/shared";
 import { fanOutAnnouncement } from "@/services/notifications";
 import { sendAnnouncementEmails } from "@/email/hooks";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
+import { asArray } from "@/lib/embed";
 import type {
   Announcement,
   AnnouncementTarget,
@@ -47,8 +48,8 @@ export const announcementInputSchema = z
 export type AnnouncementInput = z.infer<typeof announcementInputSchema>;
 
 export type AnnouncementRow = Announcement & {
-  classes: { id: string; name: string } | null;
-  author: { full_name: string } | null;
+  classes: { id: string; name: string } | { id: string; name: string }[] | null;
+  author: { full_name: string } | { full_name: string }[] | null;
 };
 
 async function logAudit(opts: {
@@ -272,7 +273,7 @@ export async function getParentAnnouncements(
   const classIds = [
     ...new Set(
       (links ?? [])
-        .flatMap((l) => l.students.map((s) => s.class_id))
+        .flatMap((l) => asArray(l.students).map((s) => s?.class_id ?? null))
         .filter((c): c is string => !!c),
     ),
   ];

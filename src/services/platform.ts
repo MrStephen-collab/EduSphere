@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlatformAdmin } from "@/services/billing";
 import { getServerData } from "@/lib/server-cache";
+import { asArray } from "@/lib/embed";
 
 export type PlatformSchoolRow = {
   id: string;
@@ -52,17 +53,18 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
     string,
     { status: string; current_period_end: string | null; planName: string | null }
   >();
-  for (const s of (subsRes.data ?? []) as {
+  const subRows = (subsRes.data ?? []) as {
     school_id: string;
     status: string;
     current_period_end: string | null;
-    subscription_plans: { name: string }[] | null;
-  }[]) {
+    subscription_plans: { name: string } | { name: string }[] | null;
+  }[];
+  for (const s of subRows) {
     if (!subBySchool.has(s.school_id)) {
       subBySchool.set(s.school_id, {
         status: s.status,
         current_period_end: s.current_period_end,
-        planName: s.subscription_plans?.[0]?.name ?? null,
+        planName: asArray(s.subscription_plans)[0]?.name ?? null,
       });
     }
   }
@@ -85,8 +87,8 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
       status: s.status,
       city: s.city,
       state: s.state,
-      ownerName: s.profiles?.[0]?.full_name ?? null,
-      ownerEmail: s.profiles?.[0]?.email ?? null,
+      ownerName: asArray(s.profiles)[0]?.full_name ?? null,
+      ownerEmail: asArray(s.profiles)[0]?.email ?? null,
       students: studentCount.get(s.id) ?? 0,
       teachers: teacherCount.get(s.id) ?? 0,
       subscriptionStatus: sub?.status ?? "inactive",
@@ -157,9 +159,9 @@ export async function getPlatformAnalytics(): Promise<PlatformAnalytics> {
 
   const planCount = new Map<string, number>();
   for (const s of (subsRes.data ?? []) as {
-    subscription_plans: { name: string }[] | null;
+    subscription_plans: { name: string } | { name: string }[] | null;
   }[]) {
-    const label = s.subscription_plans?.[0]?.name ?? "No plan";
+    const label = asArray(s.subscription_plans)[0]?.name ?? "No plan";
     planCount.set(label, (planCount.get(label) ?? 0) + 1);
   }
   const planDistribution = [...planCount.entries()]
@@ -229,9 +231,9 @@ export async function getSupportTickets(): Promise<SupportTicket[]> {
     message: t.message,
     status: t.status,
     priority: t.priority,
-    schoolName: t.schools?.[0]?.name ?? null,
-    reporterName: t.profiles?.[0]?.full_name ?? null,
-    reporterEmail: t.profiles?.[0]?.email ?? null,
+    schoolName: asArray(t.schools)[0]?.name ?? null,
+    reporterName: asArray(t.profiles)[0]?.full_name ?? null,
+    reporterEmail: asArray(t.profiles)[0]?.email ?? null,
     createdAt: t.created_at,
   }));
 }
@@ -296,7 +298,7 @@ export async function getPlatformUsers(): Promise<PlatformUser[]> {
     const list = rolesByUser.get(r.user_id) ?? [];
     list.push({
       schoolId: r.school_id ?? "",
-      schoolName: r.school_id ? (r.schools?.[0]?.name ?? "School") : "Platform",
+      schoolName: r.school_id ? (asArray(r.schools)[0]?.name ?? "School") : "Platform",
       role: r.role,
     });
     rolesByUser.set(r.user_id, list);

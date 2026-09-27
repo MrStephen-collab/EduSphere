@@ -23,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SubmissionEditForm } from "@/components/assignments/assignment-forms";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "Assignment",
@@ -88,9 +89,13 @@ export default async function StudentAssignmentPage({
             <CardHeader>
               <CardTitle>Instructions</CardTitle>
               <CardDescription>
-                {assignment.classes?.name ?? "All classes"}
-                {assignment.subjects?.name ? ` · ${assignment.subjects.name}` : ""}
-                {assignment.courses?.title ? ` · ${assignment.courses.title}` : ""}
+                {asArray(assignment.classes)[0]?.name ?? "All classes"}
+                {asArray(assignment.subjects)[0]?.name
+                  ? ` · ${asArray(assignment.subjects)[0]?.name}`
+                  : ""}
+                {asArray(assignment.courses)[0]?.title
+                  ? ` · ${asArray(assignment.courses)[0]?.title}`
+                  : ""}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">

@@ -25,6 +25,7 @@ import {
 } from "@/components/exam/series-forms";
 import { SectionsManager } from "@/components/exam/sections-manager";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "Exam series",
@@ -88,10 +89,16 @@ export default async function TeacherExamSeriesDetailPage({
                 </p>
               )}
               <p className="text-xs text-muted-foreground">
-                Class: <span className="font-medium text-foreground">{series.classes?.name ?? "All classes"}</span>
+                Class:{" "}
+                <span className="font-medium text-foreground">
+                  {asArray(series.classes)[0]?.name ?? "All classes"}
+                </span>
               </p>
               <p className="text-xs text-muted-foreground">
-                Subject: <span className="font-medium text-foreground">{series.subjects?.name ?? "General"}</span>
+                Subject:{" "}
+                <span className="font-medium text-foreground">
+                  {asArray(series.subjects)[0]?.name ?? "General"}
+                </span>
               </p>
               {series.duration_minutes ? (
                 <p className="text-xs text-muted-foreground">

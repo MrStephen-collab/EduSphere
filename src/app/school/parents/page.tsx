@@ -6,6 +6,7 @@ import { getParents, getStudents } from "@/services/people";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ParentForm } from "@/components/school/people-form";
+import { asArray } from "@/lib/embed";
 
 export const metadata: Metadata = {
   title: "Parents",
@@ -24,8 +25,8 @@ export default async function ParentsPage() {
 
   const rows = parents.map((p) => ({
     id: p.id,
-    name: p.profile?.full_name ?? p.display_name ?? "Unnamed parent",
-    email: p.profile?.email ?? null,
+    name: asArray(p.profile)[0]?.full_name ?? p.display_name ?? "Unnamed parent",
+    email: asArray(p.profile)[0]?.email ?? null,
     relationship: p.relationship,
     hasAccount: !!p.user_id,
   }));
@@ -44,7 +45,7 @@ export default async function ParentsPage() {
             <ParentForm
               students={students.map((s) => ({
                 id: s.id,
-                name: s.profile?.full_name ?? s.display_name ?? s.admission_number,
+                name: asArray(s.profile)[0]?.full_name ?? s.display_name ?? s.admission_number,
               }))}
             />
           </CardContent>

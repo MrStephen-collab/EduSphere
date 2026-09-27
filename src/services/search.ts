@@ -1,5 +1,6 @@
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { asArray } from "@/lib/embed";
 
 export type SearchHit = {
   id: string;
@@ -121,7 +122,7 @@ async function searchSchoolManager(query: string, schoolId: string): Promise<Sea
       }[]).map((row) => ({
         id: row.id,
         title: row.display_name ?? row.admission_number,
-        subtitle: [row.admission_number, row.classes?.[0]?.name, row.streams?.[0]?.name]
+        subtitle: [row.admission_number, asArray(row.classes)[0]?.name, asArray(row.streams)[0]?.name]
           .filter(Boolean)
           .join(" · ") || null,
         href: `/school/students?q=${enc}`,
@@ -208,7 +209,7 @@ async function searchSchoolManager(query: string, schoolId: string): Promise<Sea
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: [row.subjects?.[0]?.name, row.classes?.[0]?.name].filter(Boolean).join(" · ") || null,
+        subtitle: [asArray(row.subjects)[0]?.name, asArray(row.classes)[0]?.name].filter(Boolean).join(" · ") || null,
         href: `/teacher/courses/${row.id}`,
       }));
     }),
@@ -229,7 +230,7 @@ async function searchSchoolManager(query: string, schoolId: string): Promise<Sea
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: row.courses?.[0]?.title ?? null,
+        subtitle: asArray(row.courses)[0]?.title ?? null,
         href: `/teacher/courses/${row.course_id}/lessons/${row.id}`,
       }));
     }),
@@ -250,7 +251,7 @@ async function searchSchoolManager(query: string, schoolId: string): Promise<Sea
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: [row.subjects?.[0]?.name, row.classes?.[0]?.name].filter(Boolean).join(" · ") || null,
+        subtitle: [asArray(row.subjects)[0]?.name, asArray(row.classes)[0]?.name].filter(Boolean).join(" · ") || null,
         href: `/teacher/assignments/${row.id}`,
       }));
     }),
@@ -294,7 +295,7 @@ async function searchSchoolManager(query: string, schoolId: string): Promise<Sea
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: [row.subjects?.[0]?.name, row.classes?.[0]?.name].filter(Boolean).join(" · ") || null,
+        subtitle: [asArray(row.subjects)[0]?.name, asArray(row.classes)[0]?.name].filter(Boolean).join(" · ") || null,
         href: `/teacher/exam-series/${row.id}`,
       }));
     }),
@@ -344,7 +345,7 @@ async function searchTeacher(query: string, schoolId: string): Promise<SearchGro
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: [row.subjects?.[0]?.name, row.classes?.[0]?.name].filter(Boolean).join(" · ") || null,
+        subtitle: [asArray(row.subjects)[0]?.name, asArray(row.classes)[0]?.name].filter(Boolean).join(" · ") || null,
         href: `/teacher/courses/${row.id}`,
       }));
     }),
@@ -365,7 +366,7 @@ async function searchTeacher(query: string, schoolId: string): Promise<SearchGro
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: row.courses?.[0]?.title ?? null,
+        subtitle: asArray(row.courses)[0]?.title ?? null,
         href: `/teacher/courses/${row.course_id}/lessons/${row.id}`,
       }));
     }),
@@ -386,7 +387,7 @@ async function searchTeacher(query: string, schoolId: string): Promise<SearchGro
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: [row.subjects?.[0]?.name, row.classes?.[0]?.name].filter(Boolean).join(" · ") || null,
+        subtitle: [asArray(row.subjects)[0]?.name, asArray(row.classes)[0]?.name].filter(Boolean).join(" · ") || null,
         href: `/teacher/assignments/${row.id}`,
       }));
     }),
@@ -430,7 +431,7 @@ async function searchTeacher(query: string, schoolId: string): Promise<SearchGro
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: [row.subjects?.[0]?.name, row.classes?.[0]?.name].filter(Boolean).join(" · ") || null,
+        subtitle: [asArray(row.subjects)[0]?.name, asArray(row.classes)[0]?.name].filter(Boolean).join(" · ") || null,
         href: `/teacher/exam-series/${row.id}`,
       }));
     }),
@@ -486,7 +487,7 @@ async function searchStudent(
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: [row.subjects?.[0]?.name, row.classes?.[0]?.name].filter(Boolean).join(" · ") || null,
+        subtitle: [asArray(row.subjects)[0]?.name, asArray(row.classes)[0]?.name].filter(Boolean).join(" · ") || null,
         href: `/student/courses/${row.id}`,
       }));
     }),
@@ -519,7 +520,7 @@ async function searchStudent(
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: row.courses?.[0]?.title ?? null,
+        subtitle: asArray(row.courses)[0]?.title ?? null,
         href: `/student/courses/${row.course_id}/lessons/${row.id}`,
       }));
     }),
@@ -542,7 +543,7 @@ async function searchStudent(
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: [row.subjects?.[0]?.name, row.classes?.[0]?.name].filter(Boolean).join(" · ") || null,
+        subtitle: [asArray(row.subjects)[0]?.name, asArray(row.classes)[0]?.name].filter(Boolean).join(" · ") || null,
         href: `/student/assignments/${row.id}`,
       }));
     }),
@@ -565,7 +566,7 @@ async function searchStudent(
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: [row.subjects?.[0]?.name, row.classes?.[0]?.name].filter(Boolean).join(" · ") || null,
+        subtitle: [asArray(row.subjects)[0]?.name, asArray(row.classes)[0]?.name].filter(Boolean).join(" · ") || null,
         href: `/student/exam-series/${row.id}`,
       }));
     }),
@@ -603,12 +604,12 @@ async function searchParent(query: string, schoolId: string, userId: string): Pr
       admission_number: string;
       class_id: string | null;
       classes: { name: string }[] | null;
-    }[] | null;
+    } | null;
   }[];
 
   const childRows = children
-    .map((l) => l.students?.[0])
-    .filter((s): s is NonNullable<(typeof children)[0]["students"]>[0] => Boolean(s));
+    .map((l) => asArray(l.students)[0])
+    .filter((s): s is NonNullable<NonNullable<(typeof children)[0]>["students"]> => Boolean(s));
 
   const matchedChildren = childRows.filter(
     (s) =>
@@ -623,7 +624,7 @@ async function searchParent(query: string, schoolId: string, userId: string): Pr
       matchedChildren.map((s) => ({
         id: s.id,
         title: `${s.display_name ?? s.admission_number} (${s.admission_number})`,
-        subtitle: s.classes?.[0]?.name ?? null,
+        subtitle: asArray(s.classes)[0]?.name ?? null,
         href: "/parent/children",
       })),
     ),
@@ -654,7 +655,7 @@ async function searchParent(query: string, schoolId: string, userId: string): Pr
       }[]).map((row) => ({
         id: row.id,
         title: row.title,
-        subtitle: [row.subjects?.[0]?.name, row.classes?.[0]?.name].filter(Boolean).join(" · ") || null,
+        subtitle: [asArray(row.subjects)[0]?.name, asArray(row.classes)[0]?.name].filter(Boolean).join(" · ") || null,
         href: "/parent/assignments",
       }));
     }),

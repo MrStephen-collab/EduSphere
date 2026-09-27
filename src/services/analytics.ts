@@ -2,6 +2,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStudentCourses } from "@/services/learning";
 import type { PracticeAttempt } from "@/types/database";
+import { asArray } from "@/lib/embed";
 
 function pct(score: number | null, total: number | null | undefined): number | null {
   if (score == null || !total) return null;
@@ -90,18 +91,19 @@ export async function getStudentResults(
     exam_series: {
       title: string;
       exam_type: string;
-      subjects: { name: string } | null;
-    } | null;
+      subjects: { name: string } | { name: string }[] | null;
+    } | { title: string; exam_type: string; subjects: { name: string } | { name: string }[] | null }[] | null;
   })[];
 
   const practicePcts = attemptRows.map((a) => pct(a.score, a.total_marks));
   const perSeriesMap = new Map<string, StudentPracticeItem>();
   for (const a of attemptRows) {
+    const series = asArray(a.exam_series)[0];
     const existing = perSeriesMap.get(a.exam_series_id) ?? {
       seriesId: a.exam_series_id,
-      title: a.exam_series?.title ?? "Unknown series",
-      examType: a.exam_series?.exam_type ?? "school",
-      subject: a.exam_series?.subjects?.name ?? null,
+      title: series?.title ?? "Unknown series",
+      examType: series?.exam_type ?? "school",
+      subject: asArray(series?.subjects)[0]?.name ?? null,
       attempts: 0,
       best: null as number | null,
     };
@@ -113,7 +115,7 @@ export async function getStudentResults(
 
   const bySubject = new Map<string, { practice: number[]; assignment: number[] }>();
   for (const a of attemptRows) {
-    const subject = a.exam_series?.subjects?.name ?? "General";
+    const subject = asArray(asArray(a.exam_series)[0]?.subjects)[0]?.name ?? "General";
     const p = pct(a.score, a.total_marks);
     if (p != null) {
       const entry = bySubject.get(subject) ?? { practice: [], assignment: [] };
@@ -135,18 +137,22 @@ export async function getStudentResults(
     assignment_id: string;
     score: number | null;
     graded_at: string | null;
-    assignments: { title: string; subject_id: string | null; subjects: { name: string } | null } | null;
+    assignments:
+      | { title: string; subject_id: string | null; subjects: { name: string } | { name: string }[] | null }
+      | { title: string; subject_id: string | null; subjects: { name: string } | { name: string }[] | null }[]
+      | null;
   }[];
 
   const gradedAssignments: StudentGradedAssignment[] = [];
   const maxScoreById = new Map<string, number>();
   for (const s of subRows) {
-    if (!s.assignments) continue;
+    const assignment = asArray(s.assignments)[0];
+    if (!assignment) continue;
     maxScoreById.set(s.assignment_id, 0);
     gradedAssignments.push({
       id: s.assignment_id,
-      title: s.assignments.title,
-      subject: s.assignments.subjects?.name ?? null,
+      title: assignment.title,
+      subject: asArray(assignment.subjects)[0]?.name ?? null,
       score: s.score,
       maxScore: 0,
       percentage: null,
@@ -181,7 +187,9 @@ export async function getStudentResults(
 
   const results: StudentResultRow[] = (resultRows ?? []).map((r) => ({
     id: r.id,
-    subject: (r as { subjects?: { name: string } | null }).subjects?.name ?? null,
+    subject:
+      asArray((r as { subjects?: { name: string } | { name: string }[] | null }).subjects)[0]?.name ??
+      null,
     score: r.score,
     percentage: r.percentage,
     publishedAt: r.published_at,
@@ -352,8 +360,11 @@ export async function getTeacherAnalytics(
 
   const seriesIds = series.map((s) => s.id);
   let attempts: (PracticeAttempt & {
-    exam_series: { title: string; class_id: string | null } | null;
-    students: { display_name: string | null } | null;
+    exam_series:
+      | { title: string; class_id: string | null }
+      | { title: string; class_id: string | null }[]
+      | null;
+    students: { display_name: string | null } | { display_name: string | null }[] | null;
   })[] = [];
   if (seriesIds.length) {
     const { data } = await admin
@@ -369,7 +380,7 @@ export async function getTeacherAnalytics(
   const attemptPcts = attempts.map((a) => pct(a.score, a.total_marks));
   const classAttempts = new Map<string, { count: number; pcts: (number | null)[] }>();
   for (const a of attempts) {
-    const key = a.exam_series?.class_id ?? "none";
+    const key = asArray(a.exam_series)[0]?.class_id ?? "none";
     const entry = classAttempts.get(key) ?? { count: 0, pcts: [] as (number | null)[] };
     entry.count += 1;
     entry.pcts.push(pct(a.score, a.total_marks));
@@ -403,8 +414,8 @@ export async function getTeacherAnalytics(
 
   const recentAttempts: TeacherRecentAttempt[] = attempts.slice(0, 8).map((a) => ({
     attemptId: a.id,
-    seriesTitle: a.exam_series?.title ?? "Unknown series",
-    studentName: a.students?.display_name ?? "Student",
+    seriesTitle: asArray(a.exam_series)[0]?.title ?? "Unknown series",
+    studentName: asArray(a.students)[0]?.display_name ?? "Student",
     score: a.score,
     total: a.total_marks,
     percentage: pct(a.score, a.total_marks),
@@ -547,7 +558,7 @@ export async function getSchoolAnalytics(schoolId: string): Promise<SchoolAnalyt
 
   const classBuckets = new Map<string, { classId: string; total: number; count: number }>();
   for (const r of results) {
-    const classId = r.students[0]?.class_id ?? "";
+    const classId = asArray(r.students)[0]?.class_id ?? "";
     const bucket = classBuckets.get(classId) ?? { classId, total: 0, count: 0 };
     bucket.total += r.percentage;
     bucket.count += 1;
@@ -567,7 +578,7 @@ export async function getSchoolAnalytics(schoolId: string): Promise<SchoolAnalyt
     { studentId: string; name: string; className: string | null; total: number; count: number }
   >();
   for (const r of results) {
-    const student = r.students[0];
+    const student = asArray(r.students)[0];
     if (!student) continue;
     const bucket = studentBuckets.get(student.id) ?? {
       studentId: student.id,
@@ -597,7 +608,8 @@ export async function getSchoolAnalytics(schoolId: string): Promise<SchoolAnalyt
     is_correct: boolean;
     examination_questions: Array<{ questions: Array<{ topic: string | null }> }>;
   }>) {
-    const topic = a.examination_questions[0]?.questions[0]?.topic ?? null;
+    const eq = asArray(a.examination_questions)[0];
+    const topic = eq ? asArray(eq.questions)[0]?.topic ?? null : null;
     if (!topic) continue;
     const bucket = topicBuckets.get(topic) ?? { answers: 0, correct: 0 };
     bucket.answers += 1;

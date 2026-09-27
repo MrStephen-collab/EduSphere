@@ -14,6 +14,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { requireSchoolAdmin } from "@/services/shared";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
+import { asArray } from "@/lib/embed";
 import { sendSubscriptionConfirmedEmail } from "@/email/hooks";
 
 function invalidatePlatformCache() {
@@ -191,7 +192,7 @@ export type SchoolPaymentView = {
 };
 
 type SubscriptionRow = Subscription & {
-  plans: SubscriptionPlan | null;
+  plans: SubscriptionPlan | SubscriptionPlan[] | null;
 };
 
 export async function getSchoolBilling(schoolId: string): Promise<{
@@ -203,7 +204,7 @@ export async function getSchoolBilling(schoolId: string): Promise<{
   const [{ data: subData }, { data: paymentData }] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select("*, plans(*)")
+      .select("*, plans:subscription_plans(*)")
       .eq("school_id", schoolId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -217,11 +218,12 @@ export async function getSchoolBilling(schoolId: string): Promise<{
   ]);
 
   const sub = (subData ?? null) as SubscriptionRow | null;
+  const subPlan = sub ? asArray(sub.plans)[0] : undefined;
   const subscription: SchoolSubscriptionView | null = sub
     ? {
         id: sub.id,
         status: sub.status,
-        plan: sub.plans ? toPlan(sub.plans) : null,
+        plan: subPlan ? toPlan(subPlan) : null,
         currentPeriodStart: sub.current_period_start,
         currentPeriodEnd: sub.current_period_end,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
@@ -539,7 +541,7 @@ export async function getBillingOverview() {
       .in("status", ["pending"]),
     admin
       .from("subscriptions")
-      .select("*, schools(name), plans(name, price, billing_interval)")
+      .select("*, schools(name), plans:subscription_plans(name, price, billing_interval)")
       .order("updated_at", { ascending: false })
       .limit(100),
     admin
@@ -574,8 +576,19 @@ export async function getBillingOverview() {
     annualRevenue,
     pendingAmount,
     subscriptions: (subsRes.data ?? []).map((s) => {
-      const school = (s as { schools?: { name?: string } | null }).schools;
-      const plan = (s as { plans?: { name?: string; price?: number; billing_interval?: string } | null }).plans;
+      const school = asArray(
+        (s as { schools?: { name?: string } | { name?: string }[] | null }).schools,
+      )[0];
+      const plan = asArray(
+        (
+          s as {
+            plans?:
+              | { name?: string; price?: number; billing_interval?: string }
+              | { name?: string; price?: number; billing_interval?: string }[]
+              | null;
+          }
+        ).plans,
+      )[0];
       const meta = { status: s.status as SubscriptionStatus, current_period_end: s.current_period_end as string | null };
       const status = subscriptionDisplayStatus(meta);
       return {
@@ -594,7 +607,9 @@ export async function getBillingOverview() {
       };
     }),
     payments: (paymentsRes.data ?? []).map((p) => {
-      const school = (p as { schools?: { name?: string } | null }).schools;
+      const school = asArray(
+        (p as { schools?: { name?: string } | { name?: string }[] | null }).schools,
+      )[0];
       const meta = (p.metadata ?? {}) as { plan_name?: unknown } | null;
       return {
         id: p.id as string,

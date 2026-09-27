@@ -3,6 +3,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireContentEditor } from "@/services/shared";
 import { questionSchema } from "@/services/exam";
+import { asArray } from "@/lib/embed";
 
 export const bankCreateSchema = z.object({
   name: z.string().trim().min(3, "Bank name is required").max(120),
@@ -45,7 +46,7 @@ export type QuestionBankDetail = QuestionBankSummary & {
 };
 
 const SUMMARY_SELECT =
-  "id, name, description, subject_id, class_id, created_by, created_at, subjects(name), classes(name), profiles(name)";
+  "id, name, description, subject_id, class_id, created_by, created_at, subjects(name), classes(name), profiles(full_name)";
 
 type BankRow = {
   id: string;
@@ -53,9 +54,9 @@ type BankRow = {
   description: string | null;
   created_at: string;
   created_by: string | null;
-  subjects: Array<{ name: string }>;
-  classes: Array<{ name: string }>;
-  profiles: Array<{ name: string | null }>;
+  subjects: { name: string } | { name: string }[] | null;
+  classes: { name: string } | { name: string }[] | null;
+  profiles: { full_name: string | null } | { full_name: string | null }[] | null;
 };
 
 function toSummary(row: BankRow, count: number): QuestionBankSummary {
@@ -63,10 +64,10 @@ function toSummary(row: BankRow, count: number): QuestionBankSummary {
     id: row.id,
     name: row.name,
     description: row.description,
-    subjectName: row.subjects[0]?.name ?? null,
-    className: row.classes[0]?.name ?? null,
+    subjectName: asArray(row.subjects)[0]?.name ?? null,
+    className: asArray(row.classes)[0]?.name ?? null,
     questionCount: count,
-    authorName: row.profiles[0]?.name ?? null,
+    authorName: asArray(row.profiles)[0]?.full_name ?? null,
     createdAt: row.created_at,
   };
 }
