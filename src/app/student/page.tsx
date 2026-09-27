@@ -119,7 +119,7 @@ async function StudentDashboardContent() {
                   href={`/student/courses/${bundle.continueItem.courseId}/lessons/${bundle.continueItem.lessonId}`}
                   className="inline-flex"
                 >
-                  <Button className="w-full justify-between">
+                  <Button className="h-11 w-full justify-between">
                     <span>{bundle.continueItem.progress === 100 ? "Review lesson" : `Continue ${bundle.continueItem.courseTitle}`}</span>
                     <ArrowRight className="size-4" aria-hidden="true" />
                   </Button>
@@ -144,7 +144,7 @@ async function StudentDashboardContent() {
           </CardHeader>
           <CardContent className="grid gap-2">
             <Link href="/student/courses" className="inline-flex">
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">
                   <BookOpen className="size-4" aria-hidden="true" />
                   Browse my courses
@@ -153,7 +153,7 @@ async function StudentDashboardContent() {
               </Button>
             </Link>
             <Link href="/student/assignments" className="inline-flex">
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">
                   <ClipboardList className="size-4" aria-hidden="true" />
                   My assignments
@@ -162,7 +162,7 @@ async function StudentDashboardContent() {
               </Button>
             </Link>
             <Link href="/student/exam-series" className="inline-flex">
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">
                   <FileText className="size-4" aria-hidden="true" />
                   Practise exam series
@@ -171,7 +171,7 @@ async function StudentDashboardContent() {
               </Button>
             </Link>
             <Link href="/student/results" className="inline-flex">
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">
                   <BarChart3 className="size-4" aria-hidden="true" />
                   My results
@@ -180,7 +180,7 @@ async function StudentDashboardContent() {
               </Button>
             </Link>
             <Link href="/student/report-cards" className="inline-flex">
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">
                   <ScrollText className="size-4" aria-hidden="true" />
                   Report cards

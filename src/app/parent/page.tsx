@@ -92,7 +92,7 @@ async function ParentDashboardContent() {
         />
       </div>
 
-      <AnnouncementBanner announcements={announcements} className="mt-6" />
+      <AnnouncementBanner announcements={announcements} className="mt-5" />
 
       {kids.length === 0 ? (
         <div className="mt-6">
@@ -129,17 +129,17 @@ async function ParentDashboardContent() {
                 </div>
                 <div className="grid gap-1.5">
                   <Link href={`/parent/results?child=${child.studentId}`} className="inline-flex">
-                    <Button variant="outline" className="w-full justify-between">
+                    <Button variant="outline" className="h-11 w-full justify-between">
                       <span>Results &amp; analytics</span>
                     </Button>
                   </Link>
                   <Link href={`/parent/assignments?child=${child.studentId}`} className="inline-flex">
-                    <Button variant="outline" className="w-full justify-between">
+                    <Button variant="outline" className="h-11 w-full justify-between">
                       <span>Assignments</span>
                     </Button>
                   </Link>
                   <Link href={`/parent/report-cards?child=${child.studentId}`} className="inline-flex">
-                    <Button variant="outline" className="w-full justify-between">
+                    <Button variant="outline" className="h-11 w-full justify-between">
                       <span>Report cards</span>
                     </Button>
                   </Link>

@@ -77,7 +77,7 @@ export function StatCard({
       className={cn(
         "animate-card-enter relative flex h-full flex-col overflow-hidden rounded-xl bg-card p-3 text-card-foreground ring-1 ring-foreground/10 transition-all duration-300",
         styles.card,
-        href && cn("hover:-translate-y-0.5 hover:shadow-lg hover:shadow-foreground/10", styles.hover),
+        href && cn("hover:-translate-y-0.5 hover:shadow-lg hover:shadow-foreground/10 active:translate-y-0 active:shadow-md", styles.hover),
       )}
       style={{ animationDelay: `${index * 60}ms` }}
     >

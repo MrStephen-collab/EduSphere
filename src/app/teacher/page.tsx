@@ -90,7 +90,7 @@ async function TeacherDashboardContent() {
           </CardHeader>
           <CardContent className="grid gap-2">
             <Link href="/teacher/courses" className="inline-flex">
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">
                   <BookOpen className="size-4" aria-hidden="true" />
                   Go to my courses
@@ -99,7 +99,7 @@ async function TeacherDashboardContent() {
               </Button>
             </Link>
             <Link href="/teacher/courses" className="inline-flex">
-              <Button className="w-full justify-between">
+              <Button className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">
                   <Plus className="size-4" aria-hidden="true" />
                   Create a new course
@@ -108,7 +108,7 @@ async function TeacherDashboardContent() {
               </Button>
             </Link>
             <Link href="/teacher/assignments" className="inline-flex">
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">
                   <ClipboardList className="size-4" aria-hidden="true" />
                   Grade submissions
@@ -117,7 +117,7 @@ async function TeacherDashboardContent() {
               </Button>
             </Link>
             <Link href="/teacher/exam-series" className="inline-flex">
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">
                   <FileText className="size-4" aria-hidden="true" />
                   Build exam series
@@ -126,7 +126,7 @@ async function TeacherDashboardContent() {
               </Button>
             </Link>
             <Link href="/teacher/analytics" className="inline-flex">
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">
                   <BarChart3 className="size-4" aria-hidden="true" />
                   Class analytics

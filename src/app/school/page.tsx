@@ -130,7 +130,7 @@ async function SchoolDashboardContent({
                 <li key={step.label}>
                   <Link
                     href={step.href}
-                    className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+                    className="flex min-h-11 items-center justify-between gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted active:bg-muted"
                   >
                     <span className="flex items-center gap-2">
                       {step.done ? (
@@ -159,7 +159,7 @@ async function SchoolDashboardContent({
                 <Link
                   key={action.href}
                   href={action.href}
-                  className="flex items-center gap-3 rounded-md border px-3 py-2.5 text-sm hover:bg-muted"
+                  className="flex min-h-11 items-center gap-3 rounded-md border px-3 py-2.5 text-sm transition-colors hover:bg-muted active:bg-muted"
                 >
                   <action.icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
                   <span>
