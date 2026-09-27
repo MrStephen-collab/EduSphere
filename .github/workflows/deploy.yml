@@ -47,4 +47,8 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: npx --yes vercel@59.15.1 deploy --prod --yes
+        run: |
+          # Pinned: 59.x only ships a `vc` bin, which npx cannot resolve as
+          # `vercel`. 57.x exposes both, so the command name is deterministic.
+          npm install --global vercel@57.0.0
+          vercel deploy --prod --yes
