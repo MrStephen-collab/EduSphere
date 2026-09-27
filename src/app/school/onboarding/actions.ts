@@ -25,7 +25,29 @@ function errorResult(e: unknown): ActionResult<never> {
 async function requireOnboardingUser() {
   const context = await getAuthContext();
   if (!context.user) redirect("/auth/login");
-  return context.user;
+  // Re-spread so the non-null `user` survives into the caller's type.
+  return { ...context, user: context.user };
+}
+
+const ONBOARDING_OWNER_ROLES = ["SCHOOL_OWNER", "SCHOOL_ADMIN"] as const;
+
+/**
+ * Onboarding writes go through the service role, so every write must be pinned
+ * to a school the caller genuinely belongs to. A `schoolId` arriving from the
+ * client is untrusted input: without this check any signed-in student could
+ * create a school (becoming its owner) or push classes and subjects into
+ * somebody else's school.
+ */
+async function requireOnboardingSchool(schoolId: string) {
+  const context = await requireOnboardingUser();
+  const membership = context.memberships.find((m) => m.school.id === schoolId);
+  if (
+    !membership ||
+    !(ONBOARDING_OWNER_ROLES as readonly string[]).includes(membership.role)
+  ) {
+    throw new Error("You don't have access to that school.");
+  }
+  return context;
 }
 
 export async function onboardingCreateSchool(input: {
@@ -40,14 +62,20 @@ export async function onboardingCreateSchool(input: {
   website?: string;
 }): Promise<ActionResult<{ schoolId: string }>> {
   try {
-    const user = await requireOnboardingUser();
+    const context = await requireOnboardingUser();
+    // One school per user. Without this, any signed-in member of another school
+    // can call this action and become the owner of a brand new school, which
+    // also changes where they land after login.
+    if (context.memberships.length > 0) {
+      throw new Error("You're already part of a school.");
+    }
     const slug = input.name
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 60);
-    const { schoolId } = await createSchoolWithOwner(user.id, {
+    const { schoolId } = await createSchoolWithOwner(context.user.id, {
       ...input,
       slug,
     });
@@ -61,6 +89,7 @@ export async function onboardingSaveSession(
   schoolId: string,
 ): Promise<ActionResult> {
   try {
+    await requireOnboardingSchool(schoolId);
     await ensureSchoolSession(schoolId);
     return { ok: true, data: undefined };
   } catch (e) {
@@ -73,6 +102,7 @@ export async function onboardingSaveClasses(
   names: string[],
 ): Promise<ActionResult> {
   try {
+    await requireOnboardingSchool(schoolId);
     const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
     if (unique.length === 0) {
       return { ok: false, error: "Add at least one class." };
@@ -98,6 +128,7 @@ export async function onboardingSaveSubjects(
   items: { name: string; code?: string }[],
 ): Promise<ActionResult> {
   try {
+    await requireOnboardingSchool(schoolId);
     const seen = new Set<string>();
     const unique = items.filter((item) => {
       const name = item.name.trim();
@@ -233,6 +264,7 @@ export async function onboardingImportStudents(
 
 export async function completeOnboarding(schoolId: string): Promise<ActionResult> {
   try {
+    await requireOnboardingSchool(schoolId);
     await ensureSchoolSession(schoolId);
     revalidatePath("/school");
   } catch (e) {
