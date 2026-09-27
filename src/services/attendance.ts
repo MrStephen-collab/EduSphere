@@ -1,6 +1,7 @@
 import type { AttendanceRecord, AttendanceStatus } from "@/types/database";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rowExists } from "@/lib/supabase/queries";
 import { requireContentEditor } from "@/services/shared";
 import { ATTENDANCE_STATUSES } from "@/lib/attendance-labels";
 import { asArray } from "@/lib/embed";
@@ -46,14 +47,12 @@ async function assertTeacherCanMark(
 ): Promise<void> {
   if (!teacherId) return;
   const supabase = await createSupabaseServerClient();
-  const { data: link } = await supabase
-    .from("teacher_classes")
-    .select("class_id")
-    .eq("school_id", schoolId)
-    .eq("teacher_id", teacherId)
-    .eq("class_id", classId)
-    .maybeSingle();
-  if (!link) throw new Error("This class isn't assigned to you.");
+  const linked = await rowExists(supabase, "teacher_classes", {
+    school_id: schoolId,
+    teacher_id: teacherId,
+    class_id: classId,
+  });
+  if (!linked) throw new Error("This class isn't assigned to you.");
 }
 
 // ---------------------------------------------------------------------------

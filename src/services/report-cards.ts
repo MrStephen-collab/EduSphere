@@ -6,6 +6,7 @@ import type {
   Term,
 } from "@/types/database";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { rowExists } from "@/lib/supabase/queries";
 import { asArray } from "@/lib/embed";
 
 // ---------------------------------------------------------------------------
@@ -449,14 +450,12 @@ export async function getClassReport(
   const supabase = await createSupabaseServerClient();
 
   if (opts.teacherId) {
-    const { data: link } = await supabase
-      .from("teacher_classes")
-      .select("class_id")
-      .eq("school_id", schoolId)
-      .eq("teacher_id", opts.teacherId)
-      .eq("class_id", classId)
-      .maybeSingle();
-    if (!link) return null;
+    const linked = await rowExists(supabase, "teacher_classes", {
+      school_id: schoolId,
+      teacher_id: opts.teacherId,
+      class_id: classId,
+    });
+    if (!linked) return null;
   }
 
   const [school, cls, students, bands, options] = await Promise.all([
