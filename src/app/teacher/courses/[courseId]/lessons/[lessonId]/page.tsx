@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ExternalLink, Paperclip } from "lucide-react";
+import { ArrowLeft, ExternalLink, Lock, Paperclip } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { getLessonForEditor } from "@/services/learning";
@@ -18,9 +18,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   LessonEditForm,
   LessonDeleteButton,
-  MaterialCreateForm,
   MaterialChip,
 } from "@/components/learning/course-forms";
+import { MaterialUploader } from "@/components/learning/material-uploader";
+import { isRestrictedMaterial } from "@/lib/material-types";
 import { deleteMaterialAction } from "@/app/teacher/actions";
 
 export const metadata: Metadata = {
@@ -113,25 +114,33 @@ export default async function TeacherLessonEditorPage({
             Learning materials
           </CardTitle>
           <CardDescription>
-            Links students can open alongside this lesson (worksheets, PDFs, external resources).
+            Documents, PDFs, video, audio and links students can open alongside this lesson.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
           {materials.length > 0 ? (
             <ul className="grid gap-1.5">
               {materials.map((material) => (
-                <li key={material.id}>
-                  <MaterialChip
-                    material={{
-                      id: material.id,
-                      title: material.title,
-                      file_type: material.file_type,
-                      file_url: material.file_url,
-                    }}
-                    lessonId={lesson.id}
-                    courseId={course.id}
-                    onDelete={(id) => deleteMaterialAction(id, lesson.id, course.id)}
-                  />
+                <li key={material.id} className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <MaterialChip
+                      material={{
+                        id: material.id,
+                        title: material.title,
+                        file_type: material.file_type,
+                        file_url: material.file_url,
+                      }}
+                      lessonId={lesson.id}
+                      courseId={course.id}
+                      onDelete={(id) => deleteMaterialAction(id, lesson.id, course.id)}
+                    />
+                  </div>
+                  {isRestrictedMaterial(material.file_type) ? (
+                    <Badge variant="secondary" className="shrink-0 gap-1">
+                      <Lock className="size-3" aria-hidden="true" />
+                      Locked
+                    </Badge>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -141,12 +150,13 @@ export default async function TeacherLessonEditorPage({
             </p>
           )}
 
-          <MaterialCreateForm lessonId={lesson.id} courseId={course.id} />
+          <MaterialUploader lessonId={lesson.id} courseId={course.id} />
 
           {materials.length > 0 && (
             <p className="text-xs text-muted-foreground">
               <ExternalLink className="mr-1 inline size-3.5" aria-hidden="true" />
-              Links open in a new tab. Secure file uploads arrive with the storage module.
+              Audio and video are marked locked. They are stored privately and only play through a
+              link signed to each student.
             </p>
           )}
         </CardContent>

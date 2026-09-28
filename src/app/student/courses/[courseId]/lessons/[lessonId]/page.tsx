@@ -23,6 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LessonContent } from "@/components/learning/lesson-content";
 import { MarkCompleteButton } from "@/components/learning/progress-actions";
+import { MaterialViewer } from "@/components/learning/material-viewer";
+import { isRestrictedMaterial } from "@/lib/material-types";
 
 export const metadata: Metadata = {
   title: "Lesson",
@@ -134,30 +136,25 @@ export default async function StudentLessonPage({
                 Materials
               </CardTitle>
               <CardDescription>Resources for this lesson.</CardDescription>
-            </CardHeader>
-            <CardContent>
+            </CardHeader>            <CardContent>
               {view.materials.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No materials for this lesson.</p>
               ) : (
-                <ul className="grid gap-1.5">
+                <div className="grid gap-2">
                   {view.materials.map((material) => (
-                    <li
+                    <MaterialViewer
                       key={material.id}
-                      className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm"
-                    >
-                      <a
-                        href={material.file_url ?? "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex min-w-0 items-center gap-2"
-                      >
-                        <Paperclip className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                        <span className="truncate font-medium">{material.title}</span>
-                      </a>
-                      <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    </li>
+                      material={{
+                        id: material.id,
+                        title: material.title,
+                        fileType: material.file_type,
+                        fileSize: material.file_size === null ? null : Number(material.file_size),
+                        restricted: isRestrictedMaterial(material.file_type),
+                        provider: material.provider ?? null,
+                      }}
+                    />
                   ))}
-                </ul>
+                </div>
               )}
             </CardContent>
           </Card>

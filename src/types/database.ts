@@ -290,10 +290,33 @@ export type LessonMaterial = {
   file_url: string | null;
   file_size: bigint | null;
   is_public: boolean;
+  storage_path: string | null;
+  mime_type: string | null;
+  download_restricted: boolean;
+  provider: string | null;
+  provider_asset_id: string | null;
+  provider_playback_id: string | null;
+  duration_seconds: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+};
+
+export type VideoAccessLog = {
+  id: string;
+  school_id: string;
+  material_id: string | null;
+  lesson_id: string | null;
+  viewer_id: string;
+  viewer_role: string;
+  provider: string;
+  asset_id: string | null;
+  playback_id: string | null;
+  token_subject: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
 };
 
 export type VideoResource = {
@@ -647,6 +670,11 @@ export type Database = {
         Row: LessonMaterial;
         Insert: Partial<LessonMaterial>;
         Update: Partial<LessonMaterial>;
+      };
+      video_access_log: {
+        Row: VideoAccessLog;
+        Insert: Partial<VideoAccessLog>;
+        Update: Partial<VideoAccessLog>;
       };
       video_resources: {
         Row: VideoResource;
