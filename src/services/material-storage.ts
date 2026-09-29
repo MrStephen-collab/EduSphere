@@ -122,6 +122,22 @@ function assertUploadAllowed(
 export class MaterialAccessError extends Error {}
 
 /**
+ * The single rule that decides whether a student may read a course's content.
+ *
+ * There is no enrolment table: a course belongs to a class, a student belongs
+ * to a class, and the match between them is the access control. The live schema
+ * has `students.stream_id` but no `courses.stream_id`, so a course cannot be
+ * narrowed to a stream -- class membership is the whole rule.
+ */
+export function studentMayAccessCourse(
+  student: { classId: string | null },
+  course: { classId: string | null },
+): boolean {
+  if (!student.classId || !course.classId) return false;
+  return student.classId === course.classId;
+}
+
+/**
  * Confirms the signed-in teacher actually owns the course the lesson belongs
  * to. Mirrors the `is_own_course` database rule, and is re-checked here rather
  * than trusted from the client.
@@ -232,13 +248,21 @@ async function authorizeMaterialRead(
 
     const { data: student } = await supabase
       .from("students")
-      .select("id, class_id, stream_id")
+      .select("id, class_id")
       .eq("school_id", schoolId)
       .eq("user_id", context.user.id)
       .maybeSingle();
 
     if (!student) throw new MaterialAccessError("Your student profile is not set up yet.");
-    if (!course || student.class_id !== course.class_id) {
+
+    const allowed = course
+      ? studentMayAccessCourse(
+          { classId: student.class_id },
+          { classId: course.class_id },
+        )
+      : false;
+
+    if (!allowed) {
       throw new MaterialAccessError("That material belongs to another class.");
     }
   } else if (membership.role === "TEACHER") {
