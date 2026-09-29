@@ -95,17 +95,49 @@ describe("playback tokens", () => {
     expect(verifier.verify(publicKey, Buffer.from(signature, "base64url"))).toBe(true);
   });
 
-  it("binds the token to one viewer so a shared URL is traceable", () => {
+  it("sets sub to the playback id, which is what the stream URL authorises against", () => {
+    // Mux matches `sub` against the asset in the stream URL, so a user id here
+    // would be rejected with 403 on every playback request.
     const grant = mintPlaybackToken("playback123", { id: "user-abc", name: "Ada" });
     const claims = decodeSegment(grant.token.split(".")[1]);
 
-    expect(claims.sub).toBe("user-abc");
+    expect(claims.sub).toBe("playback123");
     expect(claims.aud).toBe("v");
+  });
+
+  it("never leaks the viewer id into the token Mux receives", () => {
+    // Attribution lives in video_access_log and the watermark, not in the JWT:
+    // a token carrying the learner would either break playback or hand Mux an
+    // identifier it has no use for.
+    const grant = mintPlaybackToken("playback123", { id: "user-abc", name: "Ada" });
+    const claims = JSON.stringify(decodeSegment(grant.token.split(".")[1]));
+
+    expect(claims).not.toContain("user-abc");
+    expect(claims).not.toContain("Ada");
+  });
+
+  it("scopes one asset's token away from another asset", () => {
+    const a = mintPlaybackToken("playback-a", { id: "user-abc", name: "Ada" });
+    const b = mintPlaybackToken("playback-b", { id: "user-abc", name: "Ada" });
+    expect(decodeSegment(a.token.split(".")[1]).sub).not.toBe(
+      decodeSegment(b.token.split(".")[1]).sub,
+    );
   });
 
   it("scopes the token to video, not thumbnails or gif", () => {
     const grant = mintPlaybackToken("playback123", { id: "user-abc", name: "Ada" });
     expect(decodeSegment(grant.token.split(".")[1]).aud).not.toBe("t");
+  });
+
+  it("keeps sub equal to the asset the stream URL names, so a provider log line joins back", () => {
+    // video_access_log.token_subject is written from this claim, and a Mux log
+    // line names the asset from the request path. If the two ever disagree the
+    // forensic join that ties a leaked recording to a learner silently fails.
+    const grant = mintPlaybackToken("playback123", { id: "user-abc", name: "Ada" });
+    const sub = decodeSegment(grant.token.split(".")[1]).sub;
+
+    expect(new URL(grant.streamUrl).pathname).toContain(sub);
+    expect(new URL(grant.hlsUrl).pathname).toContain(sub);
   });
 
   it("expires within minutes rather than granting a long-lived link", () => {

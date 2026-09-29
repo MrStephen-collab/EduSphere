@@ -52,6 +52,12 @@ export async function requestMaterialAccessAction(
  * The log row is written before the token is handed back, so a stream session
  * that shows up in the video host's logs always has a matching entry naming the
  * learner, the lesson and the time.
+ *
+ * `tokenSubject` is the token's own `sub` claim, which is the playback id, so a
+ * provider log line keys straight to `playback_id` on this row and from there to
+ * `viewer_id`. It deliberately does not carry the user id: the token no longer
+ * claims one, and a column named after the claim must not report a value the
+ * token does not contain.
  */
 export async function requestVideoPlaybackAction(
   materialId: string,
@@ -73,7 +79,7 @@ export async function requestVideoPlaybackAction(
       provider: auth.material.provider ?? "mux",
       assetId: auth.material.provider_asset_id,
       playbackId: auth.playbackId,
-      tokenSubject: auth.viewerId,
+      tokenSubject: auth.playbackId,
     });
 
     return {

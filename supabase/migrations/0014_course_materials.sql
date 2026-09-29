@@ -152,10 +152,17 @@ create unique index if not exists lesson_materials_provider_asset_uniq
 -- -----------------------------------------------------------------------------
 -- video_access_log: forensic trail
 --
--- One row per playback-token mint. This is what makes a leaked recording
+-- One row per playback grant. This is what makes a leaked recording
 -- attributable: the provider's own logs can be joined back to a user through
--- the token's subject claim, and this table records who asked, when, and from
+-- the grant's subject, and this table records who asked, when, and from
 -- where, before playback even starts.
+--
+-- `token_subject` is whatever the issued credential authorises on, never the
+-- viewer's user id: Mux matches a signed request's `sub` claim against the
+-- asset in the stream URL, so `sub` is the playback id, and Supabase Storage
+-- authorises on the path inside the signed URL. Writing a user id here would
+-- record a subject no credential carries and break the join it exists for.
+-- Attribution to a person runs playback_id (or asset_id) -> viewer_id.
 -- -----------------------------------------------------------------------------
 create table if not exists public.video_access_log (
   id uuid primary key default gen_random_uuid(),

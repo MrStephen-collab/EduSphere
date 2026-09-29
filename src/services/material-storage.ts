@@ -500,7 +500,10 @@ export async function requestMaterialAccess(materialId: string): Promise<Materia
     viewer_role: viewerRole,
     provider: "supabase-storage",
     asset_id: material.storage_path,
-    token_subject: viewerId,
+    // No JWT here -- Supabase Storage authorises on the path inside the signed
+    // URL, so the path is the subject this grant was issued against, the same
+    // relationship `playback_id`/`token_subject` have for Mux.
+    token_subject: material.storage_path,
     ip_address: ip,
     user_agent: userAgent,
   });
@@ -562,7 +565,15 @@ export async function authorizeVideoPlayback(
   };
 }
 
-/** Writes the forensic record for one playback grant. */
+/**
+ * Writes the forensic record for one playback grant.
+ *
+ * `tokenSubject` must be whatever the issued credential authorises on -- the
+ * playback id for a Mux token, the storage path for a Supabase signed URL. It
+ * is the join key from a provider-side log line back to `viewer_id` here, so
+ * recording the viewer's user id instead would name a subject no credential
+ * ever carried.
+ */
 export async function recordPlaybackAccess(input: {
   schoolId: string;
   materialId: string;

@@ -178,10 +178,16 @@ export type PlaybackGrant = {
 /**
  * Mints a playback token for one student and one asset.
  *
- * `sub` is the student's user id, so Mux's playback logs tie a given stream
- * session back to a specific learner. That is the backbone of the forensic
- * trail: the visible watermark on screen and the server-side log both name the
- * same person.
+ * `sub` must be the playback id: Mux authorises a signed request by matching
+ * `sub` against the asset the stream URL names, so a token carrying a user id
+ * here is rejected with 403. The student is not identified to Mux in the token
+ * at all -- attribution comes from our own `video_access_log` row written
+ * alongside this call, and from the on-screen watermark, which name the same
+ * learner. That is what the forensic trail actually rests on.
+ *
+ * `aud: "v"` selects video tokens. No other claim may narrow this further
+ * without Mux-side support, so the grant is bounded by the playback id and the
+ * 5-minute expiry.
  *
  * A signed URL must carry nothing but the `token` parameter - any other
  * modifier has to be a claim inside the JWT, so the stream URLs below are
@@ -197,7 +203,7 @@ export function mintPlaybackToken(
 
   const token = signJwt(
     {
-      sub: viewer.id,
+      sub: playbackId,
       aud: "v",
       exp: expiresAtSeconds,
       kid: config.signingKeyId,
