@@ -211,6 +211,35 @@ export type AttendanceRecord = {
   updated_at: string;
 };
 
+export type TimetablePeriod = {
+  id: string;
+  school_id: string;
+  name: string;
+  start_time: string;
+  end_time: string;
+  seq: number;
+  is_break: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+/** ISO weekday, 1 = Monday through 6 = Saturday. */
+export type TimetableDay = 1 | 2 | 3 | 4 | 5 | 6;
+
+export type TimetableEntry = {
+  id: string;
+  school_id: string;
+  session_id: string;
+  class_id: string;
+  period_id: string;
+  day_of_week: number;
+  subject_id: string | null;
+  teacher_id: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SchoolSettings = {
   id: string;
   school_id: string;
@@ -876,6 +905,16 @@ export type Database = {
         Row: Notification;
         Insert: Partial<Notification>;
         Update: Partial<Notification>;
+      };
+      timetable_periods: {
+        Row: TimetablePeriod;
+        Insert: Partial<TimetablePeriod>;
+        Update: Partial<TimetablePeriod>;
+      };
+      timetable_entries: {
+        Row: TimetableEntry;
+        Insert: Partial<TimetableEntry>;
+        Update: Partial<TimetableEntry>;
       };
     };
     Views: Record<string, never>;

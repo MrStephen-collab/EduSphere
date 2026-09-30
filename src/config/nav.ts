@@ -103,6 +103,7 @@ export const schoolNav: NavSection[] = [
       { title: "Classes", href: "/school/classes", icon: "classes" },
       { title: "Subjects", href: "/school/subjects", icon: "courses" },
       { title: "Sessions", href: "/school/sessions", icon: "calendar" },
+      { title: "Timetable", href: "/school/timetable", icon: "calendar" },
       { title: "Results", href: "/school/results", icon: "results" },
       { title: "Analytics", href: "/school/analytics", icon: "analytics" },
     ],
@@ -142,6 +143,7 @@ export const teacherNav: NavSection[] = [
       { title: "Classes", href: "/teacher/classes", icon: "classes" },
       { title: "Courses", href: "/teacher/courses", icon: "courses" },
       { title: "Lessons", href: "/teacher/courses", icon: "lessons" },
+      { title: "Timetable", href: "/teacher/timetable", icon: "calendar" },
       { title: "Assignments", href: "/teacher/assignments", icon: "assignments" },
     ],
   },
@@ -164,7 +166,10 @@ export const teacherNav: NavSection[] = [
 export const studentNav: NavSection[] = [
   {
     label: "Overview",
-    items: [{ title: "Home", href: "/student", icon: "home" }],
+    items: [
+      { title: "Home", href: "/student", icon: "home" },
+      { title: "Timetable", href: "/student/timetable", icon: "calendar" },
+    ],
   },
   {
     label: "Learning",

@@ -195,6 +195,162 @@ async function seedTeacherAssignments(teacherId) {
   console.log(`Linked teacher to ${(classes ?? []).length} classes and ${(subjects ?? []).length} subjects`);
 }
 
+async function seedDemoTimetable(teacherId) {
+  const { data: session } = await supabase
+    .from("academic_sessions")
+    .select("id, name")
+    .eq("school_id", SCHOOL_ID)
+    .eq("is_current", true)
+    .maybeSingle();
+
+  if (!session) {
+    console.error("No current academic session — skipping timetable");
+    return;
+  }
+
+  // The shape of the day, with a break in the middle. seq is the display order
+  // and is what the unique constraint is on, so a re-run updates rather than
+  // duplicating.
+  const PERIODS = [
+    { name: "Period 1", start: "08:00:00", end: "08:45:00", seq: 0 },
+    { name: "Period 2", start: "08:45:00", end: "09:30:00", seq: 1 },
+    { name: "Lunch", start: "09:30:00", end: "09:50:00", seq: 2, is_break: true },
+    { name: "Period 3", start: "09:50:00", end: "10:35:00", seq: 3 },
+    { name: "Period 4", start: "10:35:00", end: "11:20:00", seq: 4 },
+    { name: "Period 5", start: "11:20:00", end: "12:05:00", seq: 5 },
+    { name: "Period 6", start: "12:05:00", end: "12:50:00", seq: 6 },
+  ];
+
+  const { data: periodRows, error: periodError } = await supabase
+    .from("timetable_periods")
+    .upsert(
+      PERIODS.map((p) => ({
+        school_id: SCHOOL_ID,
+        name: p.name,
+        start_time: p.start,
+        end_time: p.end,
+        seq: p.seq,
+        is_break: p.is_break ?? false,
+      })),
+      { onConflict: "school_id,seq" },
+    )
+    .select("id, name, seq, is_break");
+
+  if (periodError) {
+    console.error("Failed to seed timetable periods:", periodError.message);
+    return;
+  }
+
+  const lessonPeriods = (periodRows ?? []).filter((p) => !p.is_break);
+  if (!lessonPeriods.length) {
+    console.error("No lesson periods — skipping timetable");
+    return;
+  }
+
+  const { data: subjects } = await supabase
+    .from("subjects")
+    .select("id, name")
+    .eq("school_id", SCHOOL_ID);
+  const byName = new Map((subjects ?? []).map((s) => [s.name.toUpperCase(), s.id]));
+
+  // Only these, because they are the ones a secondary school actually teaches
+  // all week. Anything else would be a gap the demo student can see.
+  const rotation = [
+    "ENGLISH",
+    "MATHEMATICS",
+    "PHYSICS",
+    "CHEMISTRY",
+    "BIOLOGY",
+    "CSC",
+    "ECONOMICS",
+    "GOV",
+  ]
+    .map((name) => byName.get(name))
+    .filter(Boolean);
+
+  if (!rotation.length) {
+    console.error("No subjects — skipping timetable");
+    return;
+  }
+
+  // A second teacher, with no login. Without her, the demo teacher is booked in
+  // every period of every day and the "a teacher cannot be in two classes at
+  // once" rule has nothing to collide with.
+  const { data: secondTeacher, error: teacherError } = await supabase
+    .from("teachers")
+    .upsert(
+      {
+        school_id: SCHOOL_ID,
+        staff_id: "GF/STF/2026/002",
+        title: "Mrs.",
+        display_name: "Adesuwa Nwosu",
+      },
+      { onConflict: "school_id,staff_id" },
+    )
+    .select("id")
+    .maybeSingle();
+
+  if (teacherError) {
+    console.error("Failed to seed second teacher:", teacherError.message);
+    return;
+  }
+
+  const DAYS = [1, 2, 3, 4, 5];
+  const rows = [];
+
+  // The demo student's class gets a near-full week, deliberately leaving the
+  // last period on two days empty so an unfilled cell is visible.
+  const ss2 = await findClass("SS 2");
+  if (ss2) {
+    lessonPeriods.forEach((period, index) => {
+      DAYS.forEach((day) => {
+        if (index >= lessonPeriods.length - 1 && day >= 4) return;
+        rows.push({
+          school_id: SCHOOL_ID,
+          session_id: session.id,
+          class_id: ss2,
+          period_id: period.id,
+          day_of_week: day,
+          subject_id: rotation[(index * DAYS.length + day) % rotation.length],
+          teacher_id: teacherId,
+        });
+      });
+    });
+  }
+
+  // A second class on a different teacher, so the grid is not one teacher
+  // copied twice and the clash check is meaningful.
+  const jss1 = await findClass("JSS 1");
+  if (jss1 && secondTeacher?.id) {
+    lessonPeriods.slice(0, 4).forEach((period, index) => {
+      DAYS.forEach((day) => {
+        rows.push({
+          school_id: SCHOOL_ID,
+          session_id: session.id,
+          class_id: jss1,
+          period_id: period.id,
+          day_of_week: day,
+          subject_id: rotation[(index + day + 2) % rotation.length],
+          teacher_id: secondTeacher.id,
+        });
+      });
+    });
+  }
+
+  const { error } = await supabase
+    .from("timetable_entries")
+    .upsert(rows, { onConflict: "class_id,session_id,day_of_week,period_id" });
+
+  if (error) {
+    console.error("Failed to seed timetable:", error.message);
+    return;
+  }
+
+  console.log(
+    `Seeded ${PERIODS.length} periods and ${rows.length} lessons for ${session.name}`,
+  );
+}
+
 async function seedDemoCourse(teacherId) {
   if (!teacherId) return;
 
@@ -1118,6 +1274,7 @@ async function main() {
   const teacherId = await seedTeacherRecord();
   const studentId = await seedStudentAndParent();
   await seedTeacherAssignments(teacherId);
+  await seedDemoTimetable(teacherId);
   await seedDemoCourse(teacherId);
   await seedDemoAssignment(teacherId, studentId);
   await seedDemoExamSeries(teacherId, studentId);

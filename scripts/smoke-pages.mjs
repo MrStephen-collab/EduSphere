@@ -127,6 +127,7 @@ const ROLES = [
       "/school/parents",
       "/school/results",
       "/school/sessions",
+  "/school/timetable",
       "/school/students",
       "/school/subjects",
       "/school/teachers",
@@ -140,6 +141,7 @@ const ROLES = [
       "/teacher/assignments",
       "/teacher/attendance",
       "/teacher/classes",
+  "/teacher/timetable",
       "/teacher/courses",
       "/teacher/exam-series",
       "/teacher/profile",
@@ -160,6 +162,7 @@ const ROLES = [
       "/student/profile",
       "/student/progress",
       "/student/report-cards",
+  "/student/timetable",
     ],
   },
   {
