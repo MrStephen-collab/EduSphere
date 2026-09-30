@@ -18,6 +18,7 @@ Each school gets its own isolated, branded digital academic environment.
 - **Results & analytics** — student, teacher, class and subject performance analytics.
 - **Report cards & termly results** — printable per-term and cumulative annual report cards with grade bands, class positions and a class results sheet for teachers (computed live from graded assignments, CBT practice and daily attendance marks).
 - **Parent portal** — a linked parent can view each child's results, assignments, course progress and printable report cards.
+- **Fees & payments** — schools invoice per child, one-off or by whole class for a term. A parent pays the outstanding balance through Paystack; the webhook only *queues* the payment, and a bursar approves it from `/school/fees` before any money is credited. Bulk term billing is idempotent (a deterministic `billing_key`), approval clamps to the amount owed and is guarded against two bursars approving at once, and the school sees live invoiced / collected / outstanding / overdue totals. A parent can never mark themselves paid.
 - **Global search** — Ctrl/Cmd+K command bar across the whole app: schools, classes, teachers, students, subjects, courses, lessons, assignments, exam series and announcements, with role-aware results.
 - **Public school websites** — every school gets a branded public homepage at `/schools/[slug]` (about, academics, admissions, news, events, gallery, contact) rendered from real database data with its own theming.
 - **Email notifications** — provider-agnostic transactional emails (Welcome, password reset, assignment created/graded, exam result, school announcements, subscription confirmation) with an exam-reminder template ready for a scheduler. Defaults to console logging until an API key is added.
@@ -185,6 +186,37 @@ The prod preview (`npm run app`) serves the optimized build on
 `http://localhost:3100` — use it to verify a build before shipping. To view it
 from a phone on the same Wi-Fi, visit `http://<your-lan-ip>:3100`.
 
+### Database-backed verification
+
+These four talk to the **real** database (or a running server) through genuine
+RLS user sessions, so a failure means a real user would hit it. They are not
+covered by `npm run test`.
+
+```bash
+npm run acceptance            # §87 critical acceptance test (needs a seed + server)
+npm run smoke                 # renders every dashboard page per demo role (needs a server on :3100)
+npm run verify:fee-rls        # fee invoice/payment isolation + approval gate
+npm run verify:complaint-rls  # complaint isolation + school reply
+```
+
+`acceptance` and `smoke` both need a running server; `verify:*` do not. Run
+`node scripts/seed.mjs` once before `acceptance` to create the School A demo
+data it walks through.
+
+### Applying migrations
+
+Migrations live in `supabase/migrations/` and are pushed with the Supabase CLI:
+
+```bash
+npx supabase db push --include-all
+```
+
+> The CLI cannot parse a `.env.local` containing a multi-line value (the
+> `MUX_SIGNING_PRIVATE_KEY` PEM), so if it fails with
+> `failed to parse environment file`, run it against a workdir that has
+> `supabase/` but no `.env.local`:
+> `--workdir <path>`.
+
 ## Route Map
 
 ```text
@@ -198,6 +230,7 @@ from a phone on the same Wi-Fi, visit `http://<your-lan-ip>:3100`.
 /platform/subscriptions Super admin plan + payment management
 /school                 School admin / owner / principal
 /school/billing         School subscription + payment history
+/school/fees            Issue invoices, bulk term billing, approve payments
 /teacher                Teacher dashboard
 /student                Student dashboard
 /parent                 Parent dashboard
@@ -211,6 +244,7 @@ from a phone on the same Wi-Fi, visit `http://<your-lan-ip>:3100`.
 /teacher/attendance           Take / re-mark a class daily attendance register
 
 /parent/children              All linked children
+/parent/fees                  Child's invoices, balances, payment history
 /parent/results               Results & analytics for one child
 /parent/assignments           Child's assignments (read-only)
 /parent/progress              Child's course progress
@@ -236,8 +270,21 @@ npm run test
 ```
 
 - The mandatory **tenant-isolation acceptance test** (School A cannot access
-  School B) is documented in `EduSphere.txt` (section 87) and will be executed
-  end-to-end as modules come online.
+  School B) is specified in `EduSphere.txt` (section 87) and implemented in
+  `scripts/acceptance.mjs`. It walks the full §87 journey on the seeded School A
+  — course, module, published lesson, video + PDF, lesson completion, CBT
+  attempt, auto-marked score, assignment submission, teacher grading, parent
+  visibility — then creates a second school and proves it can reach none of it.
+  **Currently 48 passed, 0 failed.**
+
+  ```bash
+  node scripts/seed.mjs   # once
+  npm run acceptance
+  ```
+
+- Per-module RLS probes cover the two most sensitive areas (money and
+  confidential complaints). Both currently pass in full — see
+  `npm run verify:fee-rls` and `npm run verify:complaint-rls`.
 
 ## Security Notes
 
