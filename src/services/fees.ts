@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { asArray } from "@/lib/embed";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireParent } from "@/services/parent";
+import { requireStudent } from "@/services/learning";
 import { requireSchoolAdmin } from "@/services/shared";
 import { isPaystackConfigured, initializePayment, verifyPayment } from "@/lib/paystack";
 import {
@@ -54,6 +56,71 @@ export type ParentFeeSummary = {
   outstanding: number;
   payments: FeePayment[];
 };
+
+/**
+ * Invoices plus the payments made against them, for whoever the caller is
+ * allowed to see.
+ *
+ * `studentId` of null means "every child in the school this caller may read",
+ * which is what a parent sees; a student passes their own id. Sharing the read
+ * keeps one definition of a family balance, so a student's view and a parent's
+ * view of the same invoice cannot drift apart.
+ */
+async function loadFeeSummary(
+  schoolId: string,
+  studentId: string | null,
+): Promise<{ summary: ParentFeeSummary[]; totals: ReturnType<typeof computeInvoiceTotals> }> {
+  const supabase = await createSupabaseServerClient();
+
+  // The totals are summed from a separate untruncated read, so a family with a
+  // long enrolment history can never be shown a balance that is quietly capped
+  // by the row limit on the list below. Whoever pays the difference is the one
+  // who acts on a wrong outstanding balance.
+  const scopedInvoices = supabase
+    .from("fee_invoices")
+    .select("*")
+    .eq("school_id", schoolId);
+  const allInvoices = studentId
+    ? supabase
+        .from("fee_invoices")
+        .select("amount, amount_paid, status")
+        .eq("school_id", schoolId)
+        .eq("student_id", studentId)
+    : supabase.from("fee_invoices").select("amount, amount_paid, status").eq("school_id", schoolId);
+
+  const [totals, recentInvoices] = await Promise.all([
+    allInvoices,
+    scopedInvoices
+      .select("*, students!inner(id, display_name, admission_number)")
+      .order("created_at", { ascending: false })
+      .limit(300),
+  ]);
+
+  if (recentInvoices.error) throw new Error(recentInvoices.error.message);
+
+  const invoices = (recentInvoices.data ?? []) as unknown as InvoiceWithStudent[];
+  const scalars = (totals.data ?? []) as Pick<
+    FeeInvoice,
+    "amount" | "amount_paid" | "status"
+  >[];
+
+  const payments = invoices.length
+    ? await loadPaymentsForInvoices(invoices.map((i) => i.id))
+    : new Map<string, FeePayment[]>();
+
+  return {
+    summary: invoices.map((invoice) => ({
+      invoice,
+      outstanding: outstandingFor(invoice),
+      payments: payments.get(invoice.id) ?? [],
+    })),
+    // Waived and void invoices are excluded from the billed total, which is what
+    // makes these three tiles add up: invoiced - paid === outstanding. Counting a
+    // waiver into the total while leaving it out of what is owed is how a family
+    // ends up staring at 505,000 - 185,000 and an "outstanding" of 280,000.
+    totals: computeInvoiceTotals(scalars),
+  };
+}
 
 export type SchoolFeeStats = {
   invoiced: number;
@@ -190,51 +257,24 @@ export async function getParentFees(): Promise<{
   totals: { invoiced: number; paid: number; outstanding: number };
 }> {
   const { schoolId } = await requireParent();
-  const supabase = await createSupabaseServerClient();
+  return loadFeeSummary(schoolId, null);
+}
 
-  // The totals are summed from a separate untruncated read, so a parent with a
-  // long enrolment history can never be shown a balance that is quietly capped
-  // by the row limit on the list below. A parent acting on a wrong outstanding
-  // balance is the one who pays the difference.
-  const [allInvoices, recentInvoices] = await Promise.all([
-    supabase
-      .from("fee_invoices")
-      .select("amount, amount_paid, status")
-      .eq("school_id", schoolId),
-    supabase
-      .from("fee_invoices")
-      .select("*, students!inner(id, display_name, admission_number)")
-      .eq("school_id", schoolId)
-      .order("created_at", { ascending: false })
-      .limit(300),
-  ]);
-
-  if (recentInvoices.error) throw new Error(recentInvoices.error.message);
-
-  const invoices = (recentInvoices.data ?? []) as unknown as InvoiceWithStudent[];
-  const scalars = (allInvoices.data ?? []) as Pick<
-    FeeInvoice,
-    "amount" | "amount_paid" | "status"
-  >[];
-
-  const payments = invoices.length
-    ? await loadPaymentsForInvoices(invoices.map((i) => i.id))
-    : new Map<string, FeePayment[]>();
-
-  const summary = invoices.map((invoice) => ({
-    invoice,
-    outstanding: outstandingFor(invoice),
-    payments: payments.get(invoice.id) ?? [],
-  }));
-
-  // Waived and void invoices are excluded from the billed total, which is what
-  // makes these three tiles add up: invoiced - paid === outstanding. Counting a
-  // waiver into the total while leaving it out of what is owed is how a parent
-  // ends up staring at 505,000 - 185,000 and an "outstanding" of 280,000.
-  return {
-    summary,
-    totals: computeInvoiceTotals(scalars),
-  };
+/**
+ * A student's own fees, read-only.
+ *
+ * A secondary-school student is asked about their fees constantly -- by a
+ * class teacher, a bursar, a form tutor -- and until now the only place that
+ * answered was a parent's login. Read-only is the whole design: 0018 grants a
+ * student SELECT on their own rows and nothing else, so there is no path by
+ * which a student can mark their own invoice paid.
+ */
+export async function getStudentFees(): Promise<{
+  summary: ParentFeeSummary[];
+  totals: { invoiced: number; paid: number; outstanding: number };
+}> {
+  const { schoolId, studentId } = await requireStudent();
+  return loadFeeSummary(schoolId, studentId);
 }
 
 async function loadPaymentsForInvoices(
@@ -295,8 +335,17 @@ export type FeeReceipt = {
  * has moved no money, and printing a receipt for it would be a document the
  * school does not stand behind.
  */
-export async function getParentFeeReceipt(paymentId: string): Promise<FeeReceipt | null> {
-  await requireParent();
+/**
+ * A receipt for one approved payment.
+ *
+ * Whoever is asking, the answer comes from RLS rather than from a check in this
+ * function: a parent reads the payments of their children, a student reads
+ * their own, and neither can name an id that resolves to someone else's. Only
+ * an approved payment has money behind it, so an unapproved or rejected one
+ * renders no receipt at all rather than implying that money moved.
+ */
+export async function getFeeReceipt(paymentId: string): Promise<FeeReceipt | null> {
+  await requireFeeViewer();
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
@@ -371,6 +420,26 @@ export async function getParentFeeReceipt(paymentId: string): Promise<FeeReceipt
   };
 }
 
+/** Keeps the existing parent wording working; the receipt itself is shared. */
+export const getParentFeeReceipt = getFeeReceipt;
+
+/**
+ * Anyone who is allowed to hold a fee document: a parent or a student.
+ *
+ * This only decides *whether* to look. It deliberately cannot decide *what* --
+ * which rows come back is the RLS policy's job, and duplicating that reasoning
+ * in TypeScript is how the two drift apart and one of them turns out to be
+ * wrong.
+ */
+async function requireFeeViewer(): Promise<void> {
+  const context = await getAuthContext();
+  if (!context.user) redirect("/auth/login");
+  const allowed = context.memberships.some(
+    (m) => m.role === "PARENT" || m.role === "STUDENT",
+  );
+  if (!allowed) redirect("/dashboard");
+}
+
 export type ParentStatement = Statement & {
   child: {
     studentId: string;
@@ -408,6 +477,27 @@ export async function getParentFeeStatement(
     .maybeSingle();
 
   if (!link) return null;
+
+  return buildStatementForStudent(schoolId, studentId);
+}
+
+/**
+ * A student's own statement of account.
+ *
+ * There is nothing to authorise beyond "this is your record": requireStudent
+ * already resolved the caller to exactly one student, so the argument the parent
+ * version has to prove is decided by the login rather than by a query.
+ */
+export async function getStudentFeeStatement(): Promise<ParentStatement | null> {
+  const { schoolId, studentId } = await requireStudent();
+  return buildStatementForStudent(schoolId, studentId);
+}
+
+async function buildStatementForStudent(
+  schoolId: string,
+  studentId: string,
+): Promise<ParentStatement | null> {
+  const supabase = await createSupabaseServerClient();
 
   const { data: childRow } = await supabase
     .from("students")

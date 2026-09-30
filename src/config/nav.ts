@@ -178,8 +178,11 @@ export const studentNav: NavSection[] = [
     ],
   },
   {
-    label: "Settings",
-    items: [{ title: "Profile", href: "/student/profile", icon: "profile" }],
+    label: "Account",
+    items: [
+      { title: "My Fees", href: "/student/fees", icon: "wallet" },
+      { title: "Profile", href: "/student/profile", icon: "profile" },
+    ],
   },
 ];
 

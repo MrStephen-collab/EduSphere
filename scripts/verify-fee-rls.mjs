@@ -73,7 +73,7 @@ const countRows = (res) => (res.data ?? []).length;
 
 const run = async () => {
   const stamp = Date.now();
-  const made = { users: [], invoices: [], payments: [], schools: [] };
+  const made = { users: [], invoices: [], payments: [], schools: [], students: [] };
 
   try {
     // --- fixtures ---------------------------------------------------------
@@ -143,6 +143,7 @@ const run = async () => {
         .select("id")
         .single();
       if (error) throw new Error(`student ${name}: ${error.message}`);
+      made.students.push(data.id);
       return data.id;
     };
 
@@ -475,6 +476,119 @@ const run = async () => {
       countRows(otherReceipt) === 0,
       "a receipt could be rendered for somebody else's payment",
     );
+  // --- students reading their own fees -----------------------------------
+    // 0018 gave a student SELECT on their own fee rows. That is the only money
+    // policy in the app that trusts a student's own identity, so it is worth
+    // pinning from both sides: the positive case must actually work, and it
+    // must not become a hole in either direction.
+    console.log("\nStudent fees: self-scoped and read-only");
+
+    // The students rows above are not owned by any login, so "this student sees
+    // nothing" would pass whether or not the policy worked. Bind a record to
+    // the student user so the positive case is real.
+    const { data: selfRow, error: selfErr } = await admin
+      .from("students")
+      .insert({
+        school_id: schoolId,
+        user_id: student,
+        display_name: "Self Student",
+        admission_number: `FS-${stamp}`,
+      })
+      .select("id")
+      .single();
+    if (selfErr) throw new Error(`self student: ${selfErr.message}`);
+    made.students.push(selfRow.id);
+
+    const { data: selfInvoice } = await admin
+      .from("fee_invoices")
+      .insert({
+        school_id: schoolId,
+        student_id: selfRow.id,
+        description: "Own term fees",
+        amount: 40000,
+        amount_paid: 10000,
+        status: "partially_paid",
+      })
+      .select("id")
+      .single();
+    made.invoices.push(selfInvoice.id);
+
+    const { data: selfPayment } = await admin
+      .from("fee_payments")
+      .insert({
+        school_id: schoolId,
+        invoice_id: selfInvoice.id,
+        // Paid by a parent, as fees always are. fee_payments.parent_id is NOT
+        // NULL precisely because a student is never the payer; the point of this
+        // row is that the *student* can read it to get a receipt, not that the
+        // student created it.
+        parent_id: parentRowA.id,
+        payer_user_id: student,
+        amount: 10000,
+        credited_amount: 10000,
+        status: "approved",
+      })
+      .select("id")
+      .single();
+    made.payments.push(selfPayment.id);
+
+    check(
+      "student CAN read their own invoice",
+      countRows(
+        await asStudent.from("fee_invoices").select("id").eq("id", selfInvoice.id),
+      ) === 1,
+    );
+    check(
+      "student CAN read their own approved payment (for a receipt)",
+      countRows(
+        await asStudent.from("fee_payments").select("id").eq("id", selfPayment.id),
+      ) === 1,
+    );
+    check(
+      "student CANNOT read another student's invoice",
+      countRows(
+        await asStudent.from("fee_invoices").select("id").eq("id", invoiceA.id),
+      ) === 0,
+      "a student can read a classmate's fees",
+    );
+    check(
+      "a parent CANNOT read the student's own invoice without being linked",
+      countRows(
+        await asParentA.from("fee_invoices").select("id").eq("id", selfInvoice.id),
+      ) === 0,
+    );
+
+    // The whole reason the read grant is SELECT-only. A student who can mark
+    // their own invoice paid owes nothing and owns the receipt.
+    //
+    // Asserted by reading the row back, not by expecting an error: RLS filters
+    // an UPDATE down to zero matching rows, which PostgREST reports as a
+    // successful 200 with an empty result rather than as a rejection. Checking
+    // for an error here would pass no matter what the policy said.
+    await asStudent
+      .from("fee_invoices")
+      .update({ amount_paid: 40000, status: "paid" })
+      .eq("id", selfInvoice.id);
+    const { data: afterUpdate } = await admin
+      .from("fee_invoices")
+      .select("amount_paid, status")
+      .eq("id", selfInvoice.id)
+      .single();
+    check(
+      "a student's attempt to mark their own invoice paid changes nothing",
+      Number(afterUpdate?.amount_paid) === 10000 && afterUpdate?.status === "partially_paid",
+      `amount_paid is now ${afterUpdate?.amount_paid}, status ${afterUpdate?.status}`,
+    );
+
+    const selfApproved = await asStudent
+      .from("fee_payments")
+      .insert({ school_id: schoolId, invoice_id: selfInvoice.id, amount: 40000 })
+      .select("id");
+    check(
+      "database refuses a student declaring a payment",
+      !!selfApproved.error,
+      "a student was able to invent a payment",
+    );
   } catch (err) {
     failed++;
     console.log(`  FAIL  harness error: ${err?.message ?? err}`);
@@ -485,6 +599,13 @@ const run = async () => {
     }
     for (const id of made.invoices) {
       await admin.from("fee_invoices").delete().eq("id", id);
+    }
+    // Students were created here too, and the school is deleted at the end of
+    // this function anyway -- but if the school delete fails, a row-per-run
+    // leak into a shared database is the kind of thing that outlives the bug
+    // that caused it.
+    for (const id of made.students) {
+      await admin.from("students").delete().eq("id", id);
     }
     for (const userId of made.users) {
       await admin.from("user_roles").delete().eq("user_id", userId);
