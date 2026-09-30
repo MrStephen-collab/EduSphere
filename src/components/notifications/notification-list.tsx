@@ -12,6 +12,9 @@ import {
   CalendarClock,
   Bell as BellIcon,
   Info,
+  Receipt,
+  ShieldCheck,
+  ShieldX,
 } from "lucide-react";
 import { markReadAction } from "@/app/notifications/actions";
 import { notificationTypeLabel } from "@/lib/notification-labels";
@@ -41,6 +44,10 @@ const typeIcons: Record<NotificationType, typeof Bell> = {
   exam_result: FileText,
   new_lesson: BookOpen,
   announcement: Megaphone,
+  fee_invoice_issued: Receipt,
+  fee_payment_submitted: Receipt,
+  fee_payment_approved: ShieldCheck,
+  fee_payment_rejected: ShieldX,
   system: Info,
 };
 

@@ -7,6 +7,10 @@ export const notificationTypeLabels: Record<NotificationType, string> = {
   exam_result: "Exam result",
   new_lesson: "New lesson",
   announcement: "Announcement",
+  fee_invoice_issued: "Fee invoice",
+  fee_payment_submitted: "Payment submitted",
+  fee_payment_approved: "Payment approved",
+  fee_payment_rejected: "Payment rejected",
   system: "Notification",
 };
 

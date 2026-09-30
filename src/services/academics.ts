@@ -219,6 +219,18 @@ export async function getTerms(sessionId: string): Promise<Term[]> {
   return data ?? [];
 }
 
+/** Every term in the school, across sessions. Used by fee billing. */
+export async function getSchoolTerms(schoolId: string): Promise<Term[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("terms")
+    .select("*")
+    .eq("school_id", schoolId)
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
 export async function setCurrentTerm(termId: string): Promise<void> {
   const { schoolId } = await requireSchoolAdmin();
   const admin = createAdminClient();

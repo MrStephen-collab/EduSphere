@@ -54,6 +54,12 @@ export const PERMISSIONS = {
 
   // Parent portal
   CHILDREN_VIEW: "children:view",
+
+  // School fees (per-child invoicing and payment approval)
+  FEES_MANAGE: "fees:manage",
+  FEES_APPROVE: "fees:approve",
+  FEES_VIEW: "fees:view",
+  FEES_PAY: "fees:pay",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -87,6 +93,9 @@ const ROLE_PERMISSIONS: Record<UserRoleName, Permission[]> = {
     PERMISSIONS.ANNOUNCEMENTS_MANAGE,
     PERMISSIONS.ANNOUNCEMENTS_VIEW,
     PERMISSIONS.NOTIFICATIONS_VIEW,
+    PERMISSIONS.FEES_MANAGE,
+    PERMISSIONS.FEES_APPROVE,
+    PERMISSIONS.FEES_VIEW,
   ],
 
   SCHOOL_ADMIN: [
@@ -113,6 +122,9 @@ const ROLE_PERMISSIONS: Record<UserRoleName, Permission[]> = {
     PERMISSIONS.ANNOUNCEMENTS_MANAGE,
     PERMISSIONS.ANNOUNCEMENTS_VIEW,
     PERMISSIONS.NOTIFICATIONS_VIEW,
+    PERMISSIONS.FEES_MANAGE,
+    PERMISSIONS.FEES_APPROVE,
+    PERMISSIONS.FEES_VIEW,
   ],
 
   PRINCIPAL: [
@@ -162,6 +174,8 @@ const ROLE_PERMISSIONS: Record<UserRoleName, Permission[]> = {
     PERMISSIONS.NOTIFICATIONS_VIEW,
     PERMISSIONS.ANNOUNCEMENTS_VIEW,
     PERMISSIONS.STUDENT_ANALYTICS,
+    PERMISSIONS.FEES_VIEW,
+    PERMISSIONS.FEES_PAY,
   ],
 };
 

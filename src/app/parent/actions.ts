@@ -8,10 +8,11 @@ import {
   withdrawComplaint,
   type complaintSchema,
 } from "@/services/complaints";
+import { startFeePayment } from "@/services/fees";
 import type { z } from "zod";
 
 export type ComplaintActionState =
-  | { ok: true; message?: string; complaintId?: string }
+  | { ok: true; message?: string; complaintId?: string; authorizationUrl?: string }
   | { ok: false; error: string };
 
 function message(e: unknown): string {
@@ -58,6 +59,27 @@ export async function withdrawComplaintAction(
     await withdrawComplaint(complaintId);
     revalidatePath("/parent/complaints");
     return { ok: true, message: "Complaint withdrawn." };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+/**
+ * Opens a Paystack checkout for an invoice and hands the browser the URL to
+ * redirect to. Returns a value rather than redirecting server-side because the
+ * parent has to leave for an external payment page, so this is a full-page
+ * navigation and not a router transition.
+ */
+export async function startFeePaymentAction(
+  invoiceId: string,
+): Promise<ComplaintActionState> {
+  try {
+    const context = await getAuthContext();
+    if (!context.user) return { ok: false, error: "Please sign in." };
+
+    const { authorizationUrl } = await startFeePayment(invoiceId);
+    revalidatePath("/parent/fees");
+    return { ok: true, authorizationUrl };
   } catch (e) {
     return { ok: false, error: message(e) };
   }

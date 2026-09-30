@@ -40,6 +40,15 @@ import {
   setComplaintStatus,
   type complaintStatusSchema,
 } from "@/services/complaints";
+import {
+  feeGenerateSchema,
+  feeIssueSchema,
+  feeReviewSchema,
+  generateTermInvoices,
+  issueFeeInvoice,
+  reviewFeePayment,
+  voidFeeInvoice,
+} from "@/services/fees";
 import type { z } from "zod";
 
 export type ActionState =
@@ -292,4 +301,62 @@ export async function setComplaintStatusAction(
     async () => setComplaintStatus(input),
     "/school/complaints",
   );
+}
+
+// ---------------------------------------------------------------------------
+// Fees
+// ---------------------------------------------------------------------------
+
+export async function issueFeeInvoiceAction(
+  input: z.input<typeof feeIssueSchema>,
+): Promise<ActionState & { message?: string }> {
+  try {
+    await issueFeeInvoice(input);
+    revalidatePath("/school/fees");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function generateTermInvoicesAction(
+  input: z.input<typeof feeGenerateSchema>,
+): Promise<ActionState & { message?: string }> {
+  try {
+    const { created, skipped } = await generateTermInvoices(input);
+    revalidatePath("/school/fees");
+    return {
+      ok: true,
+      message: skipped
+        ? `Issued ${created} invoice${created === 1 ? "" : "s"}; ${skipped} already billed.`
+        : `Issued ${created} invoice${created === 1 ? "" : "s"}.`,
+    };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function reviewFeePaymentAction(
+  input: z.infer<typeof feeReviewSchema>,
+): Promise<ActionState & { message?: string }> {
+  try {
+    const { credited, uncredited } = await reviewFeePayment(input);
+    revalidatePath("/school/fees");
+    revalidatePath("/parent/fees");
+    return {
+      ok: true,
+      message:
+        input.decision === "approve"
+          ? uncredited > 0
+            ? `Approved ${credited.toLocaleString("en-NG")} and credited the outstanding balance. ${uncredited.toLocaleString("en-NG")} was over the amount owed and was not credited.`
+            : "Payment approved and the invoice updated."
+          : "Payment rejected and the parent notified.",
+    };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function voidFeeInvoiceAction(invoiceId: string): Promise<ActionState> {
+  return run(async () => voidFeeInvoice(invoiceId), "/school/fees");
 }

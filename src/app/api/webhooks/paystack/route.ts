@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/paystack";
+import { isFeeReference } from "@/lib/fee-math";
 import { confirmPaystackPayment } from "@/services/billing";
+import { confirmFeePayment } from "@/services/fees";
 
 export const runtime = "nodejs";
 
@@ -35,7 +37,15 @@ export async function POST(req: NextRequest) {
 
   try {
     if (event.event === "charge.success") {
-      await confirmPaystackPayment(reference);
+      // One Paystack account serves both ledgers. School subscriptions are
+      // settled the moment money is verified; a fee payment is only queued for
+      // a bursar, so the two need different handling and the reference prefix is
+      // what tells them apart.
+      if (isFeeReference(reference)) {
+        await confirmFeePayment(reference);
+      } else {
+        await confirmPaystackPayment(reference);
+      }
     }
   } catch (error) {
     console.error("Paystack webhook processing failed:", error);

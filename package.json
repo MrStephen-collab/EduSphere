@@ -13,6 +13,7 @@
     "test": "vitest run",
     "smoke": "node scripts/smoke-pages.mjs",
     "verify:complaint-rls": "node scripts/verify-complaint-rls.mjs",
+    "verify:fee-rls": "node scripts/verify-fee-rls.mjs",
     "verify:mux-signing": "node scripts/check-mux-signing.mjs"
   },
   "dependencies": {

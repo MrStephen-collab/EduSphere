@@ -147,6 +147,10 @@ Open [http://localhost:3000](http://localhost:3000).
    - `supabase/migrations/0010_parent_portal.sql`
    - `supabase/migrations/0011_essay_marking.sql`
    - `supabase/migrations/0012_attendance.sql`
+   - `supabase/migrations/0013_parent_results_policies.sql`
+   - `supabase/migrations/0014_course_materials.sql`
+   - `supabase/migrations/0015_parent_complaints.sql`
+   - `supabase/migrations/0016_parent_fee_payments.sql`
 3. With `npm run dev` running, execute the demo-user seeder once:
 
 ```bash

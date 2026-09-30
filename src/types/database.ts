@@ -568,6 +568,56 @@ export type Payment = {
   updated_at: string;
 };
 
+export type FeeInvoiceStatus =
+  | "unpaid"
+  | "partially_paid"
+  | "paid"
+  | "waived"
+  | "void";
+
+export type FeePaymentStatus =
+  | "pending"
+  | "submitted"
+  | "approved"
+  | "rejected"
+  | "failed";
+
+export type FeeInvoice = {
+  id: string;
+  school_id: string;
+  student_id: string;
+  term_id: string | null;
+  description: string;
+  amount: number;
+  amount_paid: number;
+  currency: string;
+  due_date: string | null;
+  status: FeeInvoiceStatus;
+  billing_key: string | null;
+  issued_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FeePayment = {
+  id: string;
+  school_id: string;
+  invoice_id: string;
+  parent_id: string;
+  payer_user_id: string | null;
+  provider: string;
+  provider_reference: string | null;
+  amount: number;
+  status: FeePaymentStatus;
+  submitted_at: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_note: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AnnouncementTarget =
   | "school"
   | "class"
@@ -596,6 +646,10 @@ export type NotificationType =
   | "exam_result"
   | "new_lesson"
   | "announcement"
+  | "fee_invoice_issued"
+  | "fee_payment_submitted"
+  | "fee_payment_approved"
+  | "fee_payment_rejected"
   | "system";
 
 export type Notification = {
@@ -796,6 +850,16 @@ export type Database = {
         Row: Payment;
         Insert: Partial<Payment>;
         Update: Partial<Payment>;
+      };
+      fee_invoices: {
+        Row: FeeInvoice;
+        Insert: Partial<FeeInvoice>;
+        Update: Partial<FeeInvoice>;
+      };
+      fee_payments: {
+        Row: FeePayment;
+        Insert: Partial<FeePayment>;
+        Update: Partial<FeePayment>;
       };
       announcements: {
         Row: Announcement;

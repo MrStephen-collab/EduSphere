@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ClipboardList,
   CreditCard,
+  Wallet,
   FileText,
   GraduationCap,
   Home,
@@ -45,6 +46,7 @@ export const navIcons = {
   settings: Settings,
   profile: UserRound,
   creditCard: CreditCard,
+  wallet: Wallet,
 };
 
 export type NavItem = {
@@ -111,6 +113,12 @@ export const schoolNav: NavSection[] = [
       { title: "Events", href: "/school/events", icon: "calendar" },
       { title: "Media", href: "/school/media", icon: "images" },
       { title: "Complaints", href: "/school/complaints", icon: "messages" },
+    ],
+  },
+  {
+    label: "Money",
+    items: [
+      { title: "Fees", href: "/school/fees", icon: "wallet" },
     ],
   },
   {
@@ -193,6 +201,7 @@ export const parentNav: NavSection[] = [
   {
     label: "School",
     items: [
+      { title: "Fees & Payments", href: "/parent/fees", icon: "wallet" },
       { title: "Complaints & Advice", href: "/parent/complaints", icon: "messages" },
     ],
   },
