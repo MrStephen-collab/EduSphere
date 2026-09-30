@@ -110,6 +110,7 @@ export const schoolNav: NavSection[] = [
     items: [
       { title: "Events", href: "/school/events", icon: "calendar" },
       { title: "Media", href: "/school/media", icon: "images" },
+      { title: "Complaints", href: "/school/complaints", icon: "messages" },
     ],
   },
   {
@@ -187,6 +188,12 @@ export const parentNav: NavSection[] = [
       { title: "Report Cards", href: "/parent/report-cards", icon: "reportCard" },
       { title: "Assignments", href: "/parent/assignments", icon: "assignments" },
       { title: "Progress", href: "/parent/progress", icon: "analytics" },
+    ],
+  },
+  {
+    label: "School",
+    items: [
+      { title: "Complaints & Advice", href: "/parent/complaints", icon: "messages" },
     ],
   },
   {

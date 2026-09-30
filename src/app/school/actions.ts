@@ -35,6 +35,12 @@ import {
   addGalleryItem,
   deleteGalleryItem,
 } from "@/services/school-media";
+import {
+  replyToComplaint,
+  setComplaintStatus,
+  type complaintStatusSchema,
+} from "@/services/complaints";
+import type { z } from "zod";
 
 export type ActionState =
   | { ok: true; message?: string; authorizationUrl?: string }
@@ -266,5 +272,24 @@ export async function deleteGalleryItemAction(id: string): Promise<ActionState> 
   return run(
     async () => deleteGalleryItem(id),
     "/school/media",
+  );
+}
+
+export async function replyToComplaintAction(input: {
+  complaintId: string;
+  body: string;
+}): Promise<ActionState> {
+  return run(
+    async () => replyToComplaint(input),
+    "/school/complaints",
+  );
+}
+
+export async function setComplaintStatusAction(
+  input: z.infer<typeof complaintStatusSchema>,
+): Promise<ActionState> {
+  return run(
+    async () => setComplaintStatus(input),
+    "/school/complaints",
   );
 }

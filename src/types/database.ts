@@ -161,6 +161,42 @@ export type ParentStudentRelationship = {
   created_at: string;
 };
 
+export type ComplaintCategory =
+  | "academics"
+  | "fees"
+  | "conduct"
+  | "facilities"
+  | "staff"
+  | "transport"
+  | "other";
+
+export type ComplaintStatus = "open" | "in_progress" | "resolved";
+
+export type Complaint = {
+  id: string;
+  school_id: string;
+  raised_by: string;
+  raised_by_name: string;
+  raised_by_role: string;
+  category: ComplaintCategory;
+  subject: string;
+  status: ComplaintStatus;
+  assigned_to: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ComplaintMessage = {
+  id: string;
+  complaint_id: string;
+  author_id: string;
+  author_name: string;
+  is_from_school: boolean;
+  body: string;
+  created_at: string;
+};
+
 export type AttendanceStatus = "present" | "late" | "absent" | "excused";
 
 export type AttendanceRecord = {
@@ -640,6 +676,16 @@ export type Database = {
         Row: ParentStudentRelationship;
         Insert: Partial<ParentStudentRelationship>;
         Update: Partial<ParentStudentRelationship>;
+      };
+      complaints: {
+        Row: Complaint;
+        Insert: Partial<Complaint>;
+        Update: Partial<Complaint>;
+      };
+      complaint_messages: {
+        Row: ComplaintMessage;
+        Insert: Partial<ComplaintMessage>;
+        Update: Partial<ComplaintMessage>;
       };
       school_settings: {
         Row: SchoolSettings;

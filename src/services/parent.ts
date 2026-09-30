@@ -6,6 +6,7 @@ export type ParentContext = {
   schoolId: string;
   schoolName: string;
   parentId: string;
+  userId: string;
 };
 
 export async function requireParent(): Promise<ParentContext> {
@@ -28,6 +29,9 @@ export async function requireParent(): Promise<ParentContext> {
     schoolId: membership.school.id,
     schoolName: membership.school.name,
     parentId: data.id,
+    // Callers that write as the signed-in user (complaints, replies) need the
+    // auth id, not the parents-table id: the rows they touch are keyed on it.
+    userId: context.user.id,
   };
 }
 
