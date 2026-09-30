@@ -131,6 +131,13 @@ export async function createDirectUpload(
 
   if (!response.ok) {
     const detail = await response.text();
+    // 403 here is almost always a scope problem, and the raw Mux message
+    // ("insufficient_scope") is not something a teacher can act on.
+    if (response.status === 403) {
+      throw new Error(
+        "The video host rejected the upload request: the access token is missing the Mux Video Write scope.",
+      );
+    }
     throw new Error(`The video host rejected the upload request (${response.status}): ${detail.slice(0, 200)}`);
   }
 
@@ -141,10 +148,17 @@ export async function createDirectUpload(
 export async function deleteRemoteAsset(assetId: string): Promise<void> {
   const config = readConfig();
   if (!config) return;
-  await fetch(`${MUX_API}/video/v1/assets/${assetId}`, {
+  // A token without Video Write scope answers 403 here. Swallowing that would
+  // report a successful delete while the asset is still live on Mux and still
+  // reachable by anyone holding a playback URL, so surface it instead.
+  const response = await fetch(`${MUX_API}/video/v1/assets/${assetId}`, {
     method: "DELETE",
     headers: { Authorization: authHeader(config) },
-  }).catch(() => undefined);
+  }).catch(() => null);
+
+  if (response && !response.ok) {
+    throw new Error(`The video host refused to delete this video (${response.status}). Check that the access token has Mux Video Write.`);
+  }
 }
 
 // -----------------------------------------------------------------------------
