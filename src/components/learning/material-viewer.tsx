@@ -94,6 +94,8 @@ function VideoPanel({ material }: { material: StudentMaterial }) {
     | {
         status: "ready";
         url: string;
+        hlsUrl: string;
+        usingHls: boolean;
         watermark: string;
         expiresAt: string;
       }
@@ -138,12 +140,15 @@ function VideoPanel({ material }: { material: StudentMaterial }) {
       );
     } else {
       pendingUrl.current = null;
-      setState({
+      setState((current) => ({
         status: "ready",
         url: result.streamUrl,
+        hlsUrl: result.hlsUrl,
+        // Keep whichever source is already working across a token refresh.
+        usingHls: current.status === "ready" ? current.usingHls : false,
         watermark: result.watermark,
         expiresAt: result.expiresAt,
-      });
+      }));
     }
 
     return true;
@@ -176,11 +181,25 @@ function VideoPanel({ material }: { material: StudentMaterial }) {
         <div className="relative overflow-hidden rounded-lg bg-black">
           <video
             ref={videoRef}
-            src={state.url}
+            src={state.usingHls ? state.hlsUrl : state.url}
             controls
             controlsList="nodownload noremoteplayback"
             disablePictureInPicture
             onContextMenu={(event) => event.preventDefault()}
+            onError={() => {
+              // A progressive MP4 only exists when the asset was uploaded with
+              // a static rendition. Anything else -- an older upload, or one
+              // added straight from the Mux dashboard -- still has an HLS
+              // manifest, so fall back to it rather than showing a dead player.
+              // A bare <video> cannot play HLS on every browser, so this is
+              // best-effort: it works on Safari natively and elsewhere only
+              // when the browser plays .m3u8 directly.
+              setState((current) =>
+                current.status === "ready" && !current.usingHls
+                  ? { ...current, usingHls: true }
+                  : current,
+              );
+            }}
             onPlay={() => setPlaying(true)}
             onPause={() => {
               setPlaying(false);

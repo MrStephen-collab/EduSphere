@@ -172,6 +172,21 @@ describe("playback tokens", () => {
     const grant = mintPlaybackToken("playback123", { id: "user-abc", name: "Ada" });
     expect(grant.streamUrl).not.toContain("download=");
   });
+
+  it("points streamUrl at a static rendition and hlsUrl at a manifest", () => {
+    // A progressive MP4 only exists when the asset was uploaded with
+    // static_renditions; the HLS manifest always does. The player falls back
+    // to hlsUrl when the MP4 404s, so both have to be minted from the same
+    // playback id and the same token.
+    const grant = mintPlaybackToken("playback123", { id: "user-abc", name: "Ada" });
+
+    expect(grant.streamUrl).toContain("/playback123/highest.mp4");
+    expect(grant.hlsUrl).toContain("/playback123.m3u8");
+
+    const tokenOf = (url: string) => new URL(url).searchParams.get("token");
+    expect(tokenOf(grant.streamUrl)).toBe(grant.token);
+    expect(tokenOf(grant.hlsUrl)).toBe(grant.token);
+  });
 });
 
 describe("webhook signature verification", () => {

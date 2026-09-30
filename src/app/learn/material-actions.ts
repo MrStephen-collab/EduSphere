@@ -13,6 +13,8 @@ export type PlaybackState =
   | {
       ok: true;
       streamUrl: string;
+      /** Adaptive manifest, used when the asset has no progressive MP4. */
+      hlsUrl: string;
       expiresAt: string;
       /** Rendered into the on-screen watermark and matched against the log. */
       watermark: string;
@@ -85,6 +87,7 @@ export async function requestVideoPlaybackAction(
     return {
       ok: true,
       streamUrl: grant.streamUrl,
+      hlsUrl: grant.hlsUrl,
       expiresAt: grant.expiresAt,
       watermark: grant.watermarkLabel,
     };
