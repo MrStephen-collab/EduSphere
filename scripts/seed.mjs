@@ -962,6 +962,118 @@ async function seedDemoSubscription() {
   console.log("Seeded one paid payment for the demo subscription.");
 }
 
+// Fee invoices are the one part of the demo that a bursar normally has to
+// create by hand, which left every portal showing an empty fees page. This
+// seeds a term's worth so the parent statement, the receipts and the bursar's
+// approval queue all have something real to render.
+//
+// The mix is deliberate: each payment lands in a different state so all of
+// them are visible at once, and the third is overpaid so the statement has to
+// show a clamped credit rather than pretending the extra was absorbed.
+async function seedDemoFees(studentId) {
+  if (!studentId) {
+    console.log("No student to invoice — skipping fees.");
+    return;
+  }
+
+  const { data: existing } = await supabase
+    .from("fee_invoices")
+    .select("id")
+    .eq("school_id", SCHOOL_ID)
+    .eq("student_id", studentId)
+    .limit(1);
+  if (existing && existing.length > 0) {
+    console.log("Fee invoices already seeded — skipping.");
+    return;
+  }
+
+  const { data: parentUser } = await supabase.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+  const parentUserId = parentUser?.users.find(
+    (x) => x.email === "parent@greenfield.test",
+  )?.id;
+  if (!parentUserId) {
+    console.log("No parent user to bill — skipping fees.");
+    return;
+  }
+
+  const { data: parentRow } = await supabase
+    .from("parents")
+    .select("id")
+    .eq("user_id", parentUserId)
+    .maybeSingle();
+  if (!parentRow) {
+    console.log("No parent record to bill — skipping fees.");
+    return;
+  }
+
+  const term = [
+    { description: "First Term Tuition", amount: 125000, paid: 125000, status: "paid", at: "2026-01-12" },
+    { description: "Second Term Tuition", amount: 125000, paid: 60000, status: "partially_paid", at: "2026-04-14" },
+    { description: "Third Term Tuition", amount: 125000, paid: 0, status: "unpaid", at: "2026-07-13" },
+    { description: "Boarding Accommodation", amount: 90000, paid: 0, status: "unpaid", at: "2026-07-13" },
+    { description: "Scholarship Award (Merit)", amount: 40000, paid: 0, status: "waived", at: "2026-07-20" },
+  ];
+
+  for (const t of term) {
+    const { data: invoice, error } = await supabase
+      .from("fee_invoices")
+      .insert({
+        school_id: SCHOOL_ID,
+        student_id: studentId,
+        description: t.description,
+        amount: t.amount,
+        amount_paid: t.paid,
+        status: t.status,
+        due_date: t.at,
+      })
+      .select("id")
+      .single();
+    if (error) {
+      console.error(`Failed to invoice ${t.description}:`, error.message);
+      continue;
+    }
+
+    if (t.paid > 0) {
+      // The second term payment is tendered at 70000 against 60000 owed, which
+      // is the overpayment case: the credit is clamped and the receipt has to
+      // say how much was actually applied.
+      const tendered = t.description.startsWith("Second") ? 70000 : t.paid;
+      const { error: payErr } = await supabase.from("fee_payments").insert({
+        school_id: SCHOOL_ID,
+        invoice_id: invoice.id,
+        parent_id: parentRow.id,
+        payer_user_id: parentUserId,
+        amount: tendered,
+        credited_amount: t.paid,
+        status: "approved",
+        submitted_at: `${t.at}T09:15:00Z`,
+        reviewed_at: `${t.at}T11:00:00Z`,
+      });
+      if (payErr) console.error(`Failed to pay ${t.description}:`, payErr.message);
+    }
+
+    // A third invoice gets a payment still waiting on a bursar, so the school
+    // side has something to approve rather than an empty queue.
+    if (t.description === "Boarding Accommodation") {
+      const { error: pendingErr } = await supabase.from("fee_payments").insert({
+        school_id: SCHOOL_ID,
+        invoice_id: invoice.id,
+        parent_id: parentRow.id,
+        payer_user_id: parentUserId,
+        amount: 25000,
+        status: "submitted",
+        submitted_at: "2026-09-28T08:30:00Z",
+      });
+      if (pendingErr) console.error("Failed to queue payment:", pendingErr.message);
+    }
+  }
+
+  console.log(`Seeded ${term.length} fee invoices for the demo student.`);
+}
+
 async function main() {
   for (const u of users) {
     const {
@@ -1012,6 +1124,7 @@ async function main() {
   await seedDemoAttendance(teacherId);
   await seedSubscriptionPlans();
   await seedDemoSubscription();
+  await seedDemoFees(studentId);
 
   console.log("Seed complete. Demo password:", PASSWORD);
   console.log(`Student record: ${studentId ?? "not created"}`);

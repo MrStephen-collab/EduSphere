@@ -185,6 +185,40 @@ export function isChargeableStatus(status: FeeInvoiceStatus): boolean {
   return status === "unpaid" || status === "partially_paid" || status === "paid";
 }
 
+export type InvoiceTotalsInput = {
+  amount: number;
+  amount_paid: number;
+  status: FeeInvoiceStatus;
+};
+
+/**
+ * The three figures on the parent's fees page.
+ *
+ * Waived and void invoices are left out of "billed" as well as out of what is
+ * owed. That is what keeps the three tiles reconciling: billed minus paid is
+ * exactly outstanding. Totalling a waiver into the billed figure while leaving
+ * it out of the balance is how a parent ends up reading 505,000 - 185,000
+ * against an "outstanding" of 280,000 and concluding the app is broken.
+ *
+ * Pure and total so the invariant can be tested without a database.
+ */
+export function computeInvoiceTotals(invoices: InvoiceTotalsInput[]): {
+  invoiced: number;
+  paid: number;
+  outstanding: number;
+} {
+  const chargeable = invoices.filter((i) => isChargeableStatus(i.status));
+  return {
+    invoiced: roundMoney(chargeable.reduce((s, i) => s + Number(i.amount), 0)),
+    paid: roundMoney(chargeable.reduce((s, i) => s + Number(i.amount_paid), 0)),
+    outstanding: roundMoney(
+      invoices
+        .filter((i) => isPayableStatus(i.status))
+        .reduce((s, i) => s + outstandingFor(i), 0),
+    ),
+  };
+}
+
 export type StatementCharge = {
   id: string;
   date: string;

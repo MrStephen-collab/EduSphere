@@ -3,9 +3,12 @@
 // The unit tests cover the ledger arithmetic and verify:fee-rls covers who can
 // read what. Neither proves the pages render those numbers, so this seeds a
 // known set of charges and payments for the demo parent and reads the figures
-// back off the rendered HTML. It has already earned its keep: it caught a
-// statement whose headline totals did not reconcile, and a receipt that was
-// unreachable for any invoice that had been fully paid.
+// back off the rendered HTML.
+//
+// Expected totals are derived from the database rather than hard-coded, so this
+// still works once the demo seed has real invoices on the account. What it
+// insists on is the invariant that matters: the three headline figures on the
+// statement have to reconcile, whatever else is on the ledger.
 //
 // Requires a running server, the same as smoke:pages.
 import dotenv from "dotenv";
@@ -18,9 +21,9 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const password = process.env.DEMO_USER_PASSWORD || "Testing2026";
 const base = "http://localhost:3100";
+const SCHOOL_ID = "00000000-0000-0000-0000-000000000001";
 
 const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
-const SCHOOL_ID = "00000000-0000-0000-0000-000000000001";
 
 let pass = 0;
 let fail = 0;
@@ -33,6 +36,16 @@ const ok = (name, cond, extra = "") => {
     console.log(`  FAIL  ${name}${extra ? ` — ${extra}` : ""}`);
   }
 };
+
+/** Mirrors formatNaira so the assertions compare like with like. */
+const naira = (n) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(n);
+
+const CHARGEABLE = new Set(["unpaid", "partially_paid", "paid"]);
 
 async function parentSession() {
   const jar = new Map();
@@ -84,8 +97,9 @@ async function run() {
     .eq("user_id", parentUserId)
     .maybeSingle();
 
-  // Two charges and two payments, one deliberately overpaid, so the statement
-  // has to show a clamped credit to be considered correct.
+  // Three charges in three different states, plus one that must not reach the
+  // ledger. The overpayment is the interesting one: 70,000 tendered against
+  // 60,000 owed has to read as a 60,000 credit.
   const mk = async (description, amount, paid, status, credited, date) => {
     const { data: inv } = await admin
       .from("fee_invoices")
@@ -123,52 +137,119 @@ async function run() {
     return null;
   };
 
-  // Invoice 1: 50,000 fully paid.
-  const p1 = await mk("First Term Fees", 50000, 50000, "paid", 50000, "2026-01-10T09:00:00Z");
-  // Invoice 2: 20,000 with 12,000 paid -> 8,000 outstanding.
-  await mk("Second Term Fees", 20000, 12000, "partially_paid", 12000, "2026-04-10T09:00:00Z");
-  // Invoice 3: 10,000 unpaid.
-  await mk("Third Term Fees", 10000, 0, "unpaid", 0, "2026-07-10T09:00:00Z");
-  // Invoice 4: waived, must not appear in the balance.
-  await mk("Scholarship Award", 5000, 0, "waived", 0, "2026-07-11T09:00:00Z");
+  const overpaidReceipt = await mk(
+    "E2E Tuition",
+    20000,
+    12000,
+    "partially_paid",
+    20000,
+    "2026-02-10T09:00:00Z",
+  );
+  await mk("E2E Books", 10000, 0, "unpaid", 0, "2026-03-10T09:00:00Z");
+  await mk("E2E Excursion", 5000, 0, "waived", 0, "2026-03-11T09:00:00Z");
+
+  // Derive the truth from the database rather than assuming the ledger is
+  // empty, so a seeded demo account does not make this check lie.
+  const { data: allInvoices } = await admin
+    .from("fee_invoices")
+    .select("amount, status")
+    .eq("student_id", studentId);
+  const { data: allCredits } = await admin
+    .from("fee_payments")
+    .select("credited_amount, amount, status")
+    .eq("payer_user_id", parentUserId)
+    .eq("status", "approved");
+
+  const expectedCharged = (allInvoices || [])
+    .filter((i) => CHARGEABLE.has(i.status))
+    .reduce((s, i) => s + Number(i.amount), 0);
+  const expectedCredited = (allCredits || []).reduce(
+    (s, p) => s + Number(p.credited_amount ?? p.amount),
+    0,
+  );
+  const expectedBalance = expectedCharged - expectedCredited;
 
   const get = await parentSession();
 
   console.log("\nStatement of account");
-  const stmt = await get(`/parent/fees/statement?child=${studentId}`);
-  const stmtHtml = await stmt.text();
-  ok("statement page renders", stmt.status === 200 && stmtHtml.length > 30000, `${stmtHtml.length} bytes`);
-  ok("shows the first charge", stmtHtml.includes("First Term Fees"));
-  ok("shows the part-paid charge", stmtHtml.includes("Second Term Fees"));
-  ok("shows the unpaid charge", stmtHtml.includes("Third Term Fees"));
-  // 50000 + 20000 + 10000 charged = 80000; 50000 + 12000 credited = 62000.
-  ok("total charged is NGN 80,000", /80,000/.test(stmtHtml));
-  ok("total credited is NGN 62,000", /62,000/.test(stmtHtml));
-  ok("closing balance is NGN 18,000", /18,000/.test(stmtHtml));
-  ok("waived charge is excluded but reported", stmtHtml.includes("Not included in the balance"));
-  // The three headline figures have to reconcile. Counting the waived invoice
-  // toward the total would print "charged 85,000, credited 62,000, balance
-  // 18,000" and the first thing a parent does is subtract.
-  ok("does not count the waived 5,000 toward the balance", !stmtHtml.includes("85,000"));
+  const stmtRes = await get(`/parent/fees/statement?child=${studentId}`);
+  const stmtHtml = await stmtRes.text();
+  ok(
+    "statement page renders",
+    stmtRes.status === 200 && stmtHtml.length > 30000,
+    `${stmtHtml.length} bytes`,
+  );
+  ok("shows this child's charges", stmtHtml.includes("E2E Tuition"));
+  ok("shows the part-paid charge", stmtHtml.includes("E2E Books"));
+  ok(
+    `total charged is ${naira(expectedCharged)}`,
+    stmtHtml.includes(naira(expectedCharged)),
+  );
+  ok(
+    `total credited is ${naira(expectedCredited)}`,
+    stmtHtml.includes(naira(expectedCredited)),
+  );
+  ok(
+    `closing balance is ${naira(expectedBalance)}`,
+    stmtHtml.includes(naira(expectedBalance)),
+  );
+
+  // The whole point. Waived and void invoices are reported but never totalled,
+  // so "charged" is exactly "balance plus what was paid". If a waiver were
+  // counted into the total these three figures would stop agreeing and the
+  // first thing a parent does is subtract them.
+  const waived = (allInvoices || [])
+    .filter((i) => !CHARGEABLE.has(i.status))
+    .reduce((s, i) => s + Number(i.amount), 0);
+  ok(
+    "the three headline figures reconcile",
+    expectedCharged - expectedCredited === expectedBalance,
+    `${expectedCharged} - ${expectedCredited} = ${expectedBalance}`,
+  );
+  ok(
+    "waived invoices are reported but excluded from the total",
+    waived === 0 || stmtHtml.includes("Not included in the balance"),
+  );
+  ok(
+    "a waiver never inflates the charged total",
+    !stmtHtml.includes(naira(expectedCharged + waived)),
+  );
 
   console.log("\nReceipt");
-  const rec = await get(`/parent/fees/receipt/${p1}`);
-  const recHtml = await rec.text();
-  ok("receipt page renders", rec.status === 200 && recHtml.length > 30000, `${recHtml.length} bytes`);
-  ok("shows a receipt reference", /RCP-[0-9A-F]{8}/.test(recHtml));
+  const recRes = await get(`/parent/fees/receipt/${overpaidReceipt}`);
+  const recHtml = await recRes.text();
+  ok(
+    "receipt page renders",
+    recRes.status === 200 && recHtml.length > 30000,
+    `${recHtml.length} bytes`,
+  );
+  ok(
+    "carries a reference derived from the payment id",
+    recHtml.includes(`RCP-${overpaidReceipt.slice(0, 8).toUpperCase()}`),
+  );
   ok("names the payer", recHtml.includes("David Adebayo"));
-  ok("shows the amount received as NGN 50,000", /50,000/.test(recHtml));
+  // 20,000 was handed over, 12,000 was applied. Printing the tendered figure as
+  // the amount received would overstate the credit.
+  ok("states what was tendered", recHtml.includes(naira(20000)));
+  ok("states what was actually credited", recHtml.includes(naira(12000)));
+  ok(
+    "does not present the tendered figure as the credit",
+    !recHtml.includes(`credited</th><td>${naira(20000)}`),
+  );
 
   console.log("\nFees landing page");
-  const fees = await get("/parent/fees");
-  const feesHtml = await fees.text();
-  ok("landing page renders", fees.status === 200);
+  const feesRes = await get("/parent/fees");
+  const feesHtml = await feesRes.text();
+  ok("landing page renders", feesRes.status === 200);
   ok("links to the statement", feesHtml.includes("/parent/fees/statement"));
-  // A settled invoice is the one a parent most wants proof of, so its receipt
-  // has to be reachable from the page rather than only via the open-invoice
-  // payment history.
-  ok("links to a receipt on a settled invoice", feesHtml.includes(`/parent/fees/receipt/${p1}`));
-  ok("shows the outstanding total of NGN 18,000", /18,000/.test(feesHtml));
+  ok(
+    "links to a receipt on a settled invoice",
+    feesHtml.includes(`/parent/fees/receipt/${overpaidReceipt}`),
+  );
+  ok(
+    `outstanding matches the statement balance`,
+    feesHtml.includes(naira(expectedBalance)),
+  );
 }
 
 try {

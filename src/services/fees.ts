@@ -12,6 +12,7 @@ import {
   buildFeeReference,
   buildStatement,
   fromMinorUnits,
+  computeInvoiceTotals,
   isFeeReference,
   isPayableStatus,
   outstandingFor,
@@ -226,17 +227,13 @@ export async function getParentFees(): Promise<{
     payments: payments.get(invoice.id) ?? [],
   }));
 
+  // Waived and void invoices are excluded from the billed total, which is what
+  // makes these three tiles add up: invoiced - paid === outstanding. Counting a
+  // waiver into the total while leaving it out of what is owed is how a parent
+  // ends up staring at 505,000 - 185,000 and an "outstanding" of 280,000.
   return {
     summary,
-    totals: {
-      invoiced: roundMoney(scalars.reduce((s, i) => s + Number(i.amount), 0)),
-      paid: roundMoney(scalars.reduce((s, i) => s + Number(i.amount_paid), 0)),
-      outstanding: roundMoney(
-        scalars
-          .filter((i) => isPayableStatus(i.status))
-          .reduce((s, i) => s + outstandingFor(i), 0),
-      ),
-    },
+    totals: computeInvoiceTotals(scalars),
   };
 }
 

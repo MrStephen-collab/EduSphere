@@ -4,6 +4,7 @@ import {
   buildBillingKey,
   buildFeeReference,
   buildStatement,
+  computeInvoiceTotals,
   fromMinorUnits,
   isFeeReference,
   isOverdue,
@@ -213,6 +214,79 @@ describe("receipt references", () => {
     const ref = receiptReference("3f9a2b1c-4d5e-6f70-8192-a3b4c5d6e7f8");
     expect(ref).not.toContain("fee_");
     expect(ref.length).toBeLessThanOrEqual(12);
+  });
+});
+
+describe("computeInvoiceTotals", () => {
+  it("keeps billed minus paid equal to what is outstanding", () => {
+    const totals = computeInvoiceTotals([
+      { amount: 125000, amount_paid: 125000, status: "paid" },
+      { amount: 125000, amount_paid: 60000, status: "partially_paid" },
+      { amount: 125000, amount_paid: 0, status: "unpaid" },
+      { amount: 90000, amount_paid: 0, status: "unpaid" },
+    ]);
+
+    expect(totals.invoiced).toBe(465000);
+    expect(totals.paid).toBe(185000);
+    expect(totals.outstanding).toBe(280000);
+    expect(totals.invoiced - totals.paid).toBe(totals.outstanding);
+  });
+
+  it("leaves a waiver out of the billed total", () => {
+    const totals = computeInvoiceTotals([
+      { amount: 125000, amount_paid: 125000, status: "paid" },
+      { amount: 40000, amount_paid: 0, status: "waived" },
+      { amount: 90000, amount_paid: 0, status: "unpaid" },
+    ]);
+
+    expect(totals.invoiced).toBe(215000);
+    expect(totals.paid).toBe(125000);
+    expect(totals.outstanding).toBe(90000);
+    expect(totals.invoiced - totals.paid).toBe(totals.outstanding);
+  });
+
+  it("agrees with the statement for the same ledger", () => {
+    const invoices = [
+      { amount: 50000, amount_paid: 50000, status: "paid" as const },
+      { amount: 20000, amount_paid: 12000, status: "partially_paid" as const },
+      { amount: 10000, amount_paid: 0, status: "unpaid" as const },
+      { amount: 5000, amount_paid: 0, status: "waived" as const },
+    ];
+    const statement = buildStatement({
+      currency: "NGN",
+      generatedAt: "2026-09-30T00:00:00.000Z",
+      charges: [
+        { ...invoices[0], id: "i1", date: "2026-01-10", description: "A" },
+        { ...invoices[1], id: "i2", date: "2026-04-10", description: "B" },
+        { ...invoices[2], id: "i3", date: "2026-07-10", description: "C" },
+        { ...invoices[3], id: "i4", date: "2026-07-11", description: "D" },
+      ],
+      credits: [
+        {
+          id: "p1",
+          date: "2026-01-15",
+          description: "A",
+          reference: "PAY-1",
+          tendered: 50000,
+          credited: 50000,
+        },
+        {
+          id: "p2",
+          date: "2026-04-15",
+          description: "B",
+          reference: "PAY-2",
+          tendered: 20000,
+          credited: 12000,
+        },
+      ],
+    });
+    const totals = computeInvoiceTotals(invoices);
+
+    // The landing page and the statement are two views of one ledger, so a
+    // parent moving between them must not see the bill change.
+    expect(totals.invoiced).toBe(statement.totalCharged);
+    expect(totals.paid).toBe(statement.totalCredited);
+    expect(totals.outstanding).toBe(statement.closingBalance);
   });
 });
 
