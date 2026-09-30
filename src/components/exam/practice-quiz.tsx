@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { BookOpen, CheckCircle2, Clock, Loader2, PenLine, Send, XCircle } from "lucide-react";
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Flag,
+  Loader2,
+  PenLine,
+  Send,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { submitPracticeAction } from "@/app/student/actions";
@@ -198,6 +209,8 @@ export function PracticeQuiz({
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [essays, setEssays] = useState<Record<string, string>>({});
   const [result, setResult] = useState<PracticeResult | null>(null);
+  const [current, setCurrent] = useState(0);
+  const [flagged, setFlagged] = useState<Record<string, boolean>>({});
 
   const selectedRef = useRef(selected);
   const essaysRef = useRef(essays);
@@ -257,34 +270,65 @@ export function PracticeQuiz({
     return () => clearInterval(interval);
   }, [durationMinutes, submitAnswers]);
 
-  const answeredCount = useMemo(
-    () =>
-      Object.keys(selected).filter((id) => selected[id]).length +
-      Object.keys(essays).filter((id) => essays[id].trim()).length,
-    [selected, essays],
+  const isAnswered = useCallback(
+    (question: PracticePaper["questions"][number]) => {
+      if (question.questionType === "essay") return Boolean(essays[question.id]?.trim());
+      return Boolean(selected[question.id]);
+    },
+    [essays, selected],
   );
 
-  const groups = useMemo(() => {
-    const out: { title: string | null; items: PracticePaper["questions"] }[] = [];
-    for (const q of paper.questions) {
-      const last = out[out.length - 1];
-      if (last && last.title === q.sectionTitle) last.items.push(q);
-      else out.push({ title: q.sectionTitle, items: [q] });
+  const answeredCount = useMemo(
+    () => paper.questions.filter(isAnswered).length,
+    [isAnswered, paper.questions],
+  );
+
+  const question = paper.questions[current];
+
+  // Jumping straight to Submit from the palette is the easiest way to hand in a
+  // half-finished paper, so guard it with a count of what is still outstanding.
+  const confirmSubmit = useCallback(() => {
+    const missing = paper.questions.length - answeredCount;
+    if (missing > 0) {
+      const proceed = window.confirm(
+        `${missing} question${missing === 1 ? " is" : "s are"} still unanswered. Unanswered questions are marked incorrect. Submit anyway?`,
+      );
+      if (!proceed) return;
     }
-    return out;
-  }, [paper.questions]);
+    submitAnswers(true);
+  }, [answeredCount, paper.questions.length, submitAnswers]);
+
+  // Arrow keys move between questions, which is how a candidate works a paper.
+  useEffect(() => {
+    if (result) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT")) return;
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setCurrent((c) => Math.min(c + 1, paper.questions.length - 1));
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setCurrent((c) => Math.max(c - 1, 0));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paper.questions.length, result]);
 
   if (result) {
     return <ResultSummary result={result} title={title} />;
   }
 
   const timerLow = durationMinutes != null && (remainingSeconds ?? 1) <= 60;
+  const isFlagged = question ? Boolean(flagged[question.id]) : false;
+  const isLast = current === paper.questions.length - 1;
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background p-3">
         <p className="text-sm text-muted-foreground">
-          {answeredCount} of {paper.questions.length} answered
+          Question {current + 1} of {paper.questions.length} · {answeredCount} answered
         </p>
         {durationMinutes != null && remainingSeconds != null && (
           <span
@@ -296,11 +340,7 @@ export function PracticeQuiz({
             {formatClock(remainingSeconds)}
           </span>
         )}
-        <Button
-          type="button"
-          disabled={isPending}
-          onClick={() => submitAnswers(true)}
-        >
+        <Button type="button" variant="outline" disabled={isPending} onClick={confirmSubmit}>
           {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Send className="size-4" aria-hidden="true" />}
           {isPending ? "Marking…" : durationMinutes ? "Finish & submit" : "Submit answers"}
         </Button>
@@ -314,64 +354,146 @@ export function PracticeQuiz({
         </p>
       )}
 
-      {!isPending && (
-        <p className="text-xs text-muted-foreground">
-          You can submit at any time — unanswered questions are marked incorrect.
+      <nav
+        aria-label="Question navigation"
+        className="rounded-md border bg-background p-3"
+      >
+        <p className="mb-2 text-xs text-muted-foreground">
+          Jump to a question. Use the arrow keys to move between them.
         </p>
-      )}
+        <ol className="flex flex-wrap gap-1.5">
+          {paper.questions.map((q, i) => {
+            const answered = isAnswered(q);
+            const isCurrent = i === current;
+            return (
+              <li key={q.id}>
+                <button
+                  type="button"
+                  onClick={() => setCurrent(i)}
+                  aria-current={isCurrent ? "true" : undefined}
+                  className={`flex size-8 items-center justify-center rounded-md border text-sm font-medium transition-colors ${
+                    isCurrent
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : answered
+                        ? "border-emerald-500/50 bg-emerald-50 text-emerald-800"
+                        : "border-input hover:border-primary/50"
+                  }`}
+                >
+                  {i + 1}
+                  {flagged[q.id] && (
+                    <span className="sr-only"> (flagged for review)</span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        <ul className="mt-2.5 flex flex-wrap gap-3 text-xs text-muted-foreground">
+          <li className="flex items-center gap-1.5">
+            <span className="size-3 rounded-sm border border-emerald-500/50 bg-emerald-50" aria-hidden="true" />
+            Answered
+          </li>
+          <li className="flex items-center gap-1.5">
+            <span className="size-3 rounded-sm border border-input" aria-hidden="true" />
+            Not answered
+          </li>
+          <li className="flex items-center gap-1.5">
+            <span className="size-3 rounded-sm border border-primary bg-primary" aria-hidden="true" />
+            Current
+          </li>
+        </ul>
+      </nav>
 
-      {groups.map((group) => (
-        <div key={group.title ?? "__general__"} className="grid gap-3">
-          {group.title && (
-            <h3 className="text-sm font-semibold text-primary">{group.title}</h3>
-          )}
-          {group.items.map((question, index) => (
-            <div key={question.id} className="rounded-md border bg-background p-3">
+      {question && (
+        <div className="rounded-md border bg-background p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="grid gap-1">
               <p className="text-sm font-medium">
-                {index + 1}. {question.questionText}
+                {current + 1}. {question.questionText}
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {question.questionType === "essay" ? "Essay / full answer" : difficultyLabels[question.difficulty]} · {question.marks} mark{question.marks === 1 ? "" : "s"}
+              <p className="text-xs text-muted-foreground">
+                {question.questionType === "essay"
+                  ? "Essay / full answer"
+                  : difficultyLabels[question.difficulty]}{" "}
+                · {question.marks} mark{question.marks === 1 ? "" : "s"}
                 {question.topic ? ` · ${question.topic}` : ""}
               </p>
-              {question.questionType === "essay" ? (
-                <textarea
-                  value={essays[question.id] ?? ""}
-                  onChange={(e) => setEssays((s) => ({ ...s, [question.id]: e.target.value }))}
-                  rows={5}
-                  placeholder="Write your full working / answer here…"
-                  className="mt-2 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              ) : (
-                <div className="mt-2 grid gap-1.5">
-                  {question.options.map((opt, i) => {
-                    const isSelected = selected[question.id] === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-sm transition-colors ${markClass(isSelected ? "selected" : "idle")}`}
-                        onClick={() => setSelected((s) => ({ ...s, [question.id]: opt.id }))}
-                      >
-                        <span
-                          className={`flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${
-                            isSelected ? "border-primary bg-primary text-primary-foreground" : "border-input text-transparent"
-                          }`}
-                        >
-                          {LETTERS[i]}
-                        </span>
-                        <span>{opt.text}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
-          ))}
+            <button
+              type="button"
+              onClick={() => setFlagged((f) => ({ ...f, [question.id]: !f[question.id] }))}
+              aria-pressed={isFlagged}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${
+                isFlagged ? "border-amber-500/50 bg-amber-50 text-amber-800" : "border-input text-muted-foreground hover:border-primary/50"
+              }`}
+            >
+              <Flag className="size-3.5" aria-hidden="true" />
+              {isFlagged ? "Flagged" : "Flag"}
+            </button>
+          </div>
+
+          {question.questionType === "essay" ? (
+            <textarea
+              value={essays[question.id] ?? ""}
+              onChange={(e) => setEssays((s) => ({ ...s, [question.id]: e.target.value }))}
+              rows={8}
+              placeholder="Write your full working / answer here…"
+              className="mt-3 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          ) : (
+            <div className="mt-3 grid gap-1.5">
+              {question.options.map((opt, i) => {
+                const isSelected = selected[question.id] === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm transition-colors ${markClass(isSelected ? "selected" : "idle")}`}
+                    onClick={() => setSelected((s) => ({ ...s, [question.id]: opt.id }))}
+                  >
+                    <span
+                      className={`flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${
+                        isSelected ? "border-primary bg-primary text-primary-foreground" : "border-input text-transparent"
+                      }`}
+                    >
+                      {LETTERS[i]}
+                    </span>
+                    <span>{opt.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
-      ))}
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-3">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={current === 0}
+          onClick={() => setCurrent((c) => Math.max(c - 1, 0))}
+        >
+          <ChevronLeft className="size-4" aria-hidden="true" />
+          Previous
+        </Button>
+
+        {isLast ? (
+          <Button type="button" disabled={isPending} onClick={confirmSubmit}>
+            {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Send className="size-4" aria-hidden="true" />}
+            {isPending ? "Marking…" : durationMinutes ? "Finish & submit" : "Submit answers"}
+          </Button>
+        ) : (
+          <Button type="button" onClick={() => setCurrent((c) => Math.min(c + 1, paper.questions.length - 1))}>
+            Next
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </Button>
+        )}
+      </div>
+
       <p className="text-xs text-muted-foreground">
         <Link href={`/student/exam-series/${paper.seriesId}`} className="underline">
           Cancel and go back to the series

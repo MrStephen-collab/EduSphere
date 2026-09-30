@@ -85,7 +85,7 @@ export default async function StudentPracticePage({
   return (
     <DashboardShell title={paper.title} badge="Practice">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem)_1fr]">
-        <Card className="h-fit">
+        <Card className="h-fit lg:sticky lg:top-4">
           <CardHeader>
             <CardTitle>Paper summary</CardTitle>
           </CardHeader>
@@ -96,12 +96,20 @@ export default async function StudentPracticePage({
               {paper.totalMarks === 1 ? "" : "s"} total
               {active.durationMinutes ? ` · ${active.durationMinutes} minute${active.durationMinutes === 1 ? "" : "s"} limit` : ""}
             </p>
+            {active.durationMinutes ? (
+              <p className="text-xs">
+                A countdown is running — your answers submit automatically when time runs out.
+              </p>
+            ) : (
+              <p className="text-xs">Answer every question, then submit for instant marking.</p>
+            )}
             <p className="text-xs">
-              {active.durationMinutes
-                ? "A countdown is running — your answers submit automatically when time runs out."
-                : "Answer every question, then submit for instant marking."}{" "}
               Objective answers are auto-marked and explained in the review; written essay answers are
               kept for your teacher to mark.
+            </p>
+            <p className="text-xs">
+              Work through one question at a time. Use the palette to jump around, flag anything you
+              want to revisit, and submit from the last question.
             </p>
           </CardContent>
         </Card>
