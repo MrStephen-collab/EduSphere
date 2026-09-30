@@ -120,7 +120,9 @@ const ROLES = [
       "/school/announcements",
       "/school/billing",
       "/school/classes",
+      "/school/complaints",
       "/school/events",
+      "/school/fees",
       "/school/media",
       "/school/parents",
       "/school/results",
@@ -159,7 +161,16 @@ const ROLES = [
   },
   {
     email: "parent@greenfield.test",
-    routes: ["/parent", "/parent/assignments", "/parent/children"],
+    routes: [
+      "/parent",
+      "/parent/assignments",
+      "/parent/children",
+      "/parent/complaints",
+      "/parent/fees",
+      "/parent/progress",
+      "/parent/report-cards",
+      "/parent/results",
+    ],
   },
 ];
 
