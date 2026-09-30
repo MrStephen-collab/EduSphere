@@ -3,6 +3,7 @@ import {
   applyApproval,
   buildBillingKey,
   buildFeeReference,
+  buildStatement,
   fromMinorUnits,
   isFeeReference,
   isOverdue,
@@ -10,10 +11,14 @@ import {
   isSubscriptionReference,
   outstandingFor,
   paidFraction,
+  receiptReference,
   roundMoney,
   statusForAmounts,
   toMinorUnits,
+  type StatementCharge,
+  type StatementCredit,
 } from "@/lib/fee-math";
+import type { FeeInvoiceStatus } from "@/types/database";
 
 describe("reference prefixes", () => {
   it("marks fee references and leaves subscription references alone", () => {
@@ -196,3 +201,201 @@ describe("misc helpers", () => {
     expect(paidFraction(0, 0)).toBe(1);
   });
 });
+
+describe("receipt references", () => {
+  it("is short enough to read out and stable for one payment", () => {
+    const id = "3f9a2b1c-4d5e-6f70-8192-a3b4c5d6e7f8";
+    expect(receiptReference(id)).toBe("RCP-3F9A2B1C");
+    expect(receiptReference(id)).toBe(receiptReference(id));
+  });
+
+  it("does not leak the provider reference into a document", () => {
+    const ref = receiptReference("3f9a2b1c-4d5e-6f70-8192-a3b4c5d6e7f8");
+    expect(ref).not.toContain("fee_");
+    expect(ref.length).toBeLessThanOrEqual(12);
+  });
+});
+
+describe("buildStatement", () => {
+  const charge = (
+    id: string,
+    date: string,
+    amount: number,
+    status: FeeInvoiceStatus = "unpaid",
+    description = "First term fees",
+  ): StatementCharge => ({ id, date, description, amount, status });
+
+  const credit = (
+    id: string,
+    date: string,
+    tendered: number,
+    credited: number | null,
+    description = "First term fees",
+  ): StatementCredit => ({
+    id,
+    date,
+    description,
+    tendered,
+    credited,
+    reference: receiptReference(id),
+  });
+
+  it("runs a balance forward through charges and credits in date order", () => {
+    const statement = buildStatement({
+      currency: "NGN",
+      generatedAt: "2026-09-30T00:00:00.000Z",
+      charges: [
+        charge("i1", "2026-01-10", 50000),
+        charge("i2", "2026-04-10", 30000, "unpaid", "Second term fees"),
+      ],
+      credits: [credit("p1", "2026-02-01", 50000, 50000)],
+    });
+
+    expect(statement.rows.map((r) => r.balance)).toEqual([50000, 0, 30000]);
+    expect(statement.totalCharged).toBe(80000);
+    expect(statement.totalCredited).toBe(50000);
+    expect(statement.closingBalance).toBe(30000);
+  });
+
+  it("credits what was credited, not what was tendered", () => {
+    // A parent pays 60000 against a 50000 invoice. The school keeps 50000 and
+    // the surplus is not a credit against anything.
+    const statement = buildStatement({
+      currency: "NGN",
+      generatedAt: "2026-09-30T00:00:00.000Z",
+      charges: [charge("i1", "2026-01-10", 50000, "paid")],
+      credits: [credit("p1", "2026-01-20", 60000, 50000)],
+    });
+
+    expect(statement.totalCredited).toBe(50000);
+    expect(statement.closingBalance).toBe(0);
+  });
+
+  it("keeps the closing balance equal to the sum of what is still owed", () => {
+    const statement = buildStatement({
+      currency: "NGN",
+      generatedAt: "2026-09-30T00:00:00.000Z",
+      charges: [
+        charge("i1", "2026-01-10", 50000, "paid"),
+        charge("i2", "2026-01-10", 20000, "partially_paid"),
+        charge("i3", "2026-01-10", 10000, "unpaid"),
+      ],
+      credits: [credit("p1", "2026-01-15", 50000, 50000)],
+    });
+
+    // 20000 + 10000 still owed across the two unpaid invoices. The running
+    // balance peaks at 80000 before the credit lands, so this has to be read
+    // off the last row rather than the maximum.
+    expect(statement.closingBalance).toBe(30000);
+    expect(statement.rows[statement.rows.length - 1].balance).toBe(30000);
+    expect(
+      statement.totalCharged - statement.totalCredited,
+    ).toBe(statement.closingBalance);
+  });
+
+  it("leaves a void or waived invoice out of the ledger but still reports it", () => {
+    const statement = buildStatement({
+      currency: "NGN",
+      generatedAt: "2026-09-30T00:00:00.000Z",
+      charges: [
+        charge("i1", "2026-01-10", 50000, "unpaid"),
+        charge("i2", "2026-01-10", 9999, "void", "Raised in error"),
+        charge("i3", "2026-01-10", 5000, "waived", "Scholarship"),
+      ],
+      credits: [],
+    });
+
+    expect(statement.closingBalance).toBe(50000);
+    expect(statement.rows).toHaveLength(1);
+    expect(statement.excluded.map((e) => e.description).sort()).toEqual([
+      "Raised in error",
+      "Scholarship",
+    ]);
+    // Only the live invoice is totalled. Including the void and waived amounts
+    // here would print "charged 64999, credited 0, balance 50000", and the
+    // family is right to distrust those three numbers not reconciling.
+    expect(statement.totalCharged).toBe(50000);
+    expect(statement.totalCredited).toBe(0);
+    expect(statement.totalCharged - statement.totalCredited).toBe(
+      statement.closingBalance,
+    );
+  });
+
+  it("keeps the three headline figures reconciling once credits are involved", () => {
+    const statement = buildStatement({
+      currency: "NGN",
+      generatedAt: "2026-09-30T00:00:00.000Z",
+      charges: [
+        charge("i1", "2026-01-10", 50000, "paid"),
+        charge("i2", "2026-04-10", 20000, "partially_paid"),
+        charge("i3", "2026-07-10", 10000, "unpaid"),
+        charge("i4", "2026-07-11", 5000, "waived"),
+      ],
+      credits: [
+        credit("p1", "2026-01-15", 50000, 50000),
+        credit("p2", "2026-04-15", 12000, 12000),
+      ],
+    });
+
+    // 50000 + 20000 + 10000 on the ledger; 50000 + 12000 received.
+    expect(statement.totalCharged).toBe(80000);
+    expect(statement.totalCredited).toBe(62000);
+    expect(statement.closingBalance).toBe(18000);
+    expect(statement.totalCharged - statement.totalCredited).toBe(
+      statement.closingBalance,
+    );
+  });
+
+  it("flags a credit approved before credited_amount was recorded", () => {
+    const statement = buildStatement({
+      currency: "NGN",
+      generatedAt: "2026-09-30T00:00:00.000Z",
+      charges: [charge("i1", "2026-01-10", 50000)],
+      credits: [credit("p1", "2026-01-20", 20000, null)],
+    });
+
+    expect(statement.hasUnbackedCredits).toBe(true);
+    // Assumed worth the tendered amount, because assuming zero would overstate
+    // what the family owes.
+    expect(statement.totalCredited).toBe(20000);
+    expect(statement.closingBalance).toBe(30000);
+  });
+
+  it("never shows a negative running balance", () => {
+    const statement = buildStatement({
+      currency: "NGN",
+      generatedAt: "2026-09-30T00:00:00.000Z",
+      charges: [charge("i1", "2026-02-01", 10000)],
+      // A payment dated before the invoice it settles.
+      credits: [credit("p1", "2026-01-01", 10000, 10000)],
+    });
+
+    expect(statement.rows.map((r) => r.balance)).toEqual([0, 0]);
+    expect(statement.closingBalance).toBe(0);
+  });
+
+  it("orders a payment made on the same day after the invoice it pays", () => {
+    const statement = buildStatement({
+      currency: "NGN",
+      generatedAt: "2026-09-30T00:00:00.000Z",
+      charges: [charge("i1", "2026-01-10", 10000)],
+      credits: [credit("p1", "2026-01-10", 10000, 10000)],
+    });
+
+    expect(statement.rows.map((r) => r.kind)).toEqual(["charge", "credit"]);
+  });
+
+  it("handles a child with no history at all", () => {
+    const statement = buildStatement({
+      currency: "NGN",
+      generatedAt: "2026-09-30T00:00:00.000Z",
+      charges: [],
+      credits: [],
+    });
+
+    expect(statement.rows).toEqual([]);
+    expect(statement.closingBalance).toBe(0);
+    expect(statement.hasUnbackedCredits).toBe(false);
+  });
+});
+

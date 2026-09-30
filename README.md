@@ -196,10 +196,14 @@ covered by `npm run test`.
 npm run acceptance            # §87 critical acceptance test (needs a seed + server)
 npm run smoke                 # renders every dashboard page per demo role (needs a server on :3100)
 npm run verify:fee-rls        # fee invoice/payment isolation + approval gate
+npm run verify:fee-statement  # statement + receipt figures against real data (needs a server)
 npm run verify:complaint-rls  # complaint isolation + school reply
 ```
 
-`acceptance` and `smoke` both need a running server; `verify:*` do not. Run
+`acceptance` and `smoke` both need a running server; so does
+`verify:fee-statement`, which seeds a known set of charges and payments and
+reads the totals back off the rendered pages. `verify:fee-rls` and
+`verify:complaint-rls` do not. Run
 `node scripts/seed.mjs` once before `acceptance` to create the School A demo
 data it walks through.
 
@@ -245,6 +249,8 @@ npx supabase db push --include-all
 
 /parent/children              All linked children
 /parent/fees                  Child's invoices, balances, payment history
+/parent/fees/statement        Printable statement of account, one child at a time
+/parent/fees/receipt/[id]     Printable receipt for one approved payment
 /parent/results               Results & analytics for one child
 /parent/assignments           Child's assignments (read-only)
 /parent/progress              Child's course progress
@@ -285,6 +291,16 @@ npm run test
 - Per-module RLS probes cover the two most sensitive areas (money and
   confidential complaints). Both currently pass in full — see
   `npm run verify:fee-rls` and `npm run verify:complaint-rls`.
+- Parent statements and receipts are rendered from the same request-scoped
+  client as the rest of the app, so they inherit the RLS policies rather than
+  re-implementing them. A receipt exists only for an approved payment, since
+  an approval is the only event that moves money; a statement for a child the
+  parent is not linked to renders nothing rather than an empty balance.
+- `fee_payments.credited_amount` records what an approval actually credited,
+  which is not always what the parent tendered. Overpayment is clamped to the
+  amount due and the difference is surfaced on the statement instead of being
+  quietly absorbed. The column is constrained to `0 < credited <= amount` and
+  to approved payments only, and backfills from the approval audit trail.
 
 ## Security Notes
 

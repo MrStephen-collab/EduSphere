@@ -10,12 +10,15 @@ import {
   applyApproval,
   buildBillingKey,
   buildFeeReference,
+  buildStatement,
   fromMinorUnits,
   isFeeReference,
   isPayableStatus,
   outstandingFor,
+  receiptReference,
   roundMoney,
   toMinorUnits,
+  type Statement,
 } from "@/lib/fee-math";
 import type {
   FeeInvoice,
@@ -254,6 +257,244 @@ async function loadPaymentsForInvoices(
     grouped.set(row.invoice_id, list);
   }
   return grouped;
+}
+
+// ---------------------------------------------------------------------------
+// Receipts and statements
+// ---------------------------------------------------------------------------
+
+export type FeeReceipt = {
+  reference: string;
+  paidAt: string;
+  childName: string;
+  admissionNumber: string;
+  description: string;
+  /** What the parent handed over. */
+  tendered: number;
+  /** What the school actually credited. Lower when a payment exceeded the debt. */
+  credited: number;
+  /** True when the approval had to clamp an overpayment. */
+  overpaid: boolean;
+  currency: string;
+  /** The invoice's own totals, so the receipt is a complete document. */
+  invoiceTotal: number;
+  invoicePaidAfter: number;
+  invoiceStatus: FeeInvoiceStatus;
+  method: string;
+  providerReference: string | null;
+  note: string | null;
+  reviewedAt: string | null;
+  school: { name: string; motto: string | null; address: string | null; phone: string | null; email: string | null };
+};
+
+/**
+ * One approved payment as a receiptable document.
+ *
+ * Read through the request-scoped client, so RLS decides the answer: a parent
+ * asking for a receipt by id gets nothing for a payment on somebody else's
+ * child, and cannot probe whether one exists.
+ *
+ * Only an approved payment produces a receipt. A pending or submitted payment
+ * has moved no money, and printing a receipt for it would be a document the
+ * school does not stand behind.
+ */
+export async function getParentFeeReceipt(paymentId: string): Promise<FeeReceipt | null> {
+  await requireParent();
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("fee_payments")
+    .select(
+      "id, amount, credited_amount, status, created_at, reviewed_at, review_note, provider, provider_reference, " +
+        "fee_invoices!inner(id, description, amount, amount_paid, currency, status, students!inner(display_name, admission_number))",
+    )
+    .eq("id", paymentId)
+    .eq("status", "approved")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  const payment = data as unknown as {
+    id: string;
+    amount: number;
+    credited_amount: number | null;
+    created_at: string;
+    reviewed_at: string | null;
+    review_note: string | null;
+    provider: string;
+    provider_reference: string | null;
+    fee_invoices: {
+      description: string;
+      amount: number;
+      amount_paid: number;
+      currency: string;
+      status: FeeInvoiceStatus;
+      students: { display_name: string | null; admission_number: string } | null;
+    } | null;
+  };
+
+  const invoice = payment.fee_invoices;
+  if (!invoice) return null;
+
+  const student = asArray(invoice.students as { display_name: string | null; admission_number: string } | null)[0];
+
+  // An approval from before 0017 has no credited_amount. The tendered figure is
+  // the best available reading of what was kept, and the receipt says so rather
+  // than quietly presenting a guess as fact.
+  const credited = payment.credited_amount ?? roundMoney(Number(payment.amount));
+  const tendered = roundMoney(Number(payment.amount));
+
+  const { data: schoolRow } = await supabase
+    .from("schools")
+    .select("name, motto, address, phone, email")
+    .limit(1)
+    .maybeSingle();
+
+  const school = (schoolRow ?? { name: "School", motto: null, address: null, phone: null, email: null }) as FeeReceipt["school"];
+
+  return {
+    reference: receiptReference(payment.id),
+    paidAt: payment.reviewed_at ?? payment.created_at,
+    childName: student?.display_name ?? "Student",
+    admissionNumber: student?.admission_number ?? "—",
+    description: invoice.description,
+    tendered,
+    credited,
+    overpaid: roundMoney(tendered - credited) > 0,
+    currency: invoice.currency,
+    invoiceTotal: roundMoney(Number(invoice.amount)),
+    invoicePaidAfter: roundMoney(Number(invoice.amount_paid)),
+    invoiceStatus: invoice.status,
+    method: payment.provider === "paystack" ? "Paystack (online)" : payment.provider,
+    providerReference: payment.provider_reference,
+    note: payment.review_note,
+    reviewedAt: payment.reviewed_at,
+    school,
+  };
+}
+
+export type ParentStatement = Statement & {
+  child: {
+    studentId: string;
+    displayName: string;
+    admissionNumber: string;
+    className: string | null;
+  };
+};
+
+/**
+ * A dated statement of account for one linked child: every charge the school
+ * raised, every payment it credited, and the balance owed after each.
+ *
+ * Scoped to a single child on purpose. A statement that mixed siblings together
+ * would be unreadable as an accounting document, and the balance a family is
+ * chasing is always about one child at a time.
+ */
+export async function getParentFeeStatement(
+  studentId: string,
+): Promise<ParentStatement | null> {
+  const { schoolId, parentId } = await requireParent();
+  const supabase = await createSupabaseServerClient();
+
+  // Prove the link through the request-scoped client first. The RLS policy on
+  // fee_invoices would hide the rows anyway, but a child the caller is not
+  // linked to has to be a null result rather than an empty statement, or the
+  // page would render a confident "you owe nothing" document about someone
+  // else's child.
+  const { data: link } = await supabase
+    .from("parent_student_relationships")
+    .select("student_id")
+    .eq("school_id", schoolId)
+    .eq("parent_id", parentId)
+    .eq("student_id", studentId)
+    .maybeSingle();
+
+  if (!link) return null;
+
+  const { data: childRow } = await supabase
+    .from("students")
+    .select("id, display_name, admission_number, classes(name)")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  const child = asArray(childRow as { id: string; display_name: string | null; admission_number: string; classes: { name: string } | null } | null)[0];
+  if (!child) return null;
+
+  const [invoiceRows, creditRows] = await Promise.all([
+    supabase
+      .from("fee_invoices")
+      .select("id, description, amount, currency, status, created_at, due_date")
+      .eq("student_id", studentId)
+      .eq("school_id", schoolId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("fee_payments")
+      .select("id, amount, credited_amount, created_at, fee_invoices!inner(id, student_id)")
+      .eq("school_id", schoolId)
+      .eq("status", "approved")
+      .order("created_at", { ascending: true }),
+  ]);
+
+  if (invoiceRows.error) throw new Error(invoiceRows.error.message);
+  if (creditRows.error) throw new Error(creditRows.error.message);
+
+  const invoices = (invoiceRows.data ?? []) as unknown as {
+    id: string;
+    description: string;
+    amount: number;
+    currency: string;
+    status: FeeInvoiceStatus;
+    created_at: string;
+    due_date: string | null;
+  }[];
+
+  // fee_payments has no student_id of its own, so the child's credits are
+  // selected out of the joined invoice rather than filtered in SQL.
+  const credits = ((creditRows.data ?? []) as unknown as {
+    id: string;
+    amount: number;
+    credited_amount: number | null;
+    created_at: string;
+    fee_invoices: { id: string; student_id: string } | null;
+  }[])
+    .filter((p) => p.fee_invoices?.student_id === studentId)
+    .map((p) => {
+      const invoice = invoices.find((i) => i.id === p.fee_invoices?.id);
+      return {
+        id: p.id,
+        date: p.created_at,
+        description: `Payment — ${invoice?.description ?? "School fee"}`,
+        tendered: roundMoney(Number(p.amount)),
+        credited: p.credited_amount === null ? null : roundMoney(Number(p.credited_amount)),
+        reference: receiptReference(p.id),
+      };
+    });
+
+  const currency = invoices[0]?.currency ?? "NGN";
+  const cls = asArray(child.classes as { name: string } | null)[0];
+
+  return {
+    child: {
+      studentId: child.id,
+      displayName: child.display_name ?? "Student",
+      admissionNumber: child.admission_number,
+      className: cls?.name ?? null,
+    },
+    ...buildStatement({
+      currency,
+      generatedAt: new Date().toISOString(),
+      charges: invoices.map((i) => ({
+        id: i.id,
+        date: i.created_at,
+        description: i.description,
+        amount: roundMoney(Number(i.amount)),
+        status: i.status,
+      })),
+      credits,
+    }),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -866,6 +1107,10 @@ export async function reviewFeePayment(input: {
     .from("fee_payments")
     .update({
       status: "approved" as FeePaymentStatus,
+      // Recorded explicitly rather than inferred from the invoice later: this
+      // is the figure a receipt has to state and a statement has to sum, and it
+      // can be less than `amount` whenever the payment exceeded the balance.
+      credited_amount: result.credited,
       reviewed_by: userId,
       reviewed_at: new Date().toISOString(),
       review_note: noteBits.join(" ") || null,

@@ -410,6 +410,71 @@ const run = async () => {
       .select("id")
       .eq("school_id", schoolId);
     check("bursar CAN still read payments (no regression)", countRows(bursarPayments) === 0);
+
+    // --- receipts and the credited amount ---------------------------------
+    // 0017 added credited_amount so a receipt can state what an approval
+    // actually moved, rather than what the parent tendered. These probes guard
+    // the two constraints that keep that figure honest, and confirm the payer
+    // can read their own receipt data while the other parent still cannot.
+    console.log("\nReceipts: credited amount");
+    const { data: approvedRow } = await admin
+      .from("fee_payments")
+      .update({ status: "approved", credited_amount: 1000, reviewed_at: new Date().toISOString() })
+      .eq("id", paymentA.id)
+      .select("credited_amount")
+      .single();
+    check(
+      "an approval can record what it credited",
+      Number(approvedRow?.credited_amount) === 1000,
+      `got ${approvedRow?.credited_amount}`,
+    );
+
+    const overCredited = await admin
+      .from("fee_payments")
+      .update({ credited_amount: 999999 })
+      .eq("id", paymentA.id)
+      .select("id");
+    check(
+      "database refuses a credit larger than the payment",
+      !!overCredited.error,
+      "the check constraint did not fire",
+    );
+
+    const { data: rejectedRow } = await admin
+      .from("fee_payments")
+      .insert({
+        school_id: schoolId,
+        invoice_id: invoiceA.id,
+        parent_id: parentRowA.id,
+        payer_user_id: parentA,
+        amount: 5000,
+        status: "rejected",
+        credited_amount: 5000,
+      })
+      .select("id")
+      .maybeSingle();
+    check(
+      "database refuses a credit on a payment that was never approved",
+      !!rejectedRow === false,
+      "a rejected payment was allowed to carry a credit",
+    );
+
+    const ownReceipt = await asParentA
+      .from("fee_payments")
+      .select("id, credited_amount")
+      .eq("id", paymentA.id)
+      .eq("status", "approved");
+    check("payer CAN read their own approved payment for a receipt", countRows(ownReceipt) === 1);
+
+    const otherReceipt = await asParentB
+      .from("fee_payments")
+      .select("id, credited_amount")
+      .eq("id", paymentA.id);
+    check(
+      "another parent CANNOT read that payment to build a receipt",
+      countRows(otherReceipt) === 0,
+      "a receipt could be rendered for somebody else's payment",
+    );
   } catch (err) {
     failed++;
     console.log(`  FAIL  harness error: ${err?.message ?? err}`);

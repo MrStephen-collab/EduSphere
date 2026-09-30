@@ -609,6 +609,12 @@ export type FeePayment = {
   provider_reference: string | null;
   amount: number;
   status: FeePaymentStatus;
+  /**
+   * What an approval actually moved onto the invoice, which is not always what
+   * was tendered: applyApproval clamps a payment to the balance owed. Null
+   * until a school admin approves.
+   */
+  credited_amount: number | null;
   submitted_at: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;

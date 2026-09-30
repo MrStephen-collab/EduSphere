@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircle2, Receipt, TriangleAlert, Wallet } from "lucide-react";
+import {
+  CheckCircle2,
+  FileDown,
+  Receipt,
+  ScrollText,
+  TriangleAlert,
+  Wallet,
+} from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireParent } from "@/services/parent";
 import { confirmFeePayment, getParentFees } from "@/services/fees";
@@ -13,6 +21,7 @@ import {
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PayFeeButton } from "@/components/parent/pay-fee-button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -54,6 +63,26 @@ function Stat({
   );
 }
 
+type ParentPayment = { id: string; status: string };
+
+/** An approved payment is the only kind that has money behind it, so it is the
+ *  only kind that can back a receipt. */
+function approvedPaymentIds(payments: ParentPayment[] = []) {
+  return payments.filter((p) => p.status === "approved").map((p) => p.id);
+}
+
+function ReceiptLink({ paymentId }: { paymentId: string }) {
+  return (
+    <Link
+      href={`/parent/fees/receipt/${paymentId}`}
+      className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] hover:bg-muted"
+    >
+      <FileDown className="size-3" aria-hidden="true" />
+      Receipt
+    </Link>
+  );
+}
+
 export default async function ParentFeesPage({
   searchParams,
 }: {
@@ -80,6 +109,15 @@ export default async function ParentFeesPage({
 
   const payable = summary.filter((r) => r.outstanding > 0);
   const settled = summary.filter((r) => r.outstanding <= 0);
+  // Stable, de-duplicated child order so the statement link does not change
+  // target between renders as invoices are grouped and sorted.
+  const childIds = [
+    ...new Set(
+      summary
+        .map((r) => r.invoice.students?.id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
 
   return (
     <DashboardShell title="Fees & Payments" badge="Parent">
@@ -119,6 +157,25 @@ export default async function ParentFeesPage({
           />
         ) : (
           <>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                Balances and receipts are per child.
+              </p>
+              {/* The statement is per child, so the link has to name one. The
+                  picker on that page switches between the rest. */}
+              {childIds[0] && (
+                <Link
+                  href={`/parent/fees/statement?child=${childIds[0]}`}
+                  className="inline-flex"
+                >
+                  <Button variant="outline">
+                    <ScrollText className="size-4" aria-hidden="true" />
+                    Statement of account
+                  </Button>
+                </Link>
+              )}
+            </div>
+
             {payable.length > 0 && (
               <Card>
                 <CardHeader>
@@ -220,9 +277,17 @@ export default async function ParentFeesPage({
                                     {formatNaira(Number(p.amount), invoice.currency)} ·{" "}
                                     {new Date(p.created_at).toLocaleDateString()}
                                   </span>
-                                  <Badge variant="secondary" className="text-[10px]">
-                                    {feePaymentStatusLabel(p.status)}
-                                  </Badge>
+                                  <span className="flex items-center gap-1.5">
+                                    <Badge variant="secondary" className="text-[10px]">
+                                      {feePaymentStatusLabel(p.status)}
+                                    </Badge>
+                                    {/* Only an approval credits an invoice, so only
+                                        an approved payment has money behind it and a
+                                        receipt worth printing. */}
+                                    {p.status === "approved" && (
+                                      <ReceiptLink paymentId={p.id} />
+                                    )}
+                                  </span>
                                 </li>
                               ))}
                             </ul>
@@ -246,30 +311,40 @@ export default async function ParentFeesPage({
                   <CardTitle className="text-base">Settled &amp; closed</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-2">
-                  {settled.map(({ invoice }) => (
+                  {settled.map((row) => (
                     <div
-                      key={invoice.id}
+                      key={row.invoice.id}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm"
                     >
                       <div className="grid gap-0.5">
                         <span className="font-medium">
-                          {invoice.students?.display_name ?? "Your child"}
+                          {row.invoice.students?.display_name ?? "Your child"}
                         </span>
                         <span className="text-muted-foreground">
-                          {invoice.description}
+                          {row.invoice.description}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">
-                          {formatNaira(Number(invoice.amount), invoice.currency)}
+                          {formatNaira(
+                            Number(row.invoice.amount),
+                            row.invoice.currency,
+                          )}
                         </span>
                         <span
                           className={`rounded-md border px-2 py-0.5 text-xs ${
-                            statusBadgeClass[invoice.status] ?? ""
+                            statusBadgeClass[row.invoice.status] ?? ""
                           }`}
                         >
-                          {feeInvoiceStatusLabel(invoice.status)}
+                          {feeInvoiceStatusLabel(row.invoice.status)}
                         </span>
+                        {/* A settled invoice is the one a parent is most likely
+                            to want proof of, so its receipts cannot live behind
+                            the payment history of an invoice that is still
+                            open. */}
+                        {approvedPaymentIds(row.payments).map((id) => (
+                          <ReceiptLink key={id} paymentId={id} />
+                        ))}
                       </div>
                     </div>
                   ))}

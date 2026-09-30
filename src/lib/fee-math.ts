@@ -156,3 +156,197 @@ export function paidFraction(amount: number, amountPaid: number): number {
   if (total <= 0) return 1;
   return Math.min(1, Math.max(0, roundMoney(amountPaid) / total));
 }
+
+// ---------------------------------------------------------------------------
+// Receipts and statements
+// ---------------------------------------------------------------------------
+
+/**
+ * A receipt has to carry a reference a parent can quote to a bursar, and it has
+ * to be legible over the phone. The provider reference is useless for this -- it
+ * is a 32-character uuid prefix like `fee_9f2c...`. The payment's own id is a
+ * uuid, so the first group of it is short, unique and stable.
+ */
+export function receiptReference(paymentId: string): string {
+  const cleaned = paymentId.replace(/-/g, "");
+  return `RCP-${cleaned.slice(0, 8).toUpperCase()}`;
+}
+
+/**
+ * Whether an invoice belongs in a statement's charges column.
+ *
+ * Void and waived invoices are excluded: a void invoice was raised in error and
+ * a waived one has been written off, so neither is money the family owes. They
+ * are reported separately by the statement rather than dropped silently, so a
+ * family that can see a charge listed somewhere in the app can always find it
+ * accounted for on the statement.
+ */
+export function isChargeableStatus(status: FeeInvoiceStatus): boolean {
+  return status === "unpaid" || status === "partially_paid" || status === "paid";
+}
+
+export type StatementCharge = {
+  id: string;
+  date: string;
+  description: string;
+  /** What the school billed. */
+  amount: number;
+  status: FeeInvoiceStatus;
+};
+
+export type StatementCredit = {
+  id: string;
+  date: string;
+  description: string;
+  /** What was tendered, which may exceed what was credited. */
+  tendered: number;
+  /**
+   * What the approval moved onto the invoice. Null for a payment approved
+   * before credited_amount existed and not yet backfilled.
+   */
+  credited: number | null;
+  reference: string;
+};
+
+export type StatementRow = {
+  key: string;
+  date: string;
+  description: string;
+  /** Positive adds to what is owed; negative reduces it. */
+  movement: number;
+  /** Owed after this row. */
+  balance: number;
+  kind: "charge" | "credit";
+  reference: string | null;
+};
+
+export type Statement = {
+  rows: StatementRow[];
+  /** Everything the school has billed across the excluded invoices too. */
+  totalCharged: number;
+  /** Everything actually credited to invoices. */
+  totalCredited: number;
+  /** What the family owes now. Never negative. */
+  closingBalance: number;
+  currency: string;
+  generatedAt: string;
+  /** Charges excluded from the ledger, so nothing is unaccounted for. */
+  excluded: { description: string; amount: number; status: FeeInvoiceStatus }[];
+  /**
+   * A credit whose `credited` figure is unknown -- an approval from before
+   * 0017. Surfaced so the statement can warn rather than quietly understate.
+   */
+  hasUnbackedCredits: boolean;
+};
+
+function sortKey(date: string, tiebreak: string): string {
+  return `${date}|${tiebreak}`;
+}
+
+/**
+ * Interleaves one child's charges and credits into a single dated ledger with a
+ * running balance.
+ *
+ * Two things this gets right that a naive sum does not:
+ *
+ *  - It credits `credited`, not `tendered`. A parent who overpays has handed
+ *    over more than the school kept, and counting the difference as a credit
+ *    would drive the balance below what is genuinely owed.
+ *  - A credit with no recorded `credited` amount is treated as worth its
+ *    tendered amount and flagged, because understating the credit would overstate
+ *    the debt. `hasUnbackedCredits` lets the caller say so out loud.
+ *
+ * A credit dated before its own invoice would open the ledger at a negative
+ * balance; the running balance is clamped at zero for display, while
+ * `closingBalance` stays honest and is never negative.
+ */
+export function buildStatement(input: {
+  charges: StatementCharge[];
+  credits: StatementCredit[];
+  currency: string;
+  generatedAt: string;
+}): Statement {
+  const entries: {
+    date: string;
+    tiebreak: string;
+    description: string;
+    movement: number;
+    kind: "charge" | "credit";
+    reference: string | null;
+  }[] = [];
+
+  const excluded: Statement["excluded"] = [];
+  let totalCharged = 0;
+
+  for (const charge of input.charges) {
+    if (!isChargeableStatus(charge.status)) {
+      excluded.push({
+        description: charge.description,
+        amount: charge.amount,
+        status: charge.status,
+      });
+      continue;
+    }
+    // Only what reaches the ledger counts toward the total, so that
+    // totalCharged - totalCredited is always exactly the closing balance. A
+    // waived charge added here would print a statement whose own three
+    // headline figures do not reconcile, which is the first thing a parent
+    // checks.
+    totalCharged = roundMoney(totalCharged + charge.amount);
+    entries.push({
+      date: charge.date,
+      tiebreak: `0${charge.id}`,
+      description: charge.description,
+      movement: roundMoney(charge.amount),
+      kind: "charge",
+      reference: null,
+    });
+  }
+
+  let totalCredited = 0;
+  let hasUnbackedCredits = false;
+
+  for (const credit of input.credits) {
+    const value = credit.credited ?? credit.tendered;
+    if (credit.credited === null) hasUnbackedCredits = true;
+    totalCredited = roundMoney(totalCredited + value);
+    entries.push({
+      date: credit.date,
+      // A credit sorts after a charge billed the same day, so a payment made
+      // on the morning an invoice lands reads in the order it happened.
+      tiebreak: `1${credit.id}`,
+      description: credit.description,
+      movement: roundMoney(-value),
+      kind: "credit",
+      reference: credit.reference,
+    });
+  }
+
+  entries.sort((a, b) => sortKey(a.date, a.tiebreak).localeCompare(sortKey(b.date, b.tiebreak)));
+
+  let running = 0;
+  const rows: StatementRow[] = entries.map((entry) => {
+    running = roundMoney(running + entry.movement);
+    return {
+      key: `${entry.kind}:${entry.tiebreak.slice(1)}`,
+      date: entry.date,
+      description: entry.description,
+      movement: entry.movement,
+      balance: Math.max(0, running),
+      kind: entry.kind,
+      reference: entry.reference,
+    };
+  });
+
+  return {
+    rows,
+    totalCharged,
+    totalCredited,
+    closingBalance: Math.max(0, running),
+    currency: input.currency,
+    generatedAt: input.generatedAt,
+    excluded,
+    hasUnbackedCredits,
+  };
+}
+

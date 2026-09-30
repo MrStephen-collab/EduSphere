@@ -167,6 +167,12 @@ const ROLES = [
       "/parent/children",
       "/parent/complaints",
       "/parent/fees",
+      // The statement renders for whichever child resolves first. The receipt
+      // route needs a real payment id, so this exercises the "no receipt
+      // available" branch -- enough to prove the page, its service read and the
+      // RLS filter all render instead of throwing.
+      "/parent/fees/statement",
+      "/parent/fees/receipt/00000000-0000-0000-0000-000000000000",
       "/parent/progress",
       "/parent/report-cards",
       "/parent/results",
