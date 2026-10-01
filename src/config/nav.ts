@@ -21,6 +21,7 @@ import {
   HelpCircle,
   Menu,
   Images,
+  Video,
 } from "lucide-react";
 
 export const navIcons = {
@@ -41,6 +42,7 @@ export const navIcons = {
   announcements: Megaphone,
   calendar: CalendarDays,
   images: Images,
+  video: Video,
   notifications: Bell,
   messages: MessageSquareText,
   settings: Settings,
@@ -104,6 +106,7 @@ export const schoolNav: NavSection[] = [
       { title: "Subjects", href: "/school/subjects", icon: "courses" },
       { title: "Sessions", href: "/school/sessions", icon: "calendar" },
       { title: "Timetable", href: "/school/timetable", icon: "calendar" },
+      { title: "Live sessions", href: "/school/live", icon: "video" },
       { title: "Results", href: "/school/results", icon: "results" },
       { title: "Analytics", href: "/school/analytics", icon: "analytics" },
     ],
@@ -144,6 +147,7 @@ export const teacherNav: NavSection[] = [
       { title: "Courses", href: "/teacher/courses", icon: "courses" },
       { title: "Lessons", href: "/teacher/courses", icon: "lessons" },
       { title: "Timetable", href: "/teacher/timetable", icon: "calendar" },
+      { title: "Live teaching", href: "/teacher/live", icon: "video" },
       { title: "Assignments", href: "/teacher/assignments", icon: "assignments" },
     ],
   },
@@ -169,6 +173,7 @@ export const studentNav: NavSection[] = [
     items: [
       { title: "Home", href: "/student", icon: "home" },
       { title: "Timetable", href: "/student/timetable", icon: "calendar" },
+      { title: "Live sessions", href: "/student/live", icon: "video" },
     ],
   },
   {

@@ -977,6 +977,164 @@ async function seedDemoAttendance(teacherId) {
   }
 }
 
+async function seedDemoLiveSessions(teacherId) {
+  const classId = await findClass("SS 2");
+  if (!classId) {
+    console.log("Skipped live session seed: SS 2 class missing.");
+    return;
+  }
+  const markerUserId = teacherId ? await getUserId("teacher@greenfield.test") : null;
+
+  const { data: course } = await supabase
+    .from("courses")
+    .select("id, title")
+    .eq("school_id", SCHOOL_ID)
+    .eq("title", "SS 2 Mathematics")
+    .maybeSingle();
+
+  let lessonId = null;
+  if (course) {
+    const { data: lessons } = await supabase
+      .from("lessons")
+      .select("id")
+      .eq("course_id", course.id)
+      .order("order_index", { ascending: true })
+      .limit(1);
+    lessonId = lessons?.[0]?.id ?? null;
+  }
+
+  // Every timestamp is relative to the moment the seed runs. A session pinned to
+  // a fixed date is a session that is in the past forever, and the demo then
+  // shows a list of dead links and a register nobody can open.
+  const HOUR = 3_600_000;
+  const DAY = 24 * HOUR;
+  const now = Date.now();
+  const at = (offsetMs, durationMs) => ({
+    starts_at: new Date(now + offsetMs).toISOString(),
+    ends_at: new Date(now + offsetMs + durationMs).toISOString(),
+  });
+
+  // One session in each state that matters, so the demo exercises the whole
+  // lifecycle rather than a single happy path.
+  const PLAN = [
+    {
+      key: "ended",
+      title: "Quadratic equations — worked examples",
+      description:
+        "We finish the factorising set and start the completing-the-square method. Bring last term's homework.",
+      ...at(-2 * DAY, 50 * 60_000),
+      status: "ended",
+      is_visible_to_students: true,
+      register: true,
+    },
+    {
+      key: "live",
+      title: "Live: solving simultaneous equations",
+      description: "Follow along in your exercise book. The recording is not automatic.",
+      ...at(-10 * 60_000, 50 * 60_000),
+      status: "live",
+      is_visible_to_students: true,
+      register: false,
+    },
+    {
+      key: "scheduled",
+      title: "Inequalities on a number line",
+      description: "Bring a graphing calculator if you have one.",
+      ...at(2 * DAY, 50 * 60_000),
+      status: "scheduled",
+      is_visible_to_students: true,
+      register: false,
+    },
+    {
+      key: "draft",
+      title: "Rehearsal for the mock exam",
+      description: "Not announced yet — the link has not been tested.",
+      ...at(5 * DAY, 90 * 60_000),
+      status: "scheduled",
+      is_visible_to_students: false,
+      register: false,
+    },
+    {
+      key: "cancelled",
+      title: "Trigonometry catch-up",
+      description: "Postponed — the teacher is away.",
+      ...at(7 * DAY, 50 * 60_000),
+      status: "cancelled",
+      is_visible_to_students: true,
+      register: false,
+    },
+  ];
+
+  // Replaced rather than merged. The whole point of these rows is their timing,
+  // so there is nothing to match on: leaving the previous run's rows would just
+  // add five more sessions that are all in the past.
+  await supabase.from("live_sessions").delete().eq("school_id", SCHOOL_ID).eq("class_id", classId);
+
+  const inserted = [];
+  for (const plan of PLAN) {
+    const { data, error } = await supabase
+      .from("live_sessions")
+      .insert({
+        school_id: SCHOOL_ID,
+        class_id: classId,
+        course_id: course?.id ?? null,
+        lesson_id: lessonId,
+        title: plan.title,
+        description: plan.description,
+        join_url: `https://zoom.us/j/9${Math.floor(1e9 + now % 1e8)}${plan.key}?pwd=demo`,
+        starts_at: plan.starts_at,
+        ends_at: plan.ends_at,
+        status: plan.status,
+        is_visible_to_students: plan.is_visible_to_students,
+        created_by: markerUserId,
+      })
+      .select("id, title")
+      .single();
+
+    if (error) {
+      console.error(`Failed to seed live session "${plan.title}":`, error.message);
+      continue;
+    }
+    inserted.push({ ...data, register: plan.register });
+  }
+
+  // The register for the finished session only. It is a mark a person keeps, so
+  // it belongs to a session that has already happened -- marking one in advance
+  // would be pretending to know the future.
+  const pastSession = inserted.find((s) => s.register);
+  if (pastSession) {
+    const { data: students } = await supabase
+      .from("students")
+      .select("id, admission_number")
+      .eq("school_id", SCHOOL_ID)
+      .eq("class_id", classId)
+      .order("admission_number", { ascending: true });
+
+    if (students?.length) {
+      const { error } = await supabase.from("live_attendance_records").insert(
+        students.map((student, index) => ({
+          school_id: SCHOOL_ID,
+          live_session_id: pastSession.id,
+          student_id: student.id,
+          status:
+            student.admission_number === "GF/STU/2026/002"
+              ? "absent"
+              : index === 2
+                ? "late"
+                : "present",
+          marked_by: markerUserId,
+        })),
+      );
+      if (error) console.error("Failed to seed the live register:", error.message);
+    }
+  }
+
+  console.log(
+    `Seeded ${inserted.length} live sessions for SS 2 ` +
+      `(${PLAN.filter((p) => p.is_visible_to_students).length} announced, 1 draft).`,
+  );
+}
+
 async function seedSubscriptionPlans() {
   const { data: existing } = await supabase
     .from("subscription_plans")
@@ -1279,6 +1437,7 @@ async function main() {
   await seedDemoAssignment(teacherId, studentId);
   await seedDemoExamSeries(teacherId, studentId);
   await seedDemoAttendance(teacherId);
+  await seedDemoLiveSessions(teacherId);
   await seedSubscriptionPlans();
   await seedDemoSubscription();
   await seedDemoFees(studentId);

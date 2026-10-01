@@ -240,6 +240,37 @@ export type TimetableEntry = {
   updated_at: string;
 };
 
+export type LiveSessionStatus = "scheduled" | "live" | "ended" | "cancelled";
+
+export type LiveSession = {
+  id: string;
+  school_id: string;
+  class_id: string;
+  course_id: string | null;
+  lesson_id: string | null;
+  title: string;
+  description: string | null;
+  join_url: string;
+  starts_at: string;
+  ends_at: string | null;
+  status: LiveSessionStatus;
+  is_visible_to_students: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LiveAttendanceRecord = {
+  id: string;
+  school_id: string;
+  live_session_id: string;
+  student_id: string;
+  status: AttendanceStatus;
+  marked_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SchoolSettings = {
   id: string;
   school_id: string;
@@ -905,6 +936,16 @@ export type Database = {
         Row: Notification;
         Insert: Partial<Notification>;
         Update: Partial<Notification>;
+      };
+      live_sessions: {
+        Row: LiveSession;
+        Insert: Partial<LiveSession>;
+        Update: Partial<LiveSession>;
+      };
+      live_attendance_records: {
+        Row: LiveAttendanceRecord;
+        Insert: Partial<LiveAttendanceRecord>;
+        Update: Partial<LiveAttendanceRecord>;
       };
       timetable_periods: {
         Row: TimetablePeriod;

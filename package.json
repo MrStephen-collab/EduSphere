@@ -17,6 +17,8 @@
     "verify:fee-rls": "node scripts/verify-fee-rls.mjs",
     "verify:timetable-rls": "node scripts/verify-timetable-rls.mjs",
     "verify:timetable": "node scripts/verify-timetable.mjs",
+    "verify:live-rls": "node scripts/verify-live-rls.mjs",
+    "verify:live": "node scripts/verify-live.mjs",
     "verify:fee-statement": "node scripts/verify-fee-statement.mjs",
     "verify:mux-signing": "node scripts/check-mux-signing.mjs"
   },
