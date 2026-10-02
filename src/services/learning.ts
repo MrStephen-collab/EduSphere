@@ -132,56 +132,55 @@ export async function listTeacherLessons(
 ): Promise<TeacherLessonListItem[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { data: courses, error: courseError } = await supabase
+  // One query returns the courses this teacher owns, their lessons, and each
+  // lesson's materials. This was three round trips in two phases: the course
+  // lookup, then lessons and materials in parallel. It also pulled every
+  // material in the whole school just to count the files on a few lessons.
+  const { data, error } = await supabase
     .from("courses")
-    .select("id, title")
+    .select(
+      "id, title, lesson_rows:lessons!inner(*, lesson_materials(id, file_type, provider_playback_id, deleted_at))",
+    )
     .eq("school_id", schoolId)
     .eq("teacher_id", teacherId)
-    .is("deleted_at", null);
-  if (courseError) throw new Error(courseError.message);
+    .is("deleted_at", null)
+    .is("lesson_rows.deleted_at", null)
+    .returns<
+      {
+        id: string;
+        title: string;
+        lesson_rows: (Lesson & {
+          lesson_materials: Pick<
+            LessonMaterial,
+            "id" | "file_type" | "provider_playback_id" | "deleted_at"
+          >[];
+        })[];
+      }[]
+    >();
+  if (error) throw new Error(error.message);
 
-  const owned = courses ?? [];
-  if (owned.length === 0) return [];
-
-  const courseIds = owned.map((c) => c.id);
-  const titleByCourse = new Map(owned.map((c) => [c.id, c.title]));
-
-  const [lessonsRes, materialsRes] = await Promise.all([
-    supabase
-      .from("lessons")
-      .select("*, courses!inner(id, title)")
-      .eq("school_id", schoolId)
-      .in("course_id", courseIds)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("lesson_materials")
-      .select("lesson_id, file_type, provider_playback_id")
-      .eq("school_id", schoolId)
-      .is("deleted_at", null),
-  ]);
-  if (lessonsRes.error) throw new Error(lessonsRes.error.message);
-
-  const counts = new Map<string, number>();
-  const videos = new Map<string, number>();
-  for (const m of (materialsRes.data ?? []) as Pick<
-    LessonMaterial,
-    "lesson_id" | "file_type" | "provider_playback_id"
-  >[]) {
-    counts.set(m.lesson_id, (counts.get(m.lesson_id) ?? 0) + 1);
-    if (m.file_type === "video" && m.provider_playback_id) {
-      videos.set(m.lesson_id, (videos.get(m.lesson_id) ?? 0) + 1);
-    }
-  }
-
-  return ((lessonsRes.data ?? []) as (Lesson & { courses?: unknown })[]).map((l) => ({
-    ...l,
-    course_id: l.course_id,
-    course_title: titleByCourse.get(l.course_id) ?? "",
-    material_count: counts.get(l.id) ?? 0,
-    has_video: (videos.get(l.id) ?? 0) > 0,
-    video_count: videos.get(l.id) ?? 0,
-  }));
+  // The embedded lessons are aliased so that the two deleted_at filters above
+  // each address one table: PostgREST rejects qualifying the top-level table,
+  // and an unqualified filter would be ambiguous.
+  return (data ?? [])
+    .flatMap((course) =>
+      (course.lesson_rows ?? []).map((lesson) => {
+        const { lesson_materials, ...lessonFields } = lesson;
+        const live = (lesson_materials ?? []).filter((m) => !m.deleted_at);
+        const videos = live.filter(
+          (m) => m.file_type === "video" && !!m.provider_playback_id,
+        );
+        return {
+          ...lessonFields,
+          course_id: lessonFields.course_id ?? course.id,
+          course_title: course.title,
+          material_count: live.length,
+          has_video: videos.length > 0,
+          video_count: videos.length,
+        };
+      }),
+    )
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 }
 
 export async function getCourseDetail(
@@ -198,17 +197,19 @@ export async function getCourseDetail(
 }> {
   const supabase = await createSupabaseServerClient();
 
-  const { data: course, error } = await supabase
-    .from("courses")
-    .select("*, subjects(name), classes(name), teachers(display_name)")
-    .eq("id", courseId)
-    .eq("school_id", schoolId)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!course) return { course: null, modules: [], unassignedLessons: [] };
-
-  const [modulesRes, lessonsRes, materialsRes] = await Promise.all([
+  // The course row, its modules and its lessons are all keyed off the route
+  // params, so none of them waits on another and they load in one phase. This
+  // was a serial course lookup followed by modules, lessons and materials in
+  // parallel: four round trips over two phases. Materials now ride along on the
+  // lessons instead of a school-wide scan run only to count files.
+  const [courseRes, modulesRes, lessonsRes] = await Promise.all([
+    supabase
+      .from("courses")
+      .select("*, subjects(name), classes(name), teachers(display_name)")
+      .eq("id", courseId)
+      .eq("school_id", schoolId)
+      .is("deleted_at", null)
+      .maybeSingle(),
     supabase
       .from("course_modules")
       .select("*")
@@ -218,36 +219,41 @@ export async function getCourseDetail(
       .order("created_at", { ascending: true }),
     supabase
       .from("lessons")
-      .select("*")
+      .select("*, lesson_materials(id, file_type, provider_playback_id, deleted_at)")
       .eq("course_id", courseId)
       .eq("school_id", schoolId)
       .is("deleted_at", null)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("lesson_materials")
-      .select("lesson_id, file_type, provider_playback_id")
-      .eq("school_id", schoolId)
-      .is("deleted_at", null),
+      .order("created_at", { ascending: true })
+      .returns<
+        (Lesson & {
+          lesson_materials: Pick<
+            LessonMaterial,
+            "id" | "file_type" | "provider_playback_id" | "deleted_at"
+          >[];
+        })[]
+      >(),
   ]);
 
-  const modules = (modulesRes.data ?? []) as CourseModule[];
-  const counts = new Map<string, number>();
-  const videos = new Map<string, number>();
-  for (const m of (materialsRes.data ?? []) as Pick<
-    LessonMaterial,
-    "lesson_id" | "file_type" | "provider_playback_id"
-  >[]) {
-    counts.set(m.lesson_id, (counts.get(m.lesson_id) ?? 0) + 1);
-    if (m.file_type === "video" && m.provider_playback_id) {
-      videos.set(m.lesson_id, (videos.get(m.lesson_id) ?? 0) + 1);
-    }
-  }
+  const { data: course } = courseRes;
+  if (courseRes.error) throw new Error(courseRes.error.message);
+  if (!course) return { course: null, modules: [], unassignedLessons: [] };
 
-  const lessons = ((lessonsRes.data ?? []) as Lesson[]).map((l) => ({
-    ...l,
-    materialCount: counts.get(l.id) ?? 0,
-    hasVideo: (videos.get(l.id) ?? 0) > 0,
-  }));
+  const modules = (modulesRes.data ?? []) as CourseModule[];
+
+  const lessons = ((lessonsRes.data ?? []) as (Lesson & {
+    lesson_materials?: Pick<
+      LessonMaterial,
+      "id" | "file_type" | "provider_playback_id" | "deleted_at"
+    >[];
+  })[]).map((lesson) => {
+    const { lesson_materials, ...lessonFields } = lesson;
+    const live = (lesson_materials ?? []).filter((m) => !m.deleted_at);
+    return {
+      ...lessonFields,
+      materialCount: live.length,
+      hasVideo: live.some((m) => m.file_type === "video" && !!m.provider_playback_id),
+    };
+  });
 
   const grouped = modules.map((m) => ({
     ...m,
