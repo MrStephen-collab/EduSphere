@@ -56,12 +56,13 @@ export function ResultsOverview({
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           title="Overall Average"
           value={data.overallAverage != null ? `${data.overallAverage}%` : "—"}
           icon={GraduationCap}
           tone="indigo"
+          compact
         />
         <StatCard
           title="Practice Average"
@@ -69,6 +70,7 @@ export function ResultsOverview({
           icon={BookOpenCheck}
           tone="rose"
           index={1}
+          compact
           hint={`${data.practiceAttempts} attempt${data.practiceAttempts === 1 ? "" : "s"} across ${data.seriesPracticed} series`}
         />
         <StatCard
@@ -77,6 +79,7 @@ export function ResultsOverview({
           icon={BarChart3}
           tone="sky"
           index={2}
+          compact
         />
         <StatCard
           title="Graded Assignments"
@@ -84,6 +87,7 @@ export function ResultsOverview({
           icon={ClipboardCheck}
           tone="emerald"
           index={3}
+          compact
           hint={data.grade ? `Overall grade: ${data.grade}` : "No grade band yet"}
         />
       </div>

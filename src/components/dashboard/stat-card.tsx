@@ -61,6 +61,7 @@ export function StatCard({
   href,
   tone = "indigo",
   index = 0,
+  compact = false,
 }: {
   title: string;
   value: string | number;
@@ -69,13 +70,20 @@ export function StatCard({
   href?: string;
   tone?: StatTone;
   index?: number;
+  /**
+   * Tightens the card on phones so a row of them fits without scrolling.
+   * Every size returns to normal from the `sm` breakpoint up, so tablet and
+   * desktop are untouched.
+   */
+  compact?: boolean;
 }) {
   const styles = toneStyles[tone];
 
   const inner = (
     <div
       className={cn(
-        "animate-card-enter relative flex h-full flex-col overflow-hidden rounded-xl bg-card p-3 text-card-foreground ring-1 ring-foreground/10 transition-all duration-300",
+        "animate-card-enter relative flex h-full flex-col overflow-hidden rounded-xl bg-card text-card-foreground ring-1 ring-foreground/10 transition-all duration-300",
+        compact ? "p-2.5 sm:p-3" : "p-3",
         styles.card,
         href && cn("hover:-translate-y-0.5 hover:shadow-lg hover:shadow-foreground/10 active:translate-y-0 active:shadow-md", styles.hover),
       )}
@@ -91,11 +99,15 @@ export function StatCard({
       <div className="flex items-center justify-between gap-2">
         <div
           className={cn(
-            "grid size-7 shrink-0 place-items-center rounded-md bg-gradient-to-br text-white shadow-sm shadow-foreground/10",
+            "grid shrink-0 place-items-center rounded-md bg-gradient-to-br text-white shadow-sm shadow-foreground/10",
             styles.chip,
+            compact ? "size-6 sm:size-7" : "size-7",
           )}
         >
-          <Icon className="size-3.5" aria-hidden="true" />
+          <Icon
+            className={compact ? "size-3 sm:size-3.5" : "size-3.5"}
+            aria-hidden="true"
+          />
         </div>
         {href && (
           <ArrowUpRight
@@ -106,7 +118,8 @@ export function StatCard({
       </div>
       <div
         className={cn(
-          "mt-2.5 bg-gradient-to-r bg-clip-text text-xl font-bold leading-none tracking-tight tabular-nums text-transparent lg:text-2xl",
+          "mt-2.5 bg-gradient-to-r bg-clip-text font-bold leading-none tracking-tight tabular-nums text-transparent",
+          compact ? "text-lg sm:text-xl lg:text-2xl" : "text-xl lg:text-2xl",
           styles.value,
         )}
       >
