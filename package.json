@@ -27,7 +27,8 @@
     "verify:video-indicator": "node scripts/verify-video-indicator.mjs",
     "verify:lesson-nav": "node scripts/verify-lesson-navigation.mjs",
     "verify:webhook": "node scripts/verify-webhook-signature.mjs",
-    "verify:video-refresh": "node scripts/verify-video-refresh.mjs"
+    "verify:video-refresh": "node scripts/verify-video-refresh.mjs",
+    "superadmin": "node scripts/set-super-admin.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
