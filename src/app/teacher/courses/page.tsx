@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BookOpen, ListTree, MoveUpRight } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
@@ -105,12 +106,15 @@ export default async function TeacherCoursesPage() {
                       </div>
                       <div className="flex shrink-0 flex-wrap items-center gap-2">
                         <CourseStatusToggle courseId={course.id} status={course.status} />
-                        <a href={`/teacher/courses/${course.id}`} className="inline-flex">
+                        <Link
+                          href={`/teacher/courses/${course.id}`}
+                          className="inline-flex"
+                        >
                           <Button size="sm" variant="outline">
                             Open
                             <MoveUpRight className="size-3.5" aria-hidden="true" />
                           </Button>
-                        </a>
+                        </Link>
                         <CourseDeleteButton courseId={course.id} />
                       </div>
                     </CardContent>

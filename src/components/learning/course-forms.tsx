@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   BookPlus,
@@ -783,7 +784,10 @@ export function LessonRow({
 }) {
   return (
     <li className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm">
-      <a href={`/teacher/courses/${courseId}/lessons/${lesson.id}`} className="group flex min-w-0 items-center gap-2">
+      <Link
+        href={`/teacher/courses/${courseId}/lessons/${lesson.id}`}
+        className="group flex min-w-0 items-center gap-2"
+      >
         <Pencil className="size-3.5 shrink-0 text-muted-foreground group-hover:text-primary" aria-hidden="true" />
         <span className="min-w-0">
           <span className="block truncate font-medium">{lesson.title}</span>
@@ -796,7 +800,7 @@ export function LessonRow({
             </span>
           )}
         </span>
-      </a>
+      </Link>
       <span className="flex shrink-0 items-center gap-1.5">
         {showModuleBadge && <Badge variant="secondary">{lesson.status}</Badge>}
         {lesson.hasVideo ? (

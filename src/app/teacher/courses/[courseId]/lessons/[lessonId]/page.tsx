@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
@@ -60,12 +61,12 @@ export default async function TeacherLessonEditorPage({
         <p className="text-sm text-muted-foreground">
           This lesson could not be found or may have been deleted.
         </p>
-        <a href={`/teacher/courses/${courseId}`} className="mt-4 inline-flex">
+        <Link href={`/teacher/courses/${courseId}`} className="mt-4 inline-flex">
           <Button variant="outline">
             <ArrowLeft className="size-4" aria-hidden="true" />
             Back to course
           </Button>
-        </a>
+        </Link>
       </DashboardShell>
     );
   }
@@ -76,12 +77,12 @@ export default async function TeacherLessonEditorPage({
   return (
     <DashboardShell title={lesson.title} badge="Lesson">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <a href={`/teacher/courses/${course.id}`} className="inline-flex">
+        <Link href={`/teacher/courses/${course.id}`} className="inline-flex">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="size-4" aria-hidden="true" />
             {course.title}
           </Button>
-        </a>
+        </Link>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={lesson.status === "published" ? "default" : "outline"}>
             {lesson.status === "published" ? "Published" : "Draft"}

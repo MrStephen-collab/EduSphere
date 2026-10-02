@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarDays, ClipboardList, FileText, MoveUpRight } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
@@ -121,12 +122,15 @@ export default async function TeacherAssignmentsPage() {
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                       <AssignmentStatusToggle assignmentId={assignment.id} status={assignment.status} />
-                      <a href={`/teacher/assignments/${assignment.id}`} className="inline-flex">
+                      <Link
+                        href={`/teacher/assignments/${assignment.id}`}
+                        className="inline-flex"
+                      >
                         <Button size="sm" variant="outline">
                           Review
                           <MoveUpRight className="size-3.5" aria-hidden="true" />
                         </Button>
-                      </a>
+                      </Link>
                       <AssignmentDeleteButton assignmentId={assignment.id} />
                     </div>
                   </CardContent>
