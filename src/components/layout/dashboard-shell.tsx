@@ -12,6 +12,8 @@ import {
   type NavItem,
   type NavSection,
 } from "@/config/nav";
+import { getLevelDefinition } from "@/lib/education/levels";
+import type { EducationLevel } from "@/types/database";
 
 type ShellKind =
   | "platform"
@@ -33,62 +35,87 @@ function resolveKind(context: AuthContext): ShellKind {
   return "no-role";
 }
 
-const navFor: Record<ShellKind, { sections: NavSection[]; bottom: NavItem[]; profileHref: string }> = {
-  platform: {
-    sections: platformNav,
-    profileHref: "/platform/profile",
-    bottom: [
-      { title: "Home", href: "/platform", icon: "home" },
-      { title: "Schools", href: "/platform/schools", icon: "students" },
-      { title: "Settings", href: "/platform/settings", icon: "settings" },
-    ],
-  },
-  school: {
-    sections: schoolNav,
-    profileHref: "/school/profile",
-    bottom: [
-      { title: "Home", href: "/school", icon: "home" },
-      { title: "Students", href: "/school/students", icon: "students" },
-      { title: "Classes", href: "/school/classes", icon: "classes" },
-      { title: "Settings", href: "/school/settings", icon: "settings" },
-    ],
-  },
-  teacher: {
-    sections: teacherNav,
-    profileHref: "/teacher/profile",
-    bottom: [
-      { title: "Home", href: "/teacher", icon: "home" },
-      { title: "Content", href: "/teacher/courses", icon: "courses" },
-      { title: "Tests", href: "/teacher/exam-series", icon: "examinations" },
-      { title: "More", href: "/teacher/question-bank", icon: "questionBank" },
-    ],
-  },
-  student: {
-    sections: studentNav,
-    profileHref: "/student/profile",
-    bottom: [
-      { title: "Home", href: "/student", icon: "home" },
-      { title: "Learn", href: "/student/courses", icon: "courses" },
-      { title: "Tests", href: "/student/exam-series", icon: "examinations" },
-      { title: "Results", href: "/student/results", icon: "results" },
-      { title: "Profile", href: "/student/profile", icon: "profile" },
-    ],
-  },
-  parent: {
-    sections: parentNav,
-    profileHref: "/parent/profile",
-    bottom: [
-      { title: "Home", href: "/parent", icon: "home" },
-      { title: "Children", href: "/parent/children", icon: "students" },
-      { title: "Results", href: "/parent/results", icon: "results" },
-      { title: "Profile", href: "/parent/profile", icon: "profile" },
-    ],
-  },
-  "no-role": {
-    sections: [],
-    profileHref: "/dashboard",
-    bottom: [],
-  },
+const navFor = (
+  kind: ShellKind,
+  context: AuthContext,
+): { sections: NavSection[]; bottom: NavItem[]; profileHref: string } => {
+  switch (kind) {
+    case "platform":
+      return {
+        sections: platformNav,
+        profileHref: "/platform/profile",
+        bottom: [
+          { title: "Home", href: "/platform", icon: "home" },
+          { title: "Schools", href: "/platform/schools", icon: "students" },
+          { title: "Settings", href: "/platform/settings", icon: "settings" },
+        ],
+      };
+    case "school":
+      return {
+        sections: schoolNav,
+        profileHref: "/school/profile",
+        bottom: [
+          { title: "Home", href: "/school", icon: "home" },
+          { title: "Students", href: "/school/students", icon: "students" },
+          { title: "Classes", href: "/school/classes", icon: "classes" },
+          { title: "Settings", href: "/school/settings", icon: "settings" },
+        ],
+      };
+    case "teacher": {
+      const membership = context.memberships[0];
+      const level = membership?.school.education_level ?? null;
+      const definition = getLevelDefinition(level);
+      const isHigherLevel = ["college", "polytechnic", "university"].includes(
+        definition.value,
+      );
+      const sections = isHigherLevel
+        ? teacherNav.map((section) => ({
+            ...section,
+            items: section.items.filter((item) => item.href !== "/teacher/lessons"),
+          }))
+        : teacherNav;
+      return {
+        sections,
+        profileHref: "/teacher/profile",
+        bottom: [
+          { title: "Home", href: "/teacher", icon: "home" },
+          { title: "Content", href: "/teacher/courses", icon: "courses" },
+          { title: "Tests", href: "/teacher/exam-series", icon: "examinations" },
+          { title: "More", href: "/teacher/question-bank", icon: "questionBank" },
+        ],
+      };
+    }
+    case "student":
+      return {
+        sections: studentNav,
+        profileHref: "/student/profile",
+        bottom: [
+          { title: "Home", href: "/student", icon: "home" },
+          { title: "Learn", href: "/student/courses", icon: "courses" },
+          { title: "Tests", href: "/student/exam-series", icon: "examinations" },
+          { title: "Results", href: "/student/results", icon: "results" },
+          { title: "Profile", href: "/student/profile", icon: "profile" },
+        ],
+      };
+    case "parent":
+      return {
+        sections: parentNav,
+        profileHref: "/parent/profile",
+        bottom: [
+          { title: "Home", href: "/parent", icon: "home" },
+          { title: "Children", href: "/parent/children", icon: "students" },
+          { title: "Results", href: "/parent/results", icon: "results" },
+          { title: "Profile", href: "/parent/profile", icon: "profile" },
+        ],
+      };
+    case "no-role":
+    default:
+      return {
+        sections: [],
+        profileHref: "/dashboard",
+        bottom: [],
+      };
+  }
 };
 
 async function NotificationUnreadBadge({ userId }: { userId: string }) {
@@ -129,10 +156,11 @@ export async function DashboardShell({
     </Suspense>
   ) : undefined;
 
+  const nav = navFor(kind, context);
   return (
     <AppShell
-      sections={navFor[kind].sections}
-      bottomNav={navFor[kind].bottom}
+      sections={nav.sections}
+      bottomNav={nav.bottom}
       title={title}
       badge={badge}
       schoolName={firstMembership?.school.name}
@@ -140,7 +168,7 @@ export async function DashboardShell({
       userEmail={context.user.email ?? undefined}
       avatarUrl={context.profile?.avatar_url}
       notificationUnread={notificationUnread}
-      profileHref={navFor[kind].profileHref}
+      profileHref={nav.profileHref}
     >
       {children}
     </AppShell>
