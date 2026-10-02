@@ -6,9 +6,17 @@ import {
   platformUpdatePlan,
   platformSetPlanStatus,
   platformRefundPayment,
+  platformSetSchoolPlan,
   type PlanInput,
 } from "@/services/billing";
-import { setSupportTicketStatus } from "@/services/platform";
+import {
+  platformArchiveSchool,
+  platformRestoreSchool,
+  platformSetSchoolStatus,
+  platformUpdateSchool,
+  setSupportTicketStatus,
+  type PlatformSchoolStatus,
+} from "@/services/platform";
 
 export type PlatformActionState =
   | { ok: true; message?: string }
@@ -72,6 +80,71 @@ export async function setTicketStatusAction(
     await setSupportTicketStatus(id, status);
     revalidatePath("/platform/support");
     return { ok: true, message: "Ticket updated." };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function updateSchoolAction(
+  id: string,
+  input: unknown,
+): Promise<PlatformActionState> {
+  try {
+    await platformUpdateSchool(id, input);
+    revalidatePath("/platform/schools");
+    return { ok: true, message: "School updated." };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function setSchoolStatusAction(
+  id: string,
+  status: PlatformSchoolStatus,
+): Promise<PlatformActionState> {
+  try {
+    await platformSetSchoolStatus(id, status);
+    revalidatePath("/platform/schools");
+    return {
+      ok: true,
+      message: status === "active" ? "School activated." : `School ${status}.`,
+    };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function setSchoolPlanAction(
+  schoolId: string,
+  planId: string,
+): Promise<PlatformActionState> {
+  try {
+    await platformSetSchoolPlan({ schoolId, planId });
+    revalidatePath("/platform/schools");
+    return { ok: true, message: "Plan updated." };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function archiveSchoolAction(
+  id: string,
+  confirmation: string,
+): Promise<PlatformActionState> {
+  try {
+    await platformArchiveSchool(id, confirmation);
+    revalidatePath("/platform/schools");
+    return { ok: true, message: "School archived." };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function restoreSchoolAction(id: string): Promise<PlatformActionState> {
+  try {
+    await platformRestoreSchool(id);
+    revalidatePath("/platform/schools");
+    return { ok: true, message: "School restored." };
   } catch (e) {
     return { ok: false, error: message(e) };
   }

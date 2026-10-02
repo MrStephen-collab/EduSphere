@@ -13,7 +13,6 @@ import {
   type NavSection,
 } from "@/config/nav";
 import { getLevelDefinition } from "@/lib/education/levels";
-import type { EducationLevel } from "@/types/database";
 
 type ShellKind =
   | "platform"

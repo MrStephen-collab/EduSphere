@@ -1,24 +1,79 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlatformAdmin } from "@/services/billing";
-import { getServerData } from "@/lib/server-cache";
+import { getServerData, invalidateCacheByPrefix } from "@/lib/server-cache";
 import { asArray } from "@/lib/embed";
+import { z } from "zod";
+
+function invalidatePlatformCache() {
+  invalidateCacheByPrefix("platform:schools");
+  invalidateCacheByPrefix("platform:analytics");
+}
+
+export const schoolStatusSchema = z.enum([
+  "active",
+  "pending",
+  "suspended",
+  "inactive",
+]);
+
+export type PlatformSchoolStatus = z.infer<typeof schoolStatusSchema>;
 
 export type PlatformSchoolRow = {
   id: string;
   name: string;
   slug: string;
   status: string;
+  motto: string | null;
+  description: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
   city: string | null;
   state: string | null;
+  website: string | null;
+  archived: boolean;
   ownerName: string | null;
   ownerEmail: string | null;
   students: number;
   teachers: number;
   subscriptionStatus: string;
+  planId: string | null;
   planName: string | null;
   periodEnd: string | null;
   createdAt: string;
 };
+
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, `Please keep this under ${max} characters.`)
+    .optional()
+    .nullable()
+    .transform((v) => (v ? v : null));
+
+/**
+ * What a platform admin may change about somebody else's school.
+ *
+ * The slug is deliberately absent. It is part of the school's identity in
+ * links and email, so a super admin editing a typo in a name has no business
+ * breaking every bookmark and invite that points at the old slug.
+ */
+export const platformSchoolEditSchema = z.object({
+  name: z.string().trim().min(2, "School name is required").max(160),
+  motto: optionalText(200),
+  description: optionalText(2000),
+  email: optionalText(160),
+  phone: optionalText(40),
+  address: optionalText(240),
+  city: optionalText(80),
+  state: optionalText(80),
+  website: optionalText(200),
+});
+
+export type PlatformSchoolEditInput = z.infer<
+  typeof platformSchoolEditSchema
+>;
 
 export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
   await requirePlatformAdmin();
@@ -28,7 +83,7 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
     admin
       .from("schools")
       .select(
-        "id, name, slug, status, city, state, created_at, profiles!schools_owner_id_fkey(full_name, email)",
+        "id, name, slug, status, motto, description, email, phone, address, city, state, website, deleted_at, created_at, profiles!schools_owner_id_fkey(full_name, email)",
       )
       .order("created_at", { ascending: false })
       .limit(200),
@@ -36,7 +91,9 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
     admin.from("teachers").select("school_id"),
     admin
       .from("subscriptions")
-      .select("school_id, status, current_period_end, subscription_plans(name)")
+      .select(
+        "school_id, plan_id, status, current_period_end, subscription_plans(name)",
+      )
       .order("created_at", { ascending: false }),
   ]);
 
@@ -51,10 +108,16 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
 
   const subBySchool = new Map<
     string,
-    { status: string; current_period_end: string | null; planName: string | null }
+    {
+      status: string;
+      current_period_end: string | null;
+      plan_id: string | null;
+      planName: string | null;
+    }
   >();
   const subRows = (subsRes.data ?? []) as {
     school_id: string;
+    plan_id: string | null;
     status: string;
     current_period_end: string | null;
     subscription_plans: { name: string } | { name: string }[] | null;
@@ -64,6 +127,7 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
       subBySchool.set(s.school_id, {
         status: s.status,
         current_period_end: s.current_period_end,
+        plan_id: s.plan_id,
         planName: asArray(s.subscription_plans)[0]?.name ?? null,
       });
     }
@@ -74,8 +138,15 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
     name: string;
     slug: string;
     status: string;
+    motto: string | null;
+    description: string | null;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
     city: string | null;
     state: string | null;
+    website: string | null;
+    deleted_at: string | null;
     created_at: string;
     profiles: { full_name: string | null; email: string | null }[] | null;
   }>).map((s) => {
@@ -85,19 +156,126 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
       name: s.name,
       slug: s.slug,
       status: s.status,
+      motto: s.motto,
+      description: s.description,
+      email: s.email,
+      phone: s.phone,
+      address: s.address,
       city: s.city,
       state: s.state,
+      website: s.website,
+      archived: s.deleted_at != null,
       ownerName: asArray(s.profiles)[0]?.full_name ?? null,
       ownerEmail: asArray(s.profiles)[0]?.email ?? null,
       students: studentCount.get(s.id) ?? 0,
       teachers: teacherCount.get(s.id) ?? 0,
       subscriptionStatus: sub?.status ?? "inactive",
+      planId: sub?.plan_id ?? null,
       planName: sub?.planName ?? null,
       periodEnd: sub?.current_period_end ?? null,
       createdAt: s.created_at,
     };
   });
   });
+}
+
+/**
+ * Edits a school's own details on the owner's behalf.
+ *
+ * Only the descriptive fields are editable. The owner keeps their slug, their
+ * status and their billing, so a support agent fixing a wrong phone number
+ * cannot quietly hand a school a new identity or a new plan.
+ */
+export async function platformUpdateSchool(
+  id: string,
+  input: unknown,
+): Promise<void> {
+  await requirePlatformAdmin();
+  const data = platformSchoolEditSchema.parse(input);
+  const admin = createAdminClient();
+  const { error } = await admin.from("schools").update(data).eq("id", id);
+  if (error) throw new Error("We couldn't update that school.");
+  invalidatePlatformCache();
+}
+
+/**
+ * Moves a school between pending, active and suspended.
+ *
+ * Status is load-bearing here rather than cosmetic: auth-context only resolves
+ * a user's membership when the school is active (auth-context.ts), so setting
+ * "suspended" signs every one of the school's users out of their school at
+ * once, and setting "active" lets them back in.
+ */
+export async function platformSetSchoolStatus(
+  id: string,
+  status: PlatformSchoolStatus,
+): Promise<void> {
+  await requirePlatformAdmin();
+  const parsed = schoolStatusSchema.parse(status);
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("schools")
+    .update({ status: parsed })
+    .eq("id", id);
+  if (error) throw new Error("We couldn't change that school's status.");
+  invalidatePlatformCache();
+}
+
+/**
+ * Archives a school.
+ *
+ * This is the same soft delete the rest of the product uses (courses, lessons
+ * and materials all set deleted_at rather than dropping rows): a school holds
+ * every student record that has ever been entered against it, and "delete"
+ * from a support console should not be the one irreversible button in the
+ * product. Archiving signs the school out, stops it appearing in listings and
+ * keeps the data on hand; restoring brings it straight back.
+ *
+ * The confirmation is the school's own name, typed out, so nobody archives a
+ * school by muscle memory.
+ */
+export async function platformArchiveSchool(
+  id: string,
+  confirmation: string,
+): Promise<void> {
+  await requirePlatformAdmin();
+  const admin = createAdminClient();
+  const { data: school, error: readError } = await admin
+    .from("schools")
+    .select("name")
+    .eq("id", id)
+    .maybeSingle();
+  if (readError) throw new Error("We couldn't find that school.");
+  if (!school) throw new Error("We couldn't find that school.");
+  if (confirmation.trim().toLowerCase() !== school.name.trim().toLowerCase()) {
+    throw new Error("Type the school's name exactly to confirm.");
+  }
+
+  const { error } = await admin
+    .from("schools")
+    .update({ deleted_at: new Date().toISOString(), status: "inactive" })
+    .eq("id", id);
+  if (error) throw new Error("We couldn't archive that school.");
+  invalidatePlatformCache();
+}
+
+/**
+ * Brings an archived school back.
+ *
+ * It returns as active: archiving forced the status to inactive, so the
+ * status it held before archiving is gone, and an admin who chose to bring a
+ * school back has said it should be running again. They can suspend it again
+ * afterwards if that was the intent.
+ */
+export async function platformRestoreSchool(id: string): Promise<void> {
+  await requirePlatformAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("schools")
+    .update({ deleted_at: null, status: "active" })
+    .eq("id", id);
+  if (error) throw new Error("We couldn't restore that school.");
+  invalidatePlatformCache();
 }
 
 export type PlatformAnalytics = {
@@ -131,9 +309,20 @@ export async function getPlatformAnalytics(): Promise<PlatformAnalytics> {
     paidRes,
     schoolsRes,
   ] = await Promise.all([
-    admin.from("schools").select("id", { count: "exact", head: true }),
-    admin.from("schools").select("id", { count: "exact", head: true }).eq("status", "active"),
-    admin.from("schools").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    admin
+      .from("schools")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null),
+    admin
+      .from("schools")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .is("deleted_at", null),
+    admin
+      .from("schools")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .is("deleted_at", null),
     admin.from("students").select("id", { count: "exact", head: true }),
     admin.from("teachers").select("id", { count: "exact", head: true }),
     admin
@@ -144,6 +333,7 @@ export async function getPlatformAnalytics(): Promise<PlatformAnalytics> {
     admin
       .from("schools")
       .select("id, name, status, created_at")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(5),
   ]);

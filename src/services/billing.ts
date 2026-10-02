@@ -719,3 +719,110 @@ export async function platformRefundPayment(paymentId: string): Promise<void> {
     metadata: { provider_reference: payment.provider_reference },
   });
 }
+
+/**
+ * The plans a platform admin may hand to a school: the active ones.
+ *
+ * Deactivated plans stay on file for the schools still paying for them, but
+ * putting a school on one is a decision that should take a deliberate act, so
+ * they are not offered here.
+ */
+export async function getPlatformPlans(): Promise<Plan[]> {
+  await requirePlatformAdmin();
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("subscription_plans")
+    .select("*")
+    .eq("status", "active")
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as SubscriptionPlan[]).map(toPlan);
+}
+
+/**
+ * Puts a school on a plan straight away, without a payment.
+ *
+ * This is the manual override for a goodwill upgrade, a cash transfer or a
+ * renewal taken over the phone. The new period starts today rather than
+ * carrying over the old subscription's remaining days: the admin is stating
+ * what the school is on now, not extending a bargain that has already partly
+ * run.
+ *
+ * A school keeps one live subscription row. If it has none yet (it registered
+ * before ever subscribing) one is created rather than leaving the school
+ * without a subscription to point at.
+ */
+export async function platformSetSchoolPlan(input: {
+  schoolId: string;
+  planId: string;
+}): Promise<void> {
+  await requirePlatformAdmin();
+  const { schoolId, planId } = input;
+  const admin = createAdminClient();
+
+  const { data: planData, error: planError } = await admin
+    .from("subscription_plans")
+    .select("*")
+    .eq("id", planId)
+    .maybeSingle();
+  if (planError) throw new Error("We couldn't load that plan.");
+  if (!planData) throw new Error("That plan no longer exists.");
+
+  const plan = toPlan(planData as SubscriptionPlan);
+  const nowIso = new Date().toISOString();
+  const periodEnd = addPeriod(nowIso, plan.billingInterval);
+
+  const { data: existing } = await admin
+    .from("subscriptions")
+    .select("id")
+    .eq("school_id", schoolId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let subscriptionId = existing?.id ?? null;
+
+  if (subscriptionId) {
+    const { error } = await admin
+      .from("subscriptions")
+      .update({
+        plan_id: plan.id,
+        status: "active",
+        current_period_start: nowIso,
+        current_period_end: periodEnd,
+        cancel_at_period_end: false,
+      })
+      .eq("id", subscriptionId)
+      .eq("school_id", schoolId);
+    if (error) throw new Error("We couldn't change that school's plan.");
+  } else {
+    const { data: inserted, error } = await admin
+      .from("subscriptions")
+      .insert({
+        school_id: schoolId,
+        plan_id: plan.id,
+        status: "active",
+        current_period_start: nowIso,
+        current_period_end: periodEnd,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error("We couldn't change that school's plan.");
+    subscriptionId = inserted?.id ?? null;
+  }
+
+  await writeAudit({
+    schoolId,
+    action: "subscription_changed",
+    entityType: "subscriptions",
+    entityId: subscriptionId ?? undefined,
+    metadata: {
+      plan_id: plan.id,
+      plan_name: plan.name,
+      billing_interval: plan.billingInterval,
+      source: "platform_admin",
+    },
+  });
+
+  invalidatePlatformCache();
+}
