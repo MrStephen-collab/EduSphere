@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { http1Fetch } from "@/lib/supabase/http1";
+import { supabaseFetch } from "@/lib/supabase/transport";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
@@ -24,7 +24,7 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      global: { fetch: http1Fetch },
+      global: { fetch: supabaseFetch },
       cookies: {
         getAll() {
           return request.cookies.getAll();

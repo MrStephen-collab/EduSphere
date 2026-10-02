@@ -1,11 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { http1Fetch } from "./http1";
+import { supabaseFetch } from "./transport";
 
-// All Supabase traffic is routed over fresh HTTP/1.1 connections. The pooled
-// HTTP/2 sessions used by undici's default fetch die after a few requests on
-// this network (ERR_HTTP2_INVALID_SESSION) and then fail for every call until
-// the process restarts; this transport avoids that entirely.
+// Supabase traffic uses the transport picked in ./transport: fresh HTTP/1.1
+// connections during development, where this network kills pooled HTTP/2
+// sessions, and the platform's pooled fetch in production.
 export async function createClient() {
   const cookieStore = await cookies();
 
@@ -13,7 +12,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      global: { fetch: http1Fetch },
+      global: { fetch: supabaseFetch },
       cookies: {
         getAll() {
           return cookieStore.getAll();
