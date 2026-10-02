@@ -20,7 +20,14 @@
     "verify:live-rls": "node scripts/verify-live-rls.mjs",
     "verify:live": "node scripts/verify-live.mjs",
     "verify:fee-statement": "node scripts/verify-fee-statement.mjs",
-    "verify:mux-signing": "node scripts/check-mux-signing.mjs"
+    "verify:mux-signing": "node scripts/check-mux-signing.mjs",
+    "verify:mux-playback": "node scripts/check-mux-playback.mjs",
+    "verify:material-rls": "node scripts/verify-material-rls.mjs",
+    "verify:video-upload": "node scripts/verify-video-upload.mjs",
+    "verify:video-indicator": "node scripts/verify-video-indicator.mjs",
+    "verify:lesson-nav": "node scripts/verify-lesson-navigation.mjs",
+    "verify:webhook": "node scripts/verify-webhook-signature.mjs",
+    "verify:video-refresh": "node scripts/verify-video-refresh.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

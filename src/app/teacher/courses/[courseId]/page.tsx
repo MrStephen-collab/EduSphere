@@ -155,6 +155,10 @@ export default async function TeacherCourseDetailPage({
             <div className="grid gap-2">
               {module.lessons.length > 0 && (
                 <ul className="grid gap-1.5">
+                  {/* Each lesson links to its own editor, which is where the video
+                      and file uploads live. Without this the lesson title looks
+                      clickable but lands back on the course builder, so a teacher
+                      cannot get from a lesson name to its video at all. */}
                   {module.lessons.map((lesson) => (
                     <LessonRow
                       key={lesson.id}
@@ -163,6 +167,8 @@ export default async function TeacherCourseDetailPage({
                         title: lesson.title,
                         status: lesson.status,
                         description: lesson.description,
+                        materialCount: lesson.materialCount,
+                        hasVideo: lesson.hasVideo,
                       }}
                       courseId={course.id}
                       showDelete
@@ -196,6 +202,8 @@ export default async function TeacherCourseDetailPage({
                       title: lesson.title,
                       status: lesson.status,
                       description: lesson.description,
+                      materialCount: lesson.materialCount,
+                      hasVideo: lesson.hasVideo,
                     }}
                     courseId={course.id}
                     showDelete

@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ExternalLink, Lock, Paperclip } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Loader2,
+  Lock,
+  Paperclip,
+  TriangleAlert,
+} from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { getLessonForEditor } from "@/services/learning";
@@ -129,13 +136,25 @@ export default async function TeacherLessonEditorPage({
                         title: material.title,
                         file_type: material.file_type,
                         file_url: material.file_url,
+                        upload_state: material.upload_state,
                       }}
                       lessonId={lesson.id}
                       courseId={course.id}
                       onDelete={(id) => deleteMaterialAction(id, lesson.id, course.id)}
                     />
                   </div>
-                  {isRestrictedMaterial(material.file_type) ? (
+                  {material.upload_state === "errored" ? (
+                    <Badge variant="destructive" className="shrink-0 gap-1">
+                      <TriangleAlert className="size-3" aria-hidden="true" />
+                      Failed
+                    </Badge>
+                  ) : material.file_type === "video" &&
+                    material.upload_state !== "ready" ? (
+                    <Badge variant="secondary" className="shrink-0 gap-1">
+                      <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                      Processing
+                    </Badge>
+                  ) : isRestrictedMaterial(material.file_type) ? (
                     <Badge variant="secondary" className="shrink-0 gap-1">
                       <Lock className="size-3" aria-hidden="true" />
                       Locked
@@ -156,7 +175,8 @@ export default async function TeacherLessonEditorPage({
             <p className="text-xs text-muted-foreground">
               <ExternalLink className="mr-1 inline size-3.5" aria-hidden="true" />
               Audio and video are marked locked. They are stored privately and only play through a
-              link signed to each student.
+              link signed to each student. A newly uploaded video shows as processing for a moment
+              while the video host encodes it, then becomes playable on its own.
             </p>
           )}
         </CardContent>

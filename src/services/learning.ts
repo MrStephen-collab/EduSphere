@@ -4,6 +4,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
+import { studentMayAccessCourse } from "@/services/material-storage";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import { asArray } from "@/lib/embed";
 import type {
@@ -81,6 +82,12 @@ export type LessonWithMaterials = Lesson & {
   lesson_materials?: LessonMaterial[] | null;
 };
 
+/** The course outline a teacher sees: enough to spot content without opening each lesson. */
+export type LessonWithContentFlags = Lesson & {
+  materialCount: number;
+  hasVideo: boolean;
+};
+
 // ---------------------------------------------------------------------------
 // Teacher / admin content management
 // ---------------------------------------------------------------------------
@@ -101,6 +108,82 @@ export async function listCourses(
   return (data ?? []) as CourseListItem[];
 }
 
+export type TeacherLessonListItem = Lesson & {
+  course_title: string;
+  course_id: string;
+  material_count: number;
+  has_video: boolean;
+  video_count: number;
+};
+
+/**
+ * Every lesson across a teacher's own courses, newest first.
+ *
+ * This is what backs /teacher/lessons. A teacher who wants to find the lesson
+ * they recorded a video on should not have to open each course and expand each
+ * module to find out, and the nav has a Lessons entry that needs somewhere real
+ * to point.
+ *
+ * Scoped to courses the teacher owns, matching is_own_course() in the database.
+ */
+export async function listTeacherLessons(
+  schoolId: string,
+  teacherId: string,
+): Promise<TeacherLessonListItem[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: courses, error: courseError } = await supabase
+    .from("courses")
+    .select("id, title")
+    .eq("school_id", schoolId)
+    .eq("teacher_id", teacherId)
+    .is("deleted_at", null);
+  if (courseError) throw new Error(courseError.message);
+
+  const owned = courses ?? [];
+  if (owned.length === 0) return [];
+
+  const courseIds = owned.map((c) => c.id);
+  const titleByCourse = new Map(owned.map((c) => [c.id, c.title]));
+
+  const [lessonsRes, materialsRes] = await Promise.all([
+    supabase
+      .from("lessons")
+      .select("*, courses!inner(id, title)")
+      .eq("school_id", schoolId)
+      .in("course_id", courseIds)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("lesson_materials")
+      .select("lesson_id, file_type, provider_playback_id")
+      .eq("school_id", schoolId)
+      .is("deleted_at", null),
+  ]);
+  if (lessonsRes.error) throw new Error(lessonsRes.error.message);
+
+  const counts = new Map<string, number>();
+  const videos = new Map<string, number>();
+  for (const m of (materialsRes.data ?? []) as Pick<
+    LessonMaterial,
+    "lesson_id" | "file_type" | "provider_playback_id"
+  >[]) {
+    counts.set(m.lesson_id, (counts.get(m.lesson_id) ?? 0) + 1);
+    if (m.file_type === "video" && m.provider_playback_id) {
+      videos.set(m.lesson_id, (videos.get(m.lesson_id) ?? 0) + 1);
+    }
+  }
+
+  return ((lessonsRes.data ?? []) as (Lesson & { courses?: unknown })[]).map((l) => ({
+    ...l,
+    course_id: l.course_id,
+    course_title: titleByCourse.get(l.course_id) ?? "",
+    material_count: counts.get(l.id) ?? 0,
+    has_video: (videos.get(l.id) ?? 0) > 0,
+    video_count: videos.get(l.id) ?? 0,
+  }));
+}
+
 export async function getCourseDetail(
   schoolId: string,
   courseId: string,
@@ -110,8 +193,8 @@ export async function getCourseDetail(
     classes: NameEmbed;
     teachers: TeacherEmbed;
   }) | null;
-  modules: (CourseModule & { lessons: LessonWithMaterials[] })[];
-  unassignedLessons: LessonWithMaterials[];
+  modules: (CourseModule & { lessons: LessonWithContentFlags[] })[];
+  unassignedLessons: LessonWithContentFlags[];
 }> {
   const supabase = await createSupabaseServerClient();
 
@@ -125,7 +208,7 @@ export async function getCourseDetail(
   if (error) throw new Error(error.message);
   if (!course) return { course: null, modules: [], unassignedLessons: [] };
 
-  const [modulesRes, lessonsRes] = await Promise.all([
+  const [modulesRes, lessonsRes, materialsRes] = await Promise.all([
     supabase
       .from("course_modules")
       .select("*")
@@ -135,15 +218,36 @@ export async function getCourseDetail(
       .order("created_at", { ascending: true }),
     supabase
       .from("lessons")
-      .select("*, lesson_materials(id)")
+      .select("*")
       .eq("course_id", courseId)
       .eq("school_id", schoolId)
       .is("deleted_at", null)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("lesson_materials")
+      .select("lesson_id, file_type, provider_playback_id")
+      .eq("school_id", schoolId)
+      .is("deleted_at", null),
   ]);
 
   const modules = (modulesRes.data ?? []) as CourseModule[];
-  const lessons = (lessonsRes.data ?? []) as LessonWithMaterials[];
+  const counts = new Map<string, number>();
+  const videos = new Map<string, number>();
+  for (const m of (materialsRes.data ?? []) as Pick<
+    LessonMaterial,
+    "lesson_id" | "file_type" | "provider_playback_id"
+  >[]) {
+    counts.set(m.lesson_id, (counts.get(m.lesson_id) ?? 0) + 1);
+    if (m.file_type === "video" && m.provider_playback_id) {
+      videos.set(m.lesson_id, (videos.get(m.lesson_id) ?? 0) + 1);
+    }
+  }
+
+  const lessons = ((lessonsRes.data ?? []) as Lesson[]).map((l) => ({
+    ...l,
+    materialCount: counts.get(l.id) ?? 0,
+    hasVideo: (videos.get(l.id) ?? 0) > 0,
+  }));
 
   const grouped = modules.map((m) => ({
     ...m,
@@ -546,9 +650,20 @@ export type StudentCourseDetail = {
   className: string | null;
   teacherName: string | null;
   modules: (CourseModule & {
-    lessons: (Lesson & { progress: LessonProgress | null })[];
+    lessons: (Lesson & {
+      progress: LessonProgress | null;
+      /** A video that is ready to play, not merely one that was uploaded. */
+      hasVideo: boolean;
+      videoSeconds: number;
+      materialCount: number;
+    })[];
   })[];
-  unassignedLessons: (Lesson & { progress: LessonProgress | null })[];
+  unassignedLessons: (Lesson & {
+    progress: LessonProgress | null;
+    hasVideo: boolean;
+    videoSeconds: number;
+    materialCount: number;
+  })[];
   totalLessons: number;
   completedLessons: number;
   overallPercentage: number;
@@ -571,7 +686,23 @@ export async function getStudentCourseDetail(
     .maybeSingle();
   if (courseError) throw new Error(courseError.message);
 
-  if (!course) {
+  // A course belongs to a class, so a pupil can only be shown one that belongs
+  // to theirs. The check was previously left to the playback token, which meant
+  // the lesson list, and the material titles under it, rendered for any course
+  // whose id a pupil could guess.
+  const { data: student } = await supabase
+    .from("students")
+    .select("class_id")
+    .eq("school_id", schoolId)
+    .eq("id", studentId)
+    .maybeSingle();
+
+  const sameClass =
+    course && student
+      ? studentMayAccessCourse({ classId: student.class_id }, { classId: course.class_id })
+      : false;
+
+  if (!course || !sameClass) {
     return {
       course: null,
       subject: null,
@@ -585,7 +716,7 @@ export async function getStudentCourseDetail(
     };
   }
 
-  const [modulesRes, lessonsRes, progressRes] = await Promise.all([
+  const [modulesRes, lessonsRes, progressRes, materialsRes] = await Promise.all([
     supabase
       .from("course_modules")
       .select("*")
@@ -606,6 +737,15 @@ export async function getStudentCourseDetail(
       .select("*")
       .eq("student_id", studentId)
       .eq("school_id", schoolId),
+    // Only the counts and the file types are read here. The lesson list needs to
+    // be able to say which lessons carry a video, and it has to be able to say
+    // so without opening every lesson to find out -- but a pupil has no reason
+    // to receive playback ids for the whole course in the page.
+    supabase
+      .from("lesson_materials")
+      .select("lesson_id, file_type, provider_playback_id, duration_seconds")
+      .eq("school_id", schoolId)
+      .is("deleted_at", null),
   ]);
 
   const modules = (modulesRes.data ?? []) as CourseModule[];
@@ -614,9 +754,32 @@ export async function getStudentCourseDetail(
     (progressRes.data ?? [] as LessonProgress[]).map((p) => [p.lesson_id, p]),
   );
 
+  // A video that is still processing has no playback id yet, so it is not
+  // counted: offering a Watch button that cannot start is worse than showing
+  // nothing, and the teacher can see the processing state on their own lesson.
+  const playableVideos = new Map<string, number>();
+  const videoSeconds = new Map<string, number>();
+  const counts = new Map<string, number>();
+  for (const m of (materialsRes.data ?? []) as Pick<
+    LessonMaterial,
+    "lesson_id" | "file_type" | "provider_playback_id" | "duration_seconds"
+  >[]) {
+    counts.set(m.lesson_id, (counts.get(m.lesson_id) ?? 0) + 1);
+    if (m.file_type === "video" && m.provider_playback_id) {
+      playableVideos.set(m.lesson_id, (playableVideos.get(m.lesson_id) ?? 0) + 1);
+      videoSeconds.set(
+        m.lesson_id,
+        (videoSeconds.get(m.lesson_id) ?? 0) + (m.duration_seconds ?? 0),
+      );
+    }
+  }
+
   const withProgress = (l: Lesson) => ({
     ...l,
     progress: progressByLesson.get(l.id) ?? null,
+    hasVideo: (playableVideos.get(l.id) ?? 0) > 0,
+    videoSeconds: videoSeconds.get(l.id) ?? 0,
+    materialCount: counts.get(l.id) ?? 0,
   });
 
   const grouped = modules.map((m) => ({
@@ -674,7 +837,23 @@ export async function getStudentLessonView(
     .maybeSingle();
   if (courseError) throw new Error(courseError.message);
 
-  if (!course) {
+  // Same class rule as the course page, and for the same reason: this function
+  // is reachable by URL, so the course page's check is not a gate. It arrives at
+  // materials, so leaving it to the playback token would render another class's
+  // material titles in front of a pupil and then refuse to play them.
+  const { data: student } = await supabase
+    .from("students")
+    .select("class_id")
+    .eq("school_id", schoolId)
+    .eq("id", studentId)
+    .maybeSingle();
+
+  const sameClass =
+    course && student
+      ? studentMayAccessCourse({ classId: student.class_id }, { classId: course.class_id })
+      : false;
+
+  if (!course || !sameClass) {
     return { course: null, moduleTitle: null, lesson: null, materials: [], progress: null, prevLesson: null, nextLesson: null };
   }
 
@@ -863,7 +1042,29 @@ export type ContinueLearningItem = {
   lessonId: string;
   lessonTitle: string;
   progress: number;
+  /**
+   * Whether this lesson actually carries a video. The dashboard used to show a
+   * play glyph on this card whatever it was linking to, which taught pupils to
+   * ignore the one icon that was supposed to mean "watch something".
+   */
+  hasVideo: boolean;
 };
+
+/** A lesson counts as watchable only once a playback id exists for a video. */
+async function lessonHasPlayableVideo(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  lessonId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("lesson_materials")
+    .select("id")
+    .eq("lesson_id", lessonId)
+    .eq("file_type", "video")
+    .not("provider_playback_id", "is", null)
+    .is("deleted_at", null)
+    .limit(1);
+  return (data ?? []).length > 0;
+}
 
 export async function getContinueLearning(
   schoolId: string,
@@ -889,6 +1090,7 @@ export async function getContinueLearning(
       lessonId: lesson.id,
       lessonTitle: lesson.title,
       progress: pick.progress_percentage,
+      hasVideo: await lessonHasPlayableVideo(supabase, lesson.id),
     };
   }
 
@@ -911,5 +1113,6 @@ export async function getContinueLearning(
     lessonId: doneLesson.id,
     lessonTitle: doneLesson.title,
     progress: 100,
+    hasVideo: await lessonHasPlayableVideo(supabase, doneLesson.id),
   };
 }

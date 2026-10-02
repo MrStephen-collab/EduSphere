@@ -393,6 +393,12 @@ export type LessonMaterial = {
   provider_asset_id: string | null;
   provider_playback_id: string | null;
   duration_seconds: number | null;
+  /** Video processing state: waiting, processing, ready, errored, or uploaded. */
+  upload_state: string | null;
+  /** Direct-upload id from the video host, used to poll when no webhook is set up. */
+  provider_upload_id: string | null;
+  /** Message from the video host when an upload or asset fails. */
+  upload_error: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

@@ -6,11 +6,13 @@ import {
   BookOpen,
   CheckCircle2,
   Circle,
+  FileText,
   GraduationCap,
   PlayCircle,
 } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireStudent, getStudentCourseDetail } from "@/services/learning";
+import { formatDurationWords } from "@/lib/media-labels";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -97,8 +99,24 @@ export default async function StudentCoursePage({
                         {lesson.description}
                       </p>
                     )}
+                    {lesson.hasVideo && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        Video · {formatDurationWords(lesson.videoSeconds)} ·{" "}
+                        {lesson.materialCount} {lesson.materialCount === 1 ? "file" : "files"}
+                      </p>
+                    )}
                   </div>
-                  <PlayCircle className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  {lesson.hasVideo ? (
+                    <PlayCircle
+                      className="size-5 shrink-0 text-primary"
+                      aria-hidden="true"
+                    />
+                  ) : lesson.materialCount > 0 ? (
+                    <FileText
+                      className="size-5 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  ) : null}
                 </CardContent>
               </Card>
             </a>

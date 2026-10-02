@@ -145,7 +145,10 @@ export const teacherNav: NavSection[] = [
     items: [
       { title: "Classes", href: "/teacher/classes", icon: "classes" },
       { title: "Courses", href: "/teacher/courses", icon: "courses" },
-      { title: "Lessons", href: "/teacher/courses", icon: "lessons" },
+      // A page of its own rather than another link to /teacher/courses. Two nav
+      // entries pointing at the same URL is what made "Courses" and "Lessons"
+      // look like the same page.
+      { title: "Lessons", href: "/teacher/lessons", icon: "lessons" },
       { title: "Timetable", href: "/teacher/timetable", icon: "calendar" },
       { title: "Live teaching", href: "/teacher/live", icon: "video" },
       { title: "Assignments", href: "/teacher/assignments", icon: "assignments" },

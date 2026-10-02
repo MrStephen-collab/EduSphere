@@ -98,7 +98,11 @@ async function StudentDashboardContent() {
             {bundle.continueItem ? (
               <div className="grid gap-3">
                 <div className="flex items-center gap-3 rounded-lg border p-4">
-                  <PlayCircle className="size-10 shrink-0 text-primary" aria-hidden="true" />
+                  {bundle.continueItem.hasVideo ? (
+                    <PlayCircle className="size-10 shrink-0 text-primary" aria-hidden="true" />
+                  ) : (
+                    <BookOpen className="size-10 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  )}
                   <div className="min-w-0">
                     <p className="font-medium">{bundle.continueItem.courseTitle}</p>
                     <p className="truncate text-sm text-muted-foreground">{bundle.continueItem.lessonTitle}</p>
@@ -127,7 +131,7 @@ async function StudentDashboardContent() {
               </div>
             ) : (
               <div className="flex items-center gap-3 rounded-lg border p-4">
-                <PlayCircle className="size-10 shrink-0 text-primary" aria-hidden="true" />
+                <BookOpen className="size-10 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div className="min-w-0">
                   <p className="font-medium">No lessons in progress</p>
                   <p className="text-sm text-muted-foreground">Start a course to begin learning.</p>

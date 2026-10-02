@@ -285,6 +285,36 @@ export type MuxWebhookEvent = {
   };
 };
 
+/**
+ * Writes the host's asset details onto a material row.
+ *
+ * Shared by the webhook and by the polling completion step, so a video gets the
+ * same playback id and duration whichever route notices it first. Re-running it
+ * is harmless: it is an idempotent write of the same values.
+ */
+export async function applyAssetReady(
+  materialId: string,
+  ready: {
+    assetId: string;
+    playbackId: string | null;
+    durationSeconds: number | null;
+  },
+): Promise<void> {
+  const admin = createAdminClient();
+  await admin
+    .from("lesson_materials")
+    .update({
+      provider: "mux",
+      provider_asset_id: ready.assetId,
+      provider_playback_id: ready.playbackId,
+      duration_seconds: ready.durationSeconds,
+      // Now that a signed playback id exists the row is genuinely playable; the
+      // course and dashboard listings key their video indicator off this.
+      upload_state: "ready",
+    })
+    .eq("id", materialId);
+}
+
 export async function recordAssetReady(event: MuxWebhookEvent): Promise<void> {
   if (event.type !== "video.asset.ready") return;
 
@@ -297,18 +327,11 @@ export async function recordAssetReady(event: MuxWebhookEvent): Promise<void> {
 
   const playbackId = event.data.playback_ids?.find((p) => p.policy === "signed")?.id;
 
-  const admin = createAdminClient();
-  await admin
-    .from("lesson_materials")
-    .update({
-      provider: "mux",
-      provider_asset_id: event.data.id,
-      provider_playback_id: playbackId ?? null,
-      duration_seconds: event.data.duration
-        ? Math.round(event.data.duration)
-        : null,
-    })
-    .eq("id", materialId);
+  await applyAssetReady(materialId, {
+    assetId: event.data.id,
+    playbackId: playbackId ?? null,
+    durationSeconds: event.data.duration ? Math.round(event.data.duration) : null,
+  });
 }
 
 export async function recordAssetErrored(event: MuxWebhookEvent): Promise<void> {
@@ -320,12 +343,84 @@ export async function recordAssetErrored(event: MuxWebhookEvent): Promise<void> 
   await admin.from("lesson_materials").delete().eq("id", materialId);
 }
 
-function parsePassthrough(value: string): { materialId: string | null } {
+export function buildPassthrough(materialId: string): string {
+  return `material:${materialId}`;
+}
+
+export function parsePassthrough(value: string): { materialId: string | null } {
   const [key, id] = value.split(":");
   if (key !== "material" || !id) return { materialId: null };
   return { materialId: /^[0-9a-f-]{36}$/i.test(id) ? id : null };
 }
 
-export function buildPassthrough(materialId: string): string {
-  return `material:${materialId}`;
+export type UploadState =
+  | { status: "waiting" | "asset_created" | "errored"; assetId: string | null }
+  | {
+      status: "ready";
+      assetId: string;
+      playbackId: string | null;
+      durationSeconds: number | null;
+    };
+
+/**
+ * Asks the video host how a direct upload is doing.
+ *
+ * The webhook is the intended way to learn that an asset is ready, but it needs
+ * a webhook secret configured on the host and pointed at this deployment. Until
+ * that is in place the row would sit without a playback id forever and the
+ * teacher's video would never appear, so the completion step polls instead.
+ *
+ * `status` moves waiting -> asset_created -> ready. asset_created means the
+ * asset exists but Mux is still encoding, which is not the same as playable.
+ */
+export async function pollDirectUpload(uploadId: string): Promise<UploadState> {
+  const config = readConfig();
+  if (!config) return { status: "errored", assetId: null };
+
+  const response = await fetch(`${MUX_API}/video/v1/uploads/${uploadId}`, {
+    headers: { Authorization: authHeader(config) },
+    cache: "no-store",
+  });
+  if (!response.ok) return { status: "errored", assetId: null };
+
+  const upload = (await response.json()) as {
+    data?: {
+      status?: string;
+      asset_id?: string | null;
+      error?: { message?: string } | null;
+    };
+  };
+  const assetId = upload.data?.asset_id ?? null;
+
+  if (upload.data?.error || upload.data?.status === "errored") {
+    return { status: "errored", assetId };
+  }
+  if (!assetId) return { status: "waiting", assetId: null };
+
+  // The asset exists. Read it to find the signed playback id and the duration.
+  const assetResponse = await fetch(`${MUX_API}/video/v1/assets/${assetId}`, {
+    headers: { Authorization: authHeader(config) },
+    cache: "no-store",
+  });
+  if (!assetResponse.ok) return { status: "asset_created", assetId };
+
+  const asset = (await assetResponse.json()) as {
+    data?: {
+      status?: string;
+      duration?: number;
+      playback_ids?: { policy?: string; id?: string }[];
+    };
+  };
+
+  if (asset.data?.status !== "ready") return { status: "asset_created", assetId };
+
+  return {
+    status: "ready",
+    assetId,
+    playbackId:
+      asset.data.playback_ids?.find((p) => p.policy === "signed")?.id ??
+      asset.data.playback_ids?.[0]?.id ??
+      null,
+    durationSeconds: asset.data.duration ? Math.round(asset.data.duration) : null,
+  };
 }

@@ -58,6 +58,7 @@ export function MaterialUploader({
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -67,6 +68,7 @@ export function MaterialUploader({
   function pickCategory(next: Category) {
     setCategory(next);
     setError(null);
+    setNotice(null);
     // A file chosen under one category can violate the next category's limits,
     // so drop it rather than letting a stale selection through.
     setFile(null);
@@ -129,6 +131,7 @@ export function MaterialUploader({
 
   function submit() {
     setError(null);
+    setNotice(null);
 
     if (!title.trim()) {
       setError("Give this material a title.");
@@ -163,6 +166,7 @@ export function MaterialUploader({
         }
 
         // A link has no bytes to send; the row is already complete.
+        let pending = false;
         if (category !== "link" && file) {
           if (started.providerUploadUrl) {
             await putToVideoHost(started.providerUploadUrl, file);
@@ -179,6 +183,7 @@ export function MaterialUploader({
             setError(done.error);
             return;
           }
+          pending = done.pending === true;
         }
 
         setProgress(100);
@@ -186,6 +191,11 @@ export function MaterialUploader({
         setUrl("");
         setFile(null);
         if (fileInput.current) fileInput.current.value = "";
+        if (pending) {
+          setNotice(
+            "Video uploaded. The video host is still processing it, so it will appear on the lesson shortly.",
+          );
+        }
         onUploaded?.();
       } catch (e) {
         setError(e instanceof Error ? e.message : "That upload failed. Please try again.");
@@ -278,6 +288,12 @@ export function MaterialUploader({
       {error ? (
         <p role="alert" className="text-sm text-destructive">
           {error}
+        </p>
+      ) : null}
+
+      {notice ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {notice}
         </p>
       ) : null}
 

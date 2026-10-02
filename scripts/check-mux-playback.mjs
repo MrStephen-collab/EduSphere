@@ -2,9 +2,14 @@
 // the app's own mintPlaybackToken, then asks Mux for the manifest and for the
 // static MP4, reporting what actually resolves.
 //
-// Run with: node scripts/check-mux-playback.mjs
+// Run with: npm run verify:mux-playback
+// With no argument it takes the newest active Mux material in the database, so
+// this can run as a gate without anyone pasting an id. A playback id may be
+// passed explicitly to check a particular asset.
+
 import fs from "node:fs";
 import { createSign } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
 
 const raw = fs.readFileSync(".env.local", "utf8");
 const val = (k) => {
@@ -12,9 +17,28 @@ const val = (k) => {
   return line ? line.slice(line.indexOf("=") + 1).trim() : "";
 };
 
-const playbackId = process.argv[2];
+// The Mux API rejects reads made outside the dashboard for this account, so the
+// playback id is taken from our own table rather than looked up upstream. That
+// is also the id the app actually uses, which is the one worth testing.
+async function newestPlaybackId() {
+  const admin = createClient(val("NEXT_PUBLIC_SUPABASE_URL"), val("SUPABASE_SERVICE_ROLE_KEY"), {
+    auth: { persistSession: false },
+  });
+  const { data, error } = await admin
+    .from("lesson_materials")
+    .select("provider_playback_id")
+    .eq("provider", "mux")
+    .not("provider_playback_id", "is", null)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return data?.[0]?.provider_playback_id ?? null;
+}
+
+const playbackId = process.argv[2] ?? (await newestPlaybackId());
 if (!playbackId) {
-  console.error("usage: node scripts/check-mux-playback.mjs <playback-id>");
+  console.error("No Mux material in the database to check. Attach an asset first.");
   process.exit(1);
 }
 

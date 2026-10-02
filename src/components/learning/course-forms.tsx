@@ -10,8 +10,11 @@ import {
   FolderPlus,
   Link2,
   Loader2,
+  Paperclip,
   Pencil,
+  PlayCircle,
   Plus,
+  RefreshCw,
   Send,
   Trash2,
   Upload,
@@ -34,6 +37,7 @@ import {
   updateLessonAction,
   type ActionState,
 } from "@/app/teacher/actions";
+import { refreshVideoMaterialAction } from "@/app/teacher/material-actions";
 import type { ContentStatus } from "@/types/database";
 import { materialTypeLabels } from "@/lib/material-types";
 
@@ -427,7 +431,12 @@ export function ModuleCard({
   lessonCount: number;
   children?: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  // Open by default. It used to start closed, which meant the server rendered no
+  // lesson links at all -- every lesson, and with it the only route to a lesson's
+  // video upload, was inside a panel that did not exist until some JavaScript ran.
+  // A teacher landing here with JavaScript slow or disabled saw a course page
+  // that looked empty, and no lesson links to follow.
+  const [open, setOpen] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -487,7 +496,7 @@ export function LessonCreateForm({
   moduleId?: string | null;
   defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen ?? false);
+  const [open, setOpen] = useState(defaultOpen ?? true);
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<ContentStatus>("draft");
   const [error, setError] = useState<string | null>(null);
@@ -759,7 +768,15 @@ export function LessonRow({
   showModuleBadge,
   showDelete,
 }: {
-  lesson: { id: string; title: string; status: ContentStatus; description: string | null };
+  lesson: {
+    id: string;
+    title: string;
+    status: ContentStatus;
+    description: string | null;
+    /** How many files a teacher has attached, so an empty lesson is visible here. */
+    materialCount?: number;
+    hasVideo?: boolean;
+  };
   courseId: string;
   showModuleBadge?: boolean;
   showDelete?: boolean;
@@ -771,10 +788,28 @@ export function LessonRow({
         <span className="min-w-0">
           <span className="block truncate font-medium">{lesson.title}</span>
           {lesson.description && <span className="block truncate text-xs text-muted-foreground">{lesson.description}</span>}
+          {/* A teacher otherwise cannot tell a lesson that has a recording from
+              one that has nothing but text, without opening every lesson. */}
+          {lesson.hasVideo && (
+            <span className="block truncate text-xs text-muted-foreground">
+              Video attached
+            </span>
+          )}
         </span>
       </a>
       <span className="flex shrink-0 items-center gap-1.5">
         {showModuleBadge && <Badge variant="secondary">{lesson.status}</Badge>}
+        {lesson.hasVideo ? (
+          <Badge variant="outline">
+            <PlayCircle className="mr-1 size-3" aria-hidden="true" />
+            Video
+          </Badge>
+        ) : lesson.materialCount ? (
+          <Badge variant="outline">
+            <Paperclip className="mr-1 size-3" aria-hidden="true" />
+            {lesson.materialCount}
+          </Badge>
+        ) : null}
         {lesson.status === "published" ? <Badge>Published</Badge> : <Badge variant="outline">Draft</Badge>}
         {showDelete && <LessonDeleteButton lessonId={lesson.id} courseId={courseId} />}
       </span>
@@ -869,35 +904,101 @@ export function MaterialCreateForm({
 
 export function MaterialChip({
   material,
+  lessonId,
+  courseId,
   onDelete,
 }: {
-  material: { id: string; title: string; file_type: string | null; file_url: string | null };
+  material: {
+    id: string;
+    title: string;
+    file_type: string | null;
+    file_url: string | null;
+    upload_state?: string | null;
+  };
   lessonId: string;
   courseId: string;
   onDelete?: (id: string) => Promise<ActionState>;
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // A video with no playback id yet cannot be opened, so it is shown as
+  // in-progress rather than as a dead link. This is the state a teacher sees
+  // for the minute or so after a successful upload.
+  const isVideo = material.file_type === "video";
+  const processing = isVideo && material.upload_state !== "ready";
+  const isLink = material.file_type === "link";
+  const href = processing ? undefined : material.file_url ?? "#";
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm">
       <a
-        href={material.file_url ?? "#"}
-        target={material.file_type === "link" ? "_blank" : "_blank"}
+        href={href}
+        target={isLink ? "_blank" : undefined}
         rel="noreferrer"
-        className="flex min-w-0 items-center gap-2"
+        aria-disabled={processing || undefined}
+        className={`flex min-w-0 items-center gap-2 ${
+          processing ? "cursor-default" : "hover:underline"
+        }`}
       >
-        <Link2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        {processing ? (
+          <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />
+        ) : isVideo ? (
+          <PlayCircle className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        ) : (
+          <Link2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        )}
         <span className="min-w-0">
           <span className="block truncate font-medium">{material.title}</span>
           <span className="block truncate text-xs text-muted-foreground">
-            {material.file_type ? materialTypeLabels[material.file_type] ?? material.file_type : "File"}
+            {processing
+              ? "Video processing on the host, playable shortly"
+              : material.file_type
+                ? materialTypeLabels[material.file_type] ?? material.file_type
+                : "File"}
           </span>
         </span>
       </a>
-      {onDelete && (
+      {(onDelete || processing) && (
         <span className="flex shrink-0 items-center gap-2">
           {error && <span className="text-xs text-destructive">{error}</span>}
+          {processing && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground"
+              disabled={isPending}
+              onClick={() => {
+                setError(null);
+                startTransition(async () => {
+                  const result = await refreshVideoMaterialAction(
+                    material.id,
+                    lessonId,
+                    courseId,
+                  );
+                  if (!result.ok) {
+                    setError(result.error);
+                  } else if (result.status === "errored") {
+                    setError("The video host could not process that file.");
+                  } else if (result.status === "processing") {
+                    setNotice("Still encoding. Try again in a little while.");
+                  } else {
+                    setNotice("Ready. This video can now be played.");
+                  }
+                });
+              }}
+            >
+              {isPending ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+              ) : (
+                <RefreshCw className="size-3.5" aria-hidden="true" />
+              )}
+              Check status
+            </Button>
+          )}
+          {onDelete && (
           <Button
             type="button"
             variant="ghost"
@@ -916,8 +1017,10 @@ export function MaterialChip({
           >
             {isPending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Trash2 className="size-3.5" aria-hidden="true" />}
           </Button>
+          )}
         </span>
       )}
+      {notice && <span className="sr-only" role="status">{notice}</span>}
     </div>
   );
 }

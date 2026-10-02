@@ -37,6 +37,11 @@ export type MaterialRecord = {
   provider_asset_id: string | null;
   provider_playback_id: string | null;
   duration_seconds: number | null;
+  /** Video processing state: waiting, processing, ready, errored, or uploaded. */
+  upload_state: string | null;
+  provider_upload_id: string | null;
+  upload_error: string | null;
+  deleted_at: string | null;
   created_by: string | null;
 };
 
@@ -349,6 +354,16 @@ export async function createMaterialUpload(
     return { materialId: row.id, uploadPath: "", signedPath: "", token: "" };
   }
 
+  // Video never touches this bucket: the bytes go to the external video host via
+  // its own direct-upload URL, minted by the caller. Minting a bucket signed URL
+  // for it wrote a storage_path onto the row that no object would ever occupy, and
+  // finalizeMaterialUpload then searched the bucket, found nothing, deleted the
+  // row and reported the upload as failed. So a teacher who had in fact uploaded
+  // their video successfully was told it had failed.
+  if (data.category === "video") {
+    return { materialId: row.id, uploadPath: "", signedPath: "", token: "" };
+  }
+
   const storagePath = buildStoragePath(schoolId, data.lessonId, data.fileName ?? "file");
 
   const { data: signed, error: signError } = await admin.storage
@@ -378,11 +393,16 @@ export async function finalizeMaterialUpload(materialId: string): Promise<void> 
   const admin = createAdminClient();
   const { data: material } = await admin
     .from("lesson_materials")
-    .select("id, storage_path, lesson_id, school_id")
+    .select("id, storage_path, lesson_id, school_id, file_type")
     .eq("id", materialId)
     .maybeSingle();
 
-  if (!material?.storage_path) return;
+  // A video row has no storage_path by design. Its asset and playback ids arrive
+  // on the video host's webhook (or the poll below), not from a bucket listing,
+  // so there is nothing to verify here and nothing to delete. Getting this wrong
+  // is what made video uploads report failure after succeeding.
+  if (!material) return;
+  if (material.file_type === "video" || !material.storage_path) return;
 
   await requireOwnedLessonForMaterial(material);
 
@@ -614,6 +634,37 @@ function downloadFilename(material: MaterialRecord): string {  const fromPath = 
 }
 
 /** Teacher-facing list entry, including whether the file still exists. */
+/**
+ * Stashes the video host's direct-upload id on the material row.
+ *
+ * The browser sends the bytes to the video host itself, so the server has to be
+ * able to find that upload again when the completion request arrives. Without
+ * this, the completion step has nothing to poll and a teacher's video never gets
+ * a playback id.
+ */
+export async function recordPendingUpload(
+  materialId: string,
+  uploadId: string,
+): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("lesson_materials")
+    .update({ provider_upload_id: uploadId, upload_state: "waiting" })
+    .eq("id", materialId);
+  if (error) throw new Error("We couldn't record that upload.");
+}
+
+/** Reads back the video host's direct-upload id for a material. */
+export async function getPendingUploadId(materialId: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("lesson_materials")
+    .select("provider_upload_id")
+    .eq("id", materialId)
+    .maybeSingle();
+  return data?.provider_upload_id ?? null;
+}
+
 export async function getTeacherMaterial(materialId: string): Promise<MaterialRecord | null> {
   const { schoolId } = await requireOwnedLessonForMaterialId(materialId);
   const admin = createAdminClient();
