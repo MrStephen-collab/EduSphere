@@ -33,12 +33,29 @@ export type School = {
   website: string | null;
   status: SchoolStatus;
   owner_id: string | null;
+  education_level: EducationLevel | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
 };
 
 export type SchoolStatus = "active" | "pending" | "suspended" | "inactive";
+
+/**
+ * The level a school teaches. Mirrors the public.education_level enum from
+ * 0025_education_levels.sql.
+ *
+ * A school declares one level. It decides class naming and whether courses are
+ * grouped by department; it never forces a class name, because a school that
+ * calls its classes something else is describing itself accurately.
+ */
+export type EducationLevel =
+  | "nursery"
+  | "primary"
+  | "secondary"
+  | "college"
+  | "polytechnic"
+  | "university";
 
 export type UserRoleName =
   | "SUPER_ADMIN"
@@ -93,8 +110,18 @@ export type Term = {
 export type SchoolClass = {
   id: string;
   school_id: string;
-  name: string; // JSS 1, SS 2 etc.
+  name: string; // follows the school's education level, e.g. "SS 2" or "Year 1"
   order: number;
+  department_id: string | null; // college / polytechnic / university
+  programme: string | null; // polytechnic only: "OND" or "HND"
+  created_at: string;
+  updated_at: string;
+};
+
+export type Department = {
+  id: string;
+  school_id: string;
+  name: string;
   created_at: string;
   updated_at: string;
 };
@@ -340,6 +367,7 @@ export type Course = {
   school_id: string;
   subject_id: string | null;
   class_id: string | null;
+  department_id: string | null; // college / polytechnic / university
   teacher_id: string | null;
   title: string;
   description: string | null;

@@ -1,7 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireSchoolAdmin } from "@/services/shared";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import { invalidateAuthContexts } from "@/lib/auth/auth-context";
+import { isEducationLevel } from "@/lib/education/levels";
+import type { EducationLevel } from "@/types/database";
 import { sendWelcomeEmail } from "@/email/hooks";
 import { z } from "zod";
 
@@ -24,6 +27,60 @@ const schoolBasicsSchema = z.object({
 
 export type SchoolBasicsInput = z.infer<typeof schoolBasicsSchema>;
 
+/**
+ * A school's declared education level, or null when it has not chosen one.
+ *
+ * Read on nearly every request that renders a class or a course, so it takes
+ * the single column rather than the whole school row.
+ */
+export async function getSchoolLevel(
+  schoolId: string,
+): Promise<EducationLevel | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("schools")
+    .select("education_level")
+    .eq("id", schoolId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const level = (data as { education_level: string | null } | null)
+    ?.education_level;
+  return isEducationLevel(level) ? level : null;
+}
+
+/**
+ * Sets a school's education level.
+ *
+ * Changing a level changes what the class and course forms suggest, so it is
+ * treated as a deliberate act. Existing classes are left exactly as they are:
+ * a school changing its mind about its level has not thereby misnamed its
+ * classes, and renaming them behind an admin's back would be worse than
+ * offering suggestions.
+ */
+export async function setSchoolEducationLevel(input: {
+  schoolId: string;
+  level: EducationLevel;
+}): Promise<void> {
+  const { schoolId } = await requireSchoolAdmin();
+  if (schoolId !== input.schoolId) {
+    throw new Error("You can only change the level of your own school.");
+  }
+  if (!isEducationLevel(input.level)) {
+    throw new Error("That is not an education level we recognise.");
+  }
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("schools")
+    .update({ education_level: input.level })
+    .eq("id", schoolId);
+  if (error) {
+    if (error.code === "23514" || error.code === "22P02") {
+      throw new Error("That is not an education level we recognise.");
+    }
+    throw new Error("We couldn't change your education level.");
+  }
+}
+
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -40,7 +97,7 @@ function slugify(name: string): string {
  */
 export async function createSchoolWithOwner(
   ownerId: string,
-  input: SchoolBasicsInput,
+  input: SchoolBasicsInput & { educationLevel?: EducationLevel | null },
 ): Promise<{ schoolId: string }> {
   invalidateCacheByPrefix("platform:analytics");
   invalidateCacheByPrefix("platform:schools");
@@ -64,6 +121,9 @@ export async function createSchoolWithOwner(
       website: data.website ?? null,
       status: "active",
       owner_id: ownerId,
+      education_level: isEducationLevel(input.educationLevel)
+        ? input.educationLevel
+        : null,
     })
     .select("id")
     .single();
