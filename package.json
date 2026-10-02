@@ -28,7 +28,8 @@
     "verify:lesson-nav": "node scripts/verify-lesson-navigation.mjs",
     "verify:webhook": "node scripts/verify-webhook-signature.mjs",
     "verify:video-refresh": "node scripts/verify-video-refresh.mjs",
-    "superadmin": "node scripts/set-super-admin.mjs"
+    "superadmin": "node scripts/set-super-admin.mjs",
+    "verify:platform-access": "node scripts/verify-platform-access.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
