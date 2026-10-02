@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookPlus,
@@ -902,6 +902,10 @@ export function MaterialCreateForm({
   );
 }
 
+/** How often a still-encoding video is re-checked, and for how long. */
+const MATERIAL_VIDEO_POLL_MS = 4000;
+const MATERIAL_VIDEO_POLL_ATTEMPTS = 30;
+
 export function MaterialChip({
   material,
   lessonId,
@@ -922,6 +926,8 @@ export function MaterialChip({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const router = useRouter();
 
   // A video with no playback id yet cannot be opened, so it is shown as
   // in-progress rather than as a dead link. This is the state a teacher sees
@@ -930,6 +936,54 @@ export function MaterialChip({
   const processing = isVideo && material.upload_state !== "ready";
   const isLink = material.file_type === "link";
   const href = processing ? undefined : material.file_url ?? "#";
+
+  // Ask the host on its own while an upload is still encoding, so the material
+  // turns playable without the teacher pressing anything. Every check is a
+  // single lookup, and it stops as soon as the video settles one way or the
+  // teacher leaves the page.
+  useEffect(() => {
+    if (!processing) return;
+
+    let cancelled = false;
+    let attempt = 0;
+
+    const tick = async () => {
+      attempt += 1;
+      if (cancelled) return;
+
+      const result = await refreshVideoMaterialAction(material.id, lessonId, courseId);
+
+      if (cancelled) return;
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      if (result.status === "errored") {
+        setError("The video host could not process that file.");
+        return;
+      }
+      if (result.status === "ready") {
+        setNotice("Ready. This video can now be played.");
+        // The action revalidates the lesson, but this chip's own `processing`
+        // flag comes from the server-rendered props, so the row has to be
+        // re-read for the player to appear.
+        router.refresh();
+        return;
+      }
+      if (attempt >= MATERIAL_VIDEO_POLL_ATTEMPTS) return;
+      pollTimer.current = setTimeout(tick, MATERIAL_VIDEO_POLL_MS);
+    };
+
+    pollTimer.current = setTimeout(tick, MATERIAL_VIDEO_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      if (pollTimer.current) clearTimeout(pollTimer.current);
+    };
+    // Re-running on every prop change would restart the poll on each render, so
+    // this keys off the material's identity and whether it is still encoding.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [processing, material.id]);
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm">

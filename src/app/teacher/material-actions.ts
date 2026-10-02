@@ -116,23 +116,45 @@ export async function startMaterialUploadAction(input: {
   }
 }
 
-/** How long to wait for the video host to finish encoding before giving up. */
-const VIDEO_READY_TIMEOUT_MS = 45_000;
-/** A pull from the lesson page should answer promptly rather than hold a request. */
-const VIDEO_REFRESH_TIMEOUT_MS = 20_000;
-const VIDEO_POLL_INTERVAL_MS = 1_500;
+/**
+ * Asks the host about a pending upload once, and applies the result.
+ *
+ * Deliberately a single poll with no loop and no sleep. Waiting for an encode
+ * inside the request meant the teacher's click sat there for up to 45 seconds
+ * with the button disabled, and "Check status" held a request open for 20 -- a
+ * spinner that long reads as a broken app. The host finishes on its own
+ * schedule, so the answer is fetched again by the caller instead of being
+ * awaited here.
+ */
+async function checkVideoOnce(
+  materialId: string,
+): Promise<"ready" | "processing" | "errored"> {
+  const uploadId = await getPendingUploadId(materialId);
+  if (!uploadId) return "processing";
+
+  const state = await pollDirectUpload(uploadId);
+  if (state.status === "errored") return "errored";
+  if (state.status === "ready") {
+    await applyAssetReady(materialId, state);
+    return "ready";
+  }
+  return "processing";
+}
 
 /**
  * Confirms the bytes landed.
  *
  * Bucket-backed materials are verified against storage. Video is not: it went to
  * the external host, so there is nothing in the bucket to look at. Instead the
- * host is polled until it reports the asset ready, and the playback id and
- * duration are written straight onto the material row.
+ * host is asked whether it has finished, and the playback id and duration are
+ * written straight onto the material row when it has.
  *
- * The webhook remains the better path and stays wired up, but it needs a webhook
- * secret registered with the host; without one, polling is what keeps a teacher's
- * upload from silently never appearing.
+ * This returns as soon as the bytes are confirmed, reporting `pending` when the
+ * host is still encoding. The teacher is unblocked immediately and the lesson
+ * picks the video up on the next status check or webhook. The webhook remains
+ * the better path and stays wired up, but it needs a webhook secret registered
+ * with the host; without one, polling is what keeps a teacher's upload from
+ * silently never appearing.
  */
 export async function completeMaterialUploadAction(
   materialId: string,
@@ -146,7 +168,7 @@ export async function completeMaterialUploadAction(
     let stillProcessing = false;
 
     if (material?.file_type === "video") {
-      const outcome = await waitForVideoReady(materialId);
+      const outcome = await checkVideoOnce(materialId);
       if (outcome === "errored") {
         return {
           ok: false,
@@ -174,41 +196,12 @@ export async function completeMaterialUploadAction(
   }
 }
 
-async function waitForVideoReady(
-  materialId: string,
-  timeoutMs = VIDEO_READY_TIMEOUT_MS,
-): Promise<"ready" | "processing" | "errored"> {
-  const uploadId = await getPendingUploadId(materialId);
-  if (!uploadId) return "processing";
-
-  const deadline = Date.now() + timeoutMs;
-
-  while (Date.now() < deadline) {
-    const state = await pollDirectUpload(uploadId);
-
-    if (state.status === "errored") return "errored";
-
-    if (state.status === "ready") {
-      await applyAssetReady(materialId, state);
-      return "ready";
-    }
-
-    await new Promise((r) => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
-  }
-
-  // Still encoding. The row keeps its asset id, so the video appears once the
-  // host finishes rather than being reported as a failed upload.
-  return "processing";
-}
-
 /**
- * Re-checks a video that is still encoding.
+ * Re-checks a video that is still encoding, without holding the request open.
  *
- * The completion step waits 45 seconds, which is generous for a short clip but
- * not for a long recording. Without this, such a video stays "processing"
- * forever whenever the host webhook is not registered -- the row is written, the
- * upload id is on it, and nothing ever looks at it again. This gives the teacher
- * a way to pull the result, and it is also safe to call on a schedule.
+ * Answers from a single lookup, so the button that calls it returns as soon as
+ * the host replies. Anything longer than that used to be a spinner that looked
+ * broken rather than busy. Callers that want to wait should poll this.
  */
 export async function refreshVideoMaterialAction(
   materialId: string,
@@ -226,9 +219,11 @@ export async function refreshVideoMaterialAction(
       return { ok: false, error: "That material is not a video." };
     }
 
-    const outcome = await waitForVideoReady(materialId, VIDEO_REFRESH_TIMEOUT_MS);
-    revalidatePath(`/teacher/courses/${courseId}/lessons/${lessonId}`);
-    revalidatePath(`/teacher/courses/${courseId}`);
+    const outcome = await checkVideoOnce(materialId);
+    if (outcome === "ready") {
+      revalidatePath(`/teacher/courses/${courseId}/lessons/${lessonId}`);
+      revalidatePath(`/teacher/courses/${courseId}`);
+    }
     return { ok: true, status: outcome };
   } catch (e) {
     return { ok: false, error: describe(e) };

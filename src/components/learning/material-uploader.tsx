@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Upload, Link2, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
 } from "@/lib/material-types";
 import {
   completeMaterialUploadAction,
+  refreshVideoMaterialAction,
   startMaterialUploadAction,
 } from "@/app/teacher/material-actions";
 
@@ -31,7 +32,16 @@ import {
  * while video goes to the external host. Nothing streams through this server,
  * which keeps a 50 MB PDF or a long lesson video from hitting a request body
  * limit.
+ *
+ * Nothing here waits on the video host. An encode can take a minute, so the
+ * button is released the moment the bytes land and the host is polled from the
+ * browser instead; the lesson refreshes itself when the video turns playable.
  */
+
+/** How often to ask the host whether an encoding has finished. */
+const READY_POLL_MS = 4000;
+/** Roughly two minutes of trying, then stop bothering the host. */
+const READY_POLL_ATTEMPTS = 30;
 
 type Category = MaterialCategory;
 
@@ -62,8 +72,17 @@ export function MaterialUploader({
   const [progress, setProgress] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileInput = useRef<HTMLInputElement>(null);
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const busy = isPending || progress !== null;
+
+  // A poll left running after the teacher navigates away would keep calling a
+  // server action for a lesson they are no longer looking at.
+  useEffect(() => {
+    return () => {
+      if (pollTimer.current) clearTimeout(pollTimer.current);
+    };
+  }, []);
 
   function pickCategory(next: Category) {
     setCategory(next);
@@ -127,6 +146,41 @@ export function MaterialUploader({
       throw new Error("The video host rejected the upload. Please try again.");
     }
     setProgress(90);
+  }
+
+  /**
+   * Watches a freshly uploaded video from the browser until the host is done.
+   *
+   * Each call is a single cheap lookup, so the UI stays responsive throughout
+   * and the lesson updates itself once the video is playable.
+   */
+  function watchForReady(materialId: string, attempt = 1) {
+    if (attempt > READY_POLL_ATTEMPTS) {
+      setNotice(
+        "The video host is taking longer than usual. Use “Check status” on the material in a little while.",
+      );
+      return;
+    }
+
+    if (pollTimer.current) clearTimeout(pollTimer.current);
+    pollTimer.current = setTimeout(async () => {
+      const result = await refreshVideoMaterialAction(materialId, lessonId, courseId);
+
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      if (result.status === "errored") {
+        setError("The video host could not process that file.");
+        return;
+      }
+      if (result.status === "ready") {
+        setNotice("Video ready. It can now be played from this lesson.");
+        onUploaded?.();
+        return;
+      }
+      watchForReady(materialId, attempt + 1);
+    }, READY_POLL_MS);
   }
 
   function submit() {
@@ -193,8 +247,9 @@ export function MaterialUploader({
         if (fileInput.current) fileInput.current.value = "";
         if (pending) {
           setNotice(
-            "Video uploaded. The video host is still processing it, so it will appear on the lesson shortly.",
+            "Video uploaded. It is processing on the video host and will appear here on its own.",
           );
+          watchForReady(started.materialId);
         }
         onUploaded?.();
       } catch (e) {
@@ -307,9 +362,6 @@ export function MaterialUploader({
           </div>
           <p className="text-xs text-muted-foreground">
             {category === "video" ? "Uploading video" : "Uploading file"}… {progress}%
-            {category === "video" && progress >= 90
-              ? " Processing on the video host, this can take a minute."
-              : ""}
           </p>
         </div>
       ) : null}
