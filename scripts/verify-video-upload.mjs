@@ -14,10 +14,11 @@
 
 import { createServerClient } from "@supabase/ssr";
 import dotenv from "dotenv";
-import fs from "node:fs";
-import path from "node:path";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
+import { sampleVideo as sampleVideoLib, sampleVideoPath } from "./lib/sample-video.mjs";
 
 dotenv.config({ path: ".env.local" });
+installHttp1Fetch();
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const MUX_API = "https://api.mux.com";
@@ -52,12 +53,10 @@ function muxAuth() {
  * minimal container so the harness still reports the upload stages.
  */
 async function sampleVideo() {
-  const cached = path.join(process.env.TEMP ?? ".", "edusphere-verify-sample.mp4");
-  if (fs.existsSync(cached)) {
-    const buf = fs.readFileSync(cached);
-    if (buf.length > 100_000) return { bytes: buf, real: true };
-  }
+  return sampleVideoLib(sampleVideoPath(), pullSample);
+}
 
+async function pullSample() {
   const { data: materials } = await admin
     .from("lesson_materials")
     .select("provider_playback_id")
@@ -68,13 +67,9 @@ async function sampleVideo() {
   if (playbackId) {
     const token = await signVideoToken(playbackId);
     const res = await fetch(`https://stream.mux.com/${playbackId}/highest.mp4?token=${token}`);
-    if (res.ok) {
-      const buf = Buffer.from(await res.arrayBuffer());
-      fs.writeFileSync(cached, buf);
-      return { bytes: buf, real: true };
-    }
+    if (res.ok) return Buffer.from(await res.arrayBuffer());
   }
-  return { bytes: Buffer.alloc(0), real: false };
+  return null;
 }
 
 async function signVideoToken(playbackId) {

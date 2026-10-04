@@ -12,7 +12,7 @@ import {
   type NavItem,
   type NavSection,
 } from "@/config/nav";
-import { getLevelDefinition } from "@/lib/education/levels";
+import { levelOffersCourses } from "@/lib/education/levels";
 
 type ShellKind =
   | "platform"
@@ -62,23 +62,25 @@ const navFor = (
       };
     case "teacher": {
       const membership = context.memberships[0];
-      const level = membership?.school.education_level ?? null;
-      const definition = getLevelDefinition(level);
-      const isHigherLevel = ["college", "polytechnic", "university"].includes(
-        definition.value,
-      );
-      const sections = isHigherLevel
-        ? teacherNav.map((section) => ({
+      const offersCourses = levelOffersCourses(membership?.school.education_level);
+      // Courses and lessons are the higher-school portal. A nursery, primary or
+      // secondary teacher teaches through subjects, classes and assignments, so
+      // those menus are left out rather than shown empty.
+      const courseHrefs = ["/teacher/courses", "/teacher/lessons"];
+      const sections = offersCourses
+        ? teacherNav
+        : teacherNav.map((section) => ({
             ...section,
-            items: section.items.filter((item) => item.href !== "/teacher/lessons"),
-          }))
-        : teacherNav;
+            items: section.items.filter((item) => !courseHrefs.includes(item.href)),
+          }));
       return {
         sections,
         profileHref: "/teacher/profile",
         bottom: [
           { title: "Home", href: "/teacher", icon: "home" },
-          { title: "Content", href: "/teacher/courses", icon: "courses" },
+          ...(offersCourses
+            ? [{ title: "Content", href: "/teacher/courses", icon: "courses" as const }]
+            : []),
           { title: "Tests", href: "/teacher/exam-series", icon: "examinations" },
           { title: "More", href: "/teacher/question-bank", icon: "questionBank" },
         ],

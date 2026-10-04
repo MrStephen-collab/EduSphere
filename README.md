@@ -10,7 +10,7 @@ Each school gets its own isolated, branded digital academic environment.
 
 - **Multi-tenant by design** — every school is fully isolated (RLS enforced at the database level).
 - **Role-based access control** — `SUPER_ADMIN`, `SCHOOL_OWNER`, `SCHOOL_ADMIN`, `PRINCIPAL`, `TEACHER`, `STUDENT`, `PARENT`.
-- **Digital learning** — courses → modules → lessons with videos, PDFs, notes and practice.
+- **Digital learning** — courses → modules → lessons with videos, PDFs, notes and practice. Courses and Lessons are the higher-education surface: a school at `college`, `polytechnic` or `university` level sees them in the teacher navigation and dashboard, while nursery / primary / secondary schools do not (see `src/lib/education/levels.ts`).
 - **Assignments** — multimedia submissions, grading and teacher feedback.
 - **Computer-based testing (CBT) engine** — question banks, randomization, timers, auto-marking, results and attempt history.
 - **Essays & Paper-2 marking** — full-answer essay questions on any series; students type their working, teachers mark them manually against an answer guide, and the score rolls into the student's attempt after marking.
@@ -186,11 +186,15 @@ The prod preview (`npm run app`) serves the optimized build on
 `http://localhost:3100` — use it to verify a build before shipping. To view it
 from a phone on the same Wi-Fi, visit `http://<your-lan-ip>:3100`.
 
+On networks that kill pooled HTTP/2 sessions (some corporate/ISP VPNs do), set
+`SUPABASE_TRANSPORT=http1` for the preview server so every Supabase query opens
+its own TLS connection; the verification scripts do the same automatically.
+
 ### Database-backed verification
 
-These four talk to the **real** database (or a running server) through genuine
-RLS user sessions, so a failure means a real user would hit it. They are not
-covered by `npm run test`.
+These talk to the **real** database (and a running server on `:3100`) through
+genuine RLS user sessions, so a failure means a real user would hit it. They are
+not covered by `npm run test`.
 
 ```bash
 npm run acceptance            # §87 critical acceptance test (needs a seed + server)
@@ -198,14 +202,30 @@ npm run smoke                 # renders every dashboard page per demo role (need
 npm run verify:fee-rls        # fee invoice/payment isolation + approval gate
 npm run verify:fee-statement  # statement + receipt figures against real data (needs a server)
 npm run verify:complaint-rls  # complaint isolation + school reply
+npm run verify:timetable-rls  # timetable period/subject/teacher isolation
+npm run verify:timetable      # rendered timetables per role (needs a server)
+npm run verify:material-rls   # lesson material isolation + download rules
+npm run verify:live-rls       # live session/attendance isolation
+npm run verify:live           # live class announcements, register, scheduling (needs a server)
+npm run verify:platform-access # super admin console reachability + role scoping
+npm run verify:lesson-nav     # courses and lessons are distinct destinations
+npm run verify:webhook        # Paystack webhook signature handling
+npm run verify:mux-signing    # Mux playback token signing
+npm run verify:mux-playback   # signed vs unsigned playback enforcement
+npm run verify:video-upload   # Mux direct upload → ready → signed playback (needs a server)
+npm run verify:video-refresh  # a stranded upload can still be pulled to ready
+npm run verify:video-indicator # video lessons show a play affordance, not a file icon
 ```
 
-`acceptance` and `smoke` both need a running server; so does
-`verify:fee-statement`, which seeds a known set of charges and payments and
-reads the totals back off the rendered pages. `verify:fee-rls` and
-`verify:complaint-rls` do not. Run
+`acceptance`, `smoke`, `verify:timetable`, `verify:live`, `verify:fee-statement`,
+`verify:lesson-nav`, `verify:platform-access` and `verify:video-upload` need the
+preview server running; the rest talk to the database directly. Run
 `node scripts/seed.mjs` once before `acceptance` to create the School A demo
 data it walks through.
+
+The video harnesses need a real MP4 to hand to the video host. They synthesise
+a tiny clip with `ffmpeg` when it is on `PATH`, cache it in `%TEMP%`, and fall
+back to pulling an existing signed rendition from the streaming API.
 
 ### Applying migrations
 
@@ -268,12 +288,14 @@ to the correct dashboard. This logic lives in
 
 ## Testing
 
-- Unit tests cover the RBAC/permissions matrix, auth validation and the email
-  templates (rendering + escaping):
+- Unit tests cover the RBAC/permissions matrix, auth validation, the education
+  level rules that gate Courses/Lessons and the email templates (rendering +
+  escaping). **Currently 116 passed across 10 files.**
 
-```bash
-npm run test
-```
+  ```bash
+  npm run test
+  ```
+
 
 - The mandatory **tenant-isolation acceptance test** (School A cannot access
   School B) is specified in `EduSphere.txt` (section 87) and implemented in
@@ -288,9 +310,15 @@ npm run test
   npm run acceptance
   ```
 
-- Per-module RLS probes cover the two most sensitive areas (money and
-  confidential complaints). Both currently pass in full — see
-  `npm run verify:fee-rls` and `npm run verify:complaint-rls`.
+- Per-module RLS probes cover the areas where a leak would be worst: money,
+  confidential complaints, timetables, lesson materials, live sessions and
+  platform-level access. All currently pass in full — see the
+  `verify:*-rls` and `verify:platform-access` commands above.
+- Courses and Lessons belong to the higher-education surface. `levelOffersCourses`
+  in `src/lib/education/levels.ts` is the single source of truth, used by both
+  the teacher navigation and the dashboard, so a secondary school never shows a
+  Courses/Lessons entry point it cannot use. A school with no level set is
+  treated as `secondary` (the safe default).
 - Parent statements and receipts are rendered from the same request-scoped
   client as the rest of the app, so they inherit the RLS policies rather than
   re-implementing them. A receipt exists only for an approved payment, since

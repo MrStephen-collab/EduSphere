@@ -33,9 +33,11 @@
 
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
 
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
+installHttp1Fetch();
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

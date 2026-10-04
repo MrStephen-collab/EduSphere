@@ -7,8 +7,9 @@ import https from "node:https";
 // work: each request opens its own TLS connection and closes it afterwards.
 // That costs a handshake (~500ms) per request, so the number of Supabase round
 // trips per page load is kept small (React cache() dedupes the auth chain and
-// page queries run in parallel). A single direct retry covers a one-off
-// transport failure without ever reusing a poisoned socket.
+// page queries run in parallel). A transport failure is retried on a brand new
+// connection up to three times with a short pause, because the failure rate
+// here is high enough that a single retry still dropped whole page renders.
 //
 // To stop every page render from paying a fresh ~500ms-onwards trip, GET/HEAD
 // responses to the PostgREST tables are memoized here for a few seconds
@@ -19,6 +20,7 @@ import https from "node:https";
 const SOCKET_TIMEOUT_MS = 20000;
 const HTTP_CACHE_TTL_MS = 15_000;
 const MAX_HTTP_CACHE_ENTRIES = 400;
+const MAX_ATTEMPTS = 3;
 
 type HttpCacheEntry = {
   table: string | null;
@@ -82,7 +84,7 @@ function performOnce(
   url: URL,
   method: string,
   headerMap: Record<string, string>,
-  body: string | undefined,
+  body: Buffer | undefined,
   signal?: AbortSignal,
 ): Promise<Response> {
   return new Promise((resolve, reject) => {
@@ -155,23 +157,25 @@ function http1Fetch(
   });
 
   const method = init?.method ?? "GET";
-  let body: string | undefined = undefined;
+  let body: Buffer | undefined = undefined;
   if (init?.body !== null && init?.body !== undefined) {
     if (typeof init.body === "string") {
-      body = init.body;
+      body = Buffer.from(init.body, "utf8");
     } else if (init.body instanceof Uint8Array) {
-      body = Buffer.from(init.body).toString("utf8");
+      body = Buffer.from(init.body);
     } else if (init.body instanceof ArrayBuffer) {
-      body = Buffer.from(init.body).toString("utf8");
+      body = Buffer.from(new Uint8Array(init.body));
+    } else if (init.body instanceof URLSearchParams) {
+      body = Buffer.from(init.body.toString(), "utf8");
     } else {
-      body = String(init.body);
+      body = Buffer.from(String(init.body), "utf8");
     }
   }
   delete headerMap["connection"];
   delete headerMap["Connection"];
   headerMap["Connection"] = "close";
   if (body) {
-    headerMap["Content-Length"] = String(Buffer.byteLength(body));
+    headerMap["Content-Length"] = String(body.length);
   }
 
   const startMs = Date.now();
@@ -209,14 +213,32 @@ function http1Fetch(
     if (oldestKey) httpCache.delete(oldestKey);
   }
 
-  const attempt = () =>
-    performOnce(url, method, headerMap, body, init?.signal ?? undefined);
+  const attempt = async () => {
+    let lastError: unknown;
+    for (let tries = 1; tries <= MAX_ATTEMPTS; tries += 1) {
+      try {
+        return await performOnce(
+          url,
+          method,
+          headerMap,
+          body,
+          init?.signal ?? undefined,
+        );
+      } catch (err) {
+        lastError = err;
+        if (tries < MAX_ATTEMPTS) {
+          console.error(
+            `[http1] request failed; retrying on a fresh connection (attempt ${tries} of ${MAX_ATTEMPTS})`,
+            err,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 250 * tries));
+        }
+      }
+    }
+    throw lastError;
+  };
 
   return attempt()
-    .catch((err: unknown) => {
-      console.error("[http1] request failed; retrying once on a fresh connection", err);
-      return attempt();
-    })
     .then((response) => {
       if (table !== null && (method === "GET" || method === "HEAD") && response.ok) {
         httpCache.set(cacheKey, {

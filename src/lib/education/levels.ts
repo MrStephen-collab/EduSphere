@@ -116,6 +116,27 @@ export function levelUsesDepartments(
   return getLevelDefinition(level).groupNoun !== null;
 }
 
+/** Post-secondary levels: college, polytechnic and university. */
+export const HIGHER_EDUCATION_LEVELS: readonly EducationLevel[] = [
+  "college",
+  "polytechnic",
+  "university",
+];
+
+/**
+ * True when this level runs courses (course → module → lesson content).
+ *
+ * Courses are the higher-school portal: a college, polytechnic or university
+ * teaches through its courses and the lessons inside them. Nursery, primary
+ * and secondary teach through subjects, classes and assignments instead, so
+ * those levels are not offered the course menus.
+ */
+export function levelOffersCourses(
+  level: EducationLevel | null | undefined,
+): boolean {
+  return HIGHER_EDUCATION_LEVELS.includes(getLevelDefinition(level).value);
+}
+
 /**
  * A class the platform suggests creating, before the school renames it.
  *

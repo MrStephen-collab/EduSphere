@@ -22,8 +22,10 @@
 // Exit code: 0 all pass, 1 any failure.
 
 import dotenv from "dotenv";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
+installHttp1Fetch();
 import { createServerClient } from "@supabase/ssr";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

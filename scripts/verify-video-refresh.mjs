@@ -11,10 +11,11 @@
 
 import { createServerClient } from "@supabase/ssr";
 import dotenv from "dotenv";
-import fs from "node:fs";
-import path from "node:path";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
+import { sampleVideo as sampleVideoLib, sampleVideoPath } from "./lib/sample-video.mjs";
 
 dotenv.config({ path: ".env.local" });
+installHttp1Fetch();
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const MUX_API = "https://api.mux.com";
@@ -39,11 +40,12 @@ const muxAuth = () =>
   `Basic ${Buffer.from(`${process.env.MUX_TOKEN_ID}:${process.env.MUX_TOKEN_SECRET}`).toString("base64")}`;
 
 async function sampleVideo() {
-  const cached = path.join(process.env.TEMP ?? ".", "edusphere-verify-sample.mp4");
-  if (fs.existsSync(cached)) {
-    const buf = fs.readFileSync(cached);
-    if (buf.length > 100_000) return buf;
-  }
+  const pulled = await pullSample();
+  const sample = await sampleVideoLib(sampleVideoPath(), pulled);
+  return sample.real ? sample.bytes : null;
+}
+
+async function pullSample() {
   const { data: materials } = await admin
     .from("lesson_materials")
     .select("provider_playback_id")
@@ -65,9 +67,7 @@ async function sampleVideo() {
 
   const res = await fetch(`https://stream.mux.com/${playbackId}/highest.mp4?token=${token}`);
   if (!res.ok) return null;
-  const buf = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(cached, buf);
-  return buf;
+  return Buffer.from(await res.arrayBuffer());
 }
 
 async function findTeacherLesson() {

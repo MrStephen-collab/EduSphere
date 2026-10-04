@@ -9,8 +9,10 @@
 
 import { createServerClient } from "@supabase/ssr";
 import dotenv from "dotenv";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
 
 dotenv.config({ path: ".env.local" });
+installHttp1Fetch();
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const password = process.env.DEMO_USER_PASSWORD || "Testing2026";

@@ -12,7 +12,9 @@
 //
 // Requires a running server, the same as smoke:pages.
 import dotenv from "dotenv";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
 dotenv.config({ path: ".env.local", override: true });
+installHttp1Fetch();
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 

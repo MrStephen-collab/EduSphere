@@ -17,7 +17,9 @@
  * every video in EduSphere is meant to be unplayable without a fresh token.
  */
 import dotenv from "dotenv";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
 dotenv.config({ path: ".env.local" });
+installHttp1Fetch();
 import { createClient } from "@supabase/supabase-js";
 
 const MUX_API = "https://api.mux.com";

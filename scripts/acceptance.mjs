@@ -15,8 +15,10 @@
 // Exit code: 0 all pass, 1 any failure.
 
 import dotenv from "dotenv";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
+installHttp1Fetch();
 import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -190,7 +192,7 @@ if (lesson) {
 section("4. Student completes lesson");
 
 if (lesson) {
-  const { data: lpExisting, error: lpGetErr } = await studentC
+  const { data: lpExisting } = await studentC
     .from("lesson_progress")
     .select("id, progress_percentage, completed_at")
     .eq("school_id", SCHOOL_A)

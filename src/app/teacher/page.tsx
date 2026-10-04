@@ -6,6 +6,8 @@ import { BookOpen, ClipboardList, FileText, BarChart3, ArrowRight, Plus } from "
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { getTeacherAnnouncements } from "@/services/announcements";
+import { getSchoolLevel } from "@/services/schools";
+import { levelOffersCourses } from "@/lib/education/levels";
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getServerData } from "@/lib/server-cache";
@@ -23,7 +25,8 @@ async function getTeacherDashboardBundle() {
   const { schoolId, teacherId, userId } = await requireContentEditor();
   return getServerData(`dash:teacher:${schoolId}:${userId}`, 20_000, async () => {
     const admin = createAdminClient();
-    const [coursesRes, assignmentsRes, announcements] = await Promise.all([
+    const [level, coursesRes, assignmentsRes, announcements] = await Promise.all([
+      getSchoolLevel(schoolId),
       teacherId
         ? admin
             .from("courses")
@@ -43,6 +46,7 @@ async function getTeacherDashboardBundle() {
 
     const courses = coursesRes.data ?? [];
     return {
+      offersCourses: levelOffersCourses(level),
       publishedCount: courses.filter((c) => c.status === "published").length,
       draftCount: courses.length - courses.filter((c) => c.status === "published").length,
       assignmentCount: assignmentsRes.data?.length ?? 0,
@@ -76,7 +80,9 @@ async function TeacherDashboardContent() {
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
-        <StatCard title="Active Courses" value={bundle.publishedCount} icon={BookOpen} href="/teacher/courses" tone="indigo" hint={`${bundle.draftCount} draft`} />
+        {bundle.offersCourses ? (
+          <StatCard title="Active Courses" value={bundle.publishedCount} icon={BookOpen} href="/teacher/courses" tone="indigo" hint={`${bundle.draftCount} draft`} />
+        ) : null}
         <StatCard title="My Assignments" value={bundle.assignmentCount} icon={ClipboardList} href="/teacher/assignments" tone="amber" index={1} />
       </div>
 
@@ -86,27 +92,45 @@ async function TeacherDashboardContent() {
         <Card className="animate-card-enter" style={{ animationDelay: "200ms" }}>
           <CardHeader>
             <CardTitle>Teaching</CardTitle>
-            <CardDescription>Create and manage your digital courses.</CardDescription>
+            <CardDescription>
+              {bundle.offersCourses
+                ? "Create and manage your digital courses."
+                : "Set work, mark it, and keep an eye on your classes."}
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
-            <Link href="/teacher/courses" className="inline-flex">
-              <Button variant="outline" className="h-11 w-full justify-between">
-                <span className="flex items-center gap-2">
-                  <BookOpen className="size-4" aria-hidden="true" />
-                  Go to my courses
-                </span>
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </Button>
-            </Link>
-            <Link href="/teacher/courses" className="inline-flex">
-              <Button className="h-11 w-full justify-between">
-                <span className="flex items-center gap-2">
-                  <Plus className="size-4" aria-hidden="true" />
-                  Create a new course
-                </span>
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </Button>
-            </Link>
+            {bundle.offersCourses ? (
+              <>
+                <Link href="/teacher/courses" className="inline-flex">
+                  <Button variant="outline" className="h-11 w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <BookOpen className="size-4" aria-hidden="true" />
+                      Go to my courses
+                    </span>
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Button>
+                </Link>
+                <Link href="/teacher/courses" className="inline-flex">
+                  <Button className="h-11 w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Plus className="size-4" aria-hidden="true" />
+                      Create a new course
+                    </span>
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <Link href="/teacher/classes" className="inline-flex">
+                <Button className="h-11 w-full justify-between">
+                  <span className="flex items-center gap-2">
+                    <ClipboardList className="size-4" aria-hidden="true" />
+                    Set an assignment
+                  </span>
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </Button>
+              </Link>
+            )}
             <Link href="/teacher/assignments" className="inline-flex">
               <Button variant="outline" className="h-11 w-full justify-between">
                 <span className="flex items-center gap-2">

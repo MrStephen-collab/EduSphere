@@ -1,5 +1,7 @@
 import dotenv from "dotenv";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
 dotenv.config({ path: ".env.local" });
+installHttp1Fetch();
 import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

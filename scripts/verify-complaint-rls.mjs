@@ -11,6 +11,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
+installHttp1Fetch();
 
 const env = Object.fromEntries(
   fs

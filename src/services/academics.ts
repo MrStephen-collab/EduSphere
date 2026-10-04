@@ -12,11 +12,7 @@ import type {
   Term,
 } from "@/types/database";
 import { getSchoolLevel } from "@/services/schools";
-import {
-  buildClassSuggestions,
-  getLevelDefinition,
-  levelUsesDepartments,
-} from "@/lib/education/levels";
+import { getLevelDefinition } from "@/lib/education/levels";
 
 function invalidateSchoolCounts() {
   invalidateCacheByPrefix("dash:school-counts:");

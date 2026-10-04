@@ -2,10 +2,10 @@
 
 Project: EduSphere, multi-tenant school LMS (Next.js 16.3.4 + webpack, Supabase, base-ui, Zod).
 Working directory: `G:\EduSphere`. Build against spec `G:\EduSphere\EduSphere.txt`.
-Not a git repo (`git init` still pending). No Docker; hosted Supabase linked.
+Git repo on `main` (remote `origin` configured). No Docker; hosted Supabase linked.
 
 ## Verification commands
-`npm run typecheck`, `npm run lint`, `npm run test` (vitest, 15 tests), `npm run build` — all pass.
+`npm run typecheck`, `npm run lint`, `npm run test` (vitest, 116 tests), `npm run build` — all pass.
 Machine cannot reliably fetch Google Fonts → self-hosted fonts (see below), always relevant for build.
 
 ## Completed this session
@@ -50,3 +50,12 @@ CSV student import already exists (`src/components/school/student-import.tsx`) �
 - `.npmrc` cache = `F:/EduSphere/.npm-cache` (F drive; project on G).
 - Supabase CLI 2.113.0; `supabase/.temp/linked-project.json` for hosted project.
 - Dev server: `localhost:3000`; PWA test via `npm run build && npm run start` with `NEXT_PUBLIC_ENABLE_PWA_DEV=true`.
+- This network kills pooled HTTP/2 sessions. Supabase queries use the fresh-connection HTTP/1.1 transport in `src/lib/supabase/http1.ts` (3 attempts, short backoff); set `SUPABASE_TRANSPORT=http1` to force it for the preview server, `=platform` to force the platform fetch. Verification scripts install the same workaround via `scripts/lib/http1-fetch.mjs`, scoped to `*.supabase.co` only so Mux calls keep the platform transport.
+
+## Latest session — higher-education Courses & Lessons
+- Courses/Lessons are the higher-ed surface. `src/lib/education/levels.ts` gained `HIGHER_EDUCATION_LEVELS` + `levelOffersCourses()` (college / polytechnic / university; unset level is treated as `secondary`). Used by `dashboard-shell.tsx` (sidebar + bottom nav) and `teacher/page.tsx` (course stat + cards). Routes stay reachable; only the entry points are gated.
+- Unit coverage in `src/lib/education/levels.test.ts`; seeded School A is set to `college` so the teacher demo shows both entries.
+- Lint warnings cleared in `scripts/acceptance.mjs` and `src/services/academics.ts`.
+- `scripts/verify-timetable.mjs` no longer expects a `(today)` marker on a Sunday (the grid runs Mon–Sat).
+- Video harnesses now synthesise a tiny real MP4 with `ffmpeg` (`scripts/lib/sample-video.mjs`) instead of round-tripping a multi-megabyte rendition.
+- Current totals: 116 unit tests, `acceptance` 48/48, `smoke` 56/56, and every `verify:*` script green.

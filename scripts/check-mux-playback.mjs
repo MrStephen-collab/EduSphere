@@ -10,6 +10,8 @@
 import fs from "node:fs";
 import { createSign } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
+installHttp1Fetch();
 
 const raw = fs.readFileSync(".env.local", "utf8");
 const val = (k) => {

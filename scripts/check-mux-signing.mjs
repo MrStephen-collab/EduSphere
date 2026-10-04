@@ -8,6 +8,8 @@
 // from Mux at playback time.
 import fs from "node:fs";
 import { createVerify, createSign, createPublicKey } from "node:crypto";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
+installHttp1Fetch();
 
 const raw = fs.readFileSync(".env.local", "utf8");
 const val = (k) => {

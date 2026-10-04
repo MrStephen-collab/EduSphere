@@ -2,8 +2,10 @@
 // a forged one, using the secret now present in .env.local.
 import crypto from "node:crypto";
 import dotenv from "dotenv";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
 
 dotenv.config({ path: ".env.local" });
+installHttp1Fetch();
 const secret = process.env.MUX_WEBHOOK_SECRET;
 const BASE = process.env.BASE || "http://localhost:3100";
 

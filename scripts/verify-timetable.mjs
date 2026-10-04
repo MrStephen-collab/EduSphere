@@ -10,8 +10,10 @@
 
 import { createServerClient } from "@supabase/ssr";
 import dotenv from "dotenv";
+import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
 
 dotenv.config({ path: ".env.local" });
+installHttp1Fetch();
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const password = process.env.DEMO_USER_PASSWORD || "Testing2026";
@@ -77,7 +79,21 @@ check(
   "empty state rendered despite seeded lessons",
 );
 check("student grid names a day", STUDENT.html.includes("Monday"));
-check("student grid marks today", STUDENT.html.includes("(today)"));
+// The grid runs Monday to Saturday; Sunday is not a school day, so on a Sunday
+// the correct page is the week with no column marked. Asserting the marker
+// unconditionally made this check fail every weekend.
+const isoToday = (() => {
+  const day = new Date().getDay();
+  return day === 0 ? 7 : day;
+})();
+const isSchoolDay = isoToday <= 6;
+check(
+  "student grid marks today",
+  isSchoolDay ? STUDENT.html.includes("(today)") : !STUDENT.html.includes("(today)"),
+  isSchoolDay
+    ? "no column marked on a school day"
+    : "Sunday is not a school day, so nothing should be marked",
+);
 check("student grid shows a seeded subject", /English|Mathematics|Physics|Chemistry|Biology|CSC|Economics|Gov/i.test(STUDENT.html));
 check("student grid shows a seeded teacher", /Nwosu|David|Adebayo/i.test(STUDENT.html));
 check("student grid shows period times", /\d{2}:\d{2} - \d{2}:\d{2}/.test(STUDENT.html));
