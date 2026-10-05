@@ -57,6 +57,28 @@ export type EducationLevel =
   | "polytechnic"
   | "university";
 
+/**
+ * What a course or lesson is delivered as.
+ *
+ * Mirrors the public.content_category enum from 0026_content_categories.sql.
+ * The first seven are a format any school may use; the last five describe
+ * post-secondary teaching and are only offered to a college, polytechnic or
+ * university. See src/lib/content-categories.ts.
+ */
+export type ContentCategory =
+  | "video"
+  | "slides"
+  | "audio"
+  | "pdf"
+  | "document"
+  | "image"
+  | "link"
+  | "lecture"
+  | "seminar"
+  | "lab"
+  | "project"
+  | "exam_prep";
+
 export type UserRoleName =
   | "SUPER_ADMIN"
   | "SCHOOL_OWNER"
@@ -372,6 +394,7 @@ export type Course = {
   title: string;
   description: string | null;
   cover_url: string | null;
+  content_type: ContentCategory | null;
   status: ContentStatus;
   created_at: string;
   updated_at: string;
@@ -398,6 +421,7 @@ export type Lesson = {
   description: string | null;
   content: string | null;
   video_url: string | null;
+  content_type: ContentCategory | null;
   status: ContentStatus;
   created_by: string | null;
   created_at: string;

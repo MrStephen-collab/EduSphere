@@ -10,6 +10,7 @@
 import { createServerClient } from "@supabase/ssr";
 import dotenv from "dotenv";
 import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
+import { HIGHER_EDUCATION_LEVELS } from "../src/lib/education/levels.ts";
 
 dotenv.config({ path: ".env.local" });
 installHttp1Fetch();
@@ -232,14 +233,53 @@ const run = async () => {
   // the href/title pair regardless of escaping.
   const navSerialised = coursePage.html.replace(/\\"/g, '"');
   check(
-    "Courses and Lessons are no longer the same URL",
-    /"title":"Lessons","href":"\/teacher\/lessons"/.test(navSerialised) &&
-      !/"title":"Lessons","href":"\/teacher\/courses"/.test(navSerialised),
+    "Courses and Lessons are never the same URL",
+    !/"title":"Lessons","href":"\/teacher\/courses"/.test(navSerialised),
     "nav still sends Lessons to /teacher/courses",
+  );
+
+  // Courses and Lessons belong to the higher-education portal, so the nav either
+  // offers both or neither. A secondary school that still advertised them would
+  // be the same class of bug as two nav entries pointing at one page.
+  const higherEd = await teacherSchoolLevel(teacherEmail);
+  const lessonsEntry = /"title":"Lessons","href":"\/teacher\/lessons"/.test(navSerialised);
+  const coursesEntry = /"title":"Courses","href":"\/teacher\/courses"/.test(navSerialised);
+  check(
+    higherEd
+      ? "a higher-education teacher is offered Courses and Lessons"
+      : "a non-higher-education teacher is offered neither",
+    higherEd ? lessonsEntry && coursesEntry : !lessonsEntry && !coursesEntry,
+    `school level ${higherEd ? "higher-ed" : "not higher-ed"}, lessons ${lessonsEntry}, courses ${coursesEntry}`,
   );
 
   report();
 };
+
+async function teacherSchoolLevel(email) {
+  const admin = createServerClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    cookies: { getAll: () => [], setAll: () => {} },
+  });
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+  if (!profile) return false;
+  const { data: membership } = await admin
+    .from("user_roles")
+    .select("school_id")
+    .eq("user_id", profile.id)
+    .eq("role", "TEACHER")
+    .limit(1)
+    .maybeSingle();
+  if (!membership?.school_id) return false;
+  const { data: school } = await admin
+    .from("schools")
+    .select("education_level")
+    .eq("id", membership.school_id)
+    .maybeSingle();
+  return HIGHER_EDUCATION_LEVELS.includes(school?.education_level ?? "secondary");
+}
 
 function report() {
   console.log(`\n${pass} passed, ${fail} failed`);

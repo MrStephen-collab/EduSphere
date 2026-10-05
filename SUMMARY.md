@@ -52,10 +52,19 @@ CSV student import already exists (`src/components/school/student-import.tsx`) �
 - Dev server: `localhost:3000`; PWA test via `npm run build && npm run start` with `NEXT_PUBLIC_ENABLE_PWA_DEV=true`.
 - This network kills pooled HTTP/2 sessions. Supabase queries use the fresh-connection HTTP/1.1 transport in `src/lib/supabase/http1.ts` (3 attempts, short backoff); set `SUPABASE_TRANSPORT=http1` to force it for the preview server, `=platform` to force the platform fetch. Verification scripts install the same workaround via `scripts/lib/http1-fetch.mjs`, scoped to `*.supabase.co` only so Mux calls keep the platform transport.
 
-## Latest session — higher-education Courses & Lessons
+## Latest session — level-aware content categories
+- Courses and lessons now carry a category chosen at setup time, so a student can tell from a list whether something is a video, a slide deck or a lab practical. `supabase/migrations/0026_content_categories.sql` adds the `public.content_category` enum, a nullable `content_type` on `courses` and `lessons`, and a trigger that refuses higher-education categories for a school below that level.
+- `src/lib/content-categories.ts` is the same taxonomy in the application: core categories for everyone (video, slides, audio, PDF, document, image, link) plus lecture, seminar, lab, project and exam prep for college / polytechnic / university. A school with no level set falls back to `secondary`, so it is never offered a category it cannot use.
+- The category does three things: the label and icon on course cards, lesson rows and the lesson editor; the picker's options, filtered by level; and the material-upload type the lesson page opens on (`materialCategoryForContent`). It is not a filter — a teacher may keep every category they want on one course.
+- `LessonCreateForm`, `LessonEditForm`, `CourseCreateForm`, `CourseEditorForm` and `CourseDeleteButton`'s sibling views all take the level's category list; the teacher course pages compute it with `contentCategoriesForLevel(getSchoolLevel(schoolId))`.
+- The picker is not the only guard: `src/services/learning.ts` re-checks the level server-side so a hand-crafted request gets a readable sentence rather than a `check_violation`, and the database trigger backs that up.
+- Login wordmark fixed in `src/components/brand/logo.tsx` — the `Sphere` half was missing `bg-linear-to-r`, so the gradient was transparent and the wordmark rendered as just "Edu".
+
+## Earlier session — higher-education Courses & Lessons
 - Courses/Lessons are the higher-ed surface. `src/lib/education/levels.ts` gained `HIGHER_EDUCATION_LEVELS` + `levelOffersCourses()` (college / polytechnic / university; unset level is treated as `secondary`). Used by `dashboard-shell.tsx` (sidebar + bottom nav) and `teacher/page.tsx` (course stat + cards). Routes stay reachable; only the entry points are gated.
-- Unit coverage in `src/lib/education/levels.test.ts`; seeded School A is set to `college` so the teacher demo shows both entries.
+- `scripts/verify-lesson-navigation.mjs` now asserts the same rule as the app: Lessons never links to `/teacher/courses`, and a teacher sees both entries at a higher-education school and neither below it.
+- Unit coverage in `src/lib/education/levels.test.ts`. The seeded Greenfield school is `secondary`, so the teacher demo shows neither entry; raise a school's level in the database to see the higher-ed surface.
 - Lint warnings cleared in `scripts/acceptance.mjs` and `src/services/academics.ts`.
 - `scripts/verify-timetable.mjs` no longer expects a `(today)` marker on a Sunday (the grid runs Mon–Sat).
 - Video harnesses now synthesise a tiny real MP4 with `ffmpeg` (`scripts/lib/sample-video.mjs`) instead of round-tripping a multi-megabyte rendition.
-- Current totals: 116 unit tests, `acceptance` 48/48, `smoke` 56/56, and every `verify:*` script green.
+- Current totals: 128 unit tests, `acceptance` 48/48, `smoke` 56/56, and every `verify:*` script green.

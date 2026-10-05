@@ -1,22 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ComponentType } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   BookPlus,
   ChevronDown,
+  ClipboardCheck,
   Eye,
   FilePlus2,
+  FileText,
+  FlaskConical,
   FolderPlus,
+  GraduationCap,
+  Headphones,
+  ImageIcon,
   Link2,
   Loader2,
+  MessagesSquare,
   Paperclip,
   Pencil,
   PlayCircle,
   Plus,
+  Presentation,
   RefreshCw,
   Send,
+  Target,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -39,8 +48,86 @@ import {
   type ActionState,
 } from "@/app/teacher/actions";
 import { refreshVideoMaterialAction } from "@/app/teacher/material-actions";
-import type { ContentStatus } from "@/types/database";
+import type { ContentCategory, ContentStatus } from "@/types/database";
 import { materialTypeLabels } from "@/lib/material-types";
+import { contentCategoryDescriptions, contentCategoryLabels } from "@/lib/content-categories";
+
+export const CONTENT_CATEGORY_ICONS: Record<
+  ContentCategory,
+  ComponentType<{ className?: string }>
+> = {
+  video: PlayCircle,
+  slides: Presentation,
+  audio: Headphones,
+  pdf: Paperclip,
+  document: FileText,
+  image: ImageIcon,
+  link: Link2,
+  lecture: GraduationCap,
+  seminar: MessagesSquare,
+  lab: FlaskConical,
+  project: Target,
+  exam_prep: ClipboardCheck,
+};
+
+export function ContentCategoryBadge({
+  category,
+  className,
+}: {
+  category: ContentCategory | null | undefined;
+  className?: string;
+}) {
+  if (!category) return null;
+  const Icon = CONTENT_CATEGORY_ICONS[category];
+  return (
+    <Badge variant="secondary" className={className}>
+      <Icon className="mr-1 size-3" aria-hidden="true" />
+      {contentCategoryLabels[category]}
+    </Badge>
+  );
+}
+
+function CategoryPicker({
+  id,
+  value,
+  onChange,
+  categories,
+  describedBy,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  categories: ContentCategory[];
+  describedBy?: string;
+}) {
+  const selected = categories.find((c) => c === value);
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id} className={fieldLabelClass()}>
+        Content category
+      </Label>
+      <select
+        id={id}
+        className={nativeSelectClass()}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-describedby={describedBy}
+      >
+        <option value="">Not categorised</option>
+        {categories.map((category) => (
+          <option key={category} value={category}>
+            {contentCategoryLabels[category]}
+          </option>
+        ))}
+      </select>
+      {selected && (
+        <p id={describedBy} className="text-xs text-muted-foreground">
+          {contentCategoryDescriptions[selected]}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function FieldError({ error }: { error: string | null }) {
   if (!error) return null;
@@ -68,15 +155,18 @@ export type SelectOption = { id: string; name: string };
 export function CourseCreateForm({
   subjects,
   classes,
+  categories,
 }: {
   subjects: SelectOption[];
   classes: SelectOption[];
+  categories: ContentCategory[];
 }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [classId, setClassId] = useState("");
+  const [contentType, setContentType] = useState("");
   const [status, setStatus] = useState<ContentStatus>("draft");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -93,6 +183,7 @@ export function CourseCreateForm({
             description: description.trim() || null,
             subjectId: subjectId || null,
             classId: classId || null,
+            contentType: (contentType || null) as ContentCategory | null,
             status,
           });
           if (result.ok && result.id) {
@@ -100,6 +191,7 @@ export function CourseCreateForm({
             setDescription("");
             setSubjectId("");
             setClassId("");
+            setContentType("");
             router.push(`/teacher/courses/${result.id}`);
             router.refresh();
           } else if (!result.ok) {
@@ -170,6 +262,14 @@ export function CourseCreateForm({
         />
       </div>
 
+      <CategoryPicker
+        id="crs-category"
+        value={contentType}
+        onChange={setContentType}
+        categories={categories}
+        describedBy="crs-category-help"
+      />
+
       <div className="grid gap-1.5">
         <Label htmlFor="crs-status" className={fieldLabelClass()}>
           Status
@@ -200,21 +300,26 @@ export function CourseEditorForm({
   initialDescription,
   initialSubjectId,
   initialClassId,
+  initialContentType,
   subjects,
   classes,
+  categories,
 }: {
   courseId: string;
   initialTitle: string;
   initialDescription: string | null;
   initialSubjectId: string | null;
   initialClassId: string | null;
+  initialContentType: ContentCategory | null;
   subjects: SelectOption[];
   classes: SelectOption[];
+  categories: ContentCategory[];
 }) {
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription ?? "");
   const [subjectId, setSubjectId] = useState(initialSubjectId ?? "");
   const [classId, setClassId] = useState(initialClassId ?? "");
+  const [contentType, setContentType] = useState(initialContentType ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -232,6 +337,7 @@ export function CourseEditorForm({
             description: description.trim() || null,
             subjectId: subjectId || null,
             classId: classId || null,
+            contentType: (contentType || null) as ContentCategory | null,
           });
           if (result.ok) setSaved(true);
           else setError(result.error);
@@ -272,6 +378,13 @@ export function CourseEditorForm({
         <Label className={fieldLabelClass()}>Description</Label>
         <textarea className={textareaClass()} rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
+      <CategoryPicker
+        id="crs-edit-category"
+        value={contentType}
+        onChange={setContentType}
+        categories={categories}
+        describedBy="crs-edit-category-help"
+      />
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={isPending}>
           {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Send className="size-4" aria-hidden="true" />}
@@ -491,14 +604,17 @@ export function ModuleCard({
 export function LessonCreateForm({
   courseId,
   moduleId,
+  categories,
   defaultOpen,
 }: {
   courseId: string;
   moduleId?: string | null;
+  categories: ContentCategory[];
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen ?? true);
   const [title, setTitle] = useState("");
+  const [contentType, setContentType] = useState("");
   const [status, setStatus] = useState<ContentStatus>("draft");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -523,10 +639,12 @@ export function LessonCreateForm({
                 courseId,
                 moduleId,
                 title: title.trim(),
+                contentType: (contentType || null) as ContentCategory | null,
                 status,
               });
               if (result.ok && result.id) {
                 setTitle("");
+                setContentType("");
                 setOpen(false);
                 router.push(`/teacher/courses/${courseId}/lessons/${result.id}`);
                 router.refresh();
@@ -549,11 +667,30 @@ export function LessonCreateForm({
               minLength={2}
             />
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CategoryPicker
+              id="les-category"
+              value={contentType}
+              onChange={setContentType}
+              categories={categories}
+              describedBy="les-category-help"
+            />
+            <div className="grid gap-1.5">
+              <Label htmlFor="les-status" className={fieldLabelClass()}>
+                Status
+              </Label>
+              <select
+                id="les-status"
+                className={nativeSelectClass()}
+                value={status}
+                onChange={(e) => setStatus(e.target.value as ContentStatus)}
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+              </select>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-3">
-            <select className={nativeSelectClass() + " max-w-36"} value={status} onChange={(e) => setStatus(e.target.value as ContentStatus)} aria-label="Lesson status">
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-            </select>
             <Button type="submit" size="sm" disabled={isPending}>
               {isPending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Plus className="size-3.5" aria-hidden="true" />}
               {isPending ? "Creating…" : "Create lesson"}
@@ -574,6 +711,7 @@ export function LessonEditForm({
   courseId,
   initial,
   modules,
+  categories,
 }: {
   lessonId: string;
   courseId: string;
@@ -583,15 +721,18 @@ export function LessonEditForm({
     content: string | null;
     videoUrl: string | null;
     moduleId: string | null;
+    contentType: ContentCategory | null;
     status: ContentStatus;
   };
   modules: { id: string; title: string }[];
+  categories: ContentCategory[];
 }) {
   const [title, setTitle] = useState(initial.title);
   const [description, setDescription] = useState(initial.description ?? "");
   const [content, setContent] = useState(initial.content ?? "");
   const [videoUrl, setVideoUrl] = useState(initial.videoUrl ?? "");
   const [moduleId, setModuleId] = useState(initial.moduleId ?? "");
+  const [contentType, setContentType] = useState<string>(initial.contentType ?? "");
   const [status, setStatus] = useState<ContentStatus>(initial.status);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -611,6 +752,7 @@ export function LessonEditForm({
             content: content.trim() || null,
             videoUrl: videoUrl.trim() || null,
             moduleId: moduleId || null,
+            contentType: (contentType || null) as ContentCategory | null,
           });
           if (result.ok) setSaved(true);
           else setError(result.error);
@@ -636,13 +778,21 @@ export function LessonEditForm({
             ))}
           </select>
         </div>
-        <div className="grid gap-1.5">
-          <Label className={fieldLabelClass()}>Status</Label>
-          <select className={nativeSelectClass()} value={status} onChange={(e) => setStatus(e.target.value as ContentStatus)}>
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-          </select>
-        </div>
+        <CategoryPicker
+          id="les-edit-category"
+          value={contentType}
+          onChange={setContentType}
+          categories={categories}
+          describedBy="les-edit-category-help"
+        />
+      </div>
+
+      <div className="grid gap-1.5">
+        <Label className={fieldLabelClass()}>Status</Label>
+        <select className={nativeSelectClass()} value={status} onChange={(e) => setStatus(e.target.value as ContentStatus)}>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </select>
       </div>
 
       <div className="grid gap-1.5">
@@ -774,6 +924,7 @@ export function LessonRow({
     title: string;
     status: ContentStatus;
     description: string | null;
+    contentType?: ContentCategory | null;
     /** How many files a teacher has attached, so an empty lesson is visible here. */
     materialCount?: number;
     hasVideo?: boolean;
@@ -803,6 +954,7 @@ export function LessonRow({
       </Link>
       <span className="flex shrink-0 items-center gap-1.5">
         {showModuleBadge && <Badge variant="secondary">{lesson.status}</Badge>}
+        {lesson.contentType ? <ContentCategoryBadge category={lesson.contentType} /> : null}
         {lesson.hasVideo ? (
           <Badge variant="outline">
             <PlayCircle className="mr-1 size-3" aria-hidden="true" />

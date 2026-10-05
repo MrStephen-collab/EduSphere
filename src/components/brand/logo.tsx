@@ -215,7 +215,7 @@ export function EduSphereLogo({
           style={{ fontSize: toPx(size, WORD_PX) }}
         >
           Edu
-          <span className={cn("bg-clip-text text-transparent", sphereClass)}>
+          <span className={cn("bg-linear-to-r bg-clip-text text-transparent", sphereClass)}>
             Sphere
           </span>
         </span>

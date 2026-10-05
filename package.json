@@ -26,6 +26,7 @@
     "verify:video-upload": "node scripts/verify-video-upload.mjs",
     "verify:video-indicator": "node scripts/verify-video-indicator.mjs",
     "verify:lesson-nav": "node scripts/verify-lesson-navigation.mjs",
+    "verify:content-categories": "node scripts/verify-content-categories.mjs",
     "verify:webhook": "node scripts/verify-webhook-signature.mjs",
     "verify:video-refresh": "node scripts/verify-video-refresh.mjs",
     "superadmin": "node scripts/set-super-admin.mjs",

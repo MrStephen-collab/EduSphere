@@ -18,6 +18,8 @@ import {
   restrictedCategories,
   type MaterialCategory,
 } from "@/lib/material-types";
+import { materialCategoryForContent } from "@/lib/content-categories";
+import type { ContentCategory } from "@/types/database";
 import {
   completeMaterialUploadAction,
   refreshVideoMaterialAction,
@@ -57,13 +59,18 @@ const CATEGORY_HINTS: Record<Category, string> = {
 export function MaterialUploader({
   lessonId,
   courseId,
+  initialCategory,
   onUploaded,
 }: {
   lessonId: string;
   courseId: string;
+  /** The lesson's content category, so the picker opens on a sensible type. */
+  initialCategory?: ContentCategory | null;
   onUploaded?: () => void;
 }) {
-  const [category, setCategory] = useState<Category>("document");
+  const [category, setCategory] = useState<Category>(
+    materialCategoryForContent(initialCategory),
+  );
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState("");

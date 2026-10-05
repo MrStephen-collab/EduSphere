@@ -27,8 +27,11 @@ import {
   LessonEditForm,
   LessonDeleteButton,
   MaterialChip,
+  ContentCategoryBadge,
 } from "@/components/learning/course-forms";
 import { MaterialUploader } from "@/components/learning/material-uploader";
+import { getSchoolLevel } from "@/services/schools";
+import { contentCategoriesForLevel } from "@/lib/content-categories";
 import { isRestrictedMaterial } from "@/lib/material-types";
 import { deleteMaterialAction } from "@/app/teacher/actions";
 
@@ -50,9 +53,10 @@ export default async function TeacherLessonEditorPage({
 
   const { schoolId } = await requireContentEditor();
 
-  const [{ lesson, course }, detail] = await Promise.all([
+  const [{ lesson, course }, detail, level] = await Promise.all([
     getLessonForEditor(schoolId, lessonId),
     getCourseDetail(schoolId, courseId),
+    getSchoolLevel(schoolId),
   ]);
 
   if (!lesson || !course || course.id !== courseId) {
@@ -73,6 +77,7 @@ export default async function TeacherLessonEditorPage({
 
   const modules = detail.modules.map((m) => ({ id: m.id, title: m.title }));
   const materials = lesson.lesson_materials ?? [];
+  const categories = contentCategoriesForLevel(level);
 
   return (
     <DashboardShell title={lesson.title} badge="Lesson">
@@ -84,6 +89,7 @@ export default async function TeacherLessonEditorPage({
           </Button>
         </Link>
         <div className="flex flex-wrap items-center gap-2">
+          <ContentCategoryBadge category={lesson.content_type} />
           <Badge variant={lesson.status === "published" ? "default" : "outline"}>
             {lesson.status === "published" ? "Published" : "Draft"}
           </Badge>
@@ -108,9 +114,11 @@ export default async function TeacherLessonEditorPage({
               content: lesson.content,
               videoUrl: lesson.video_url,
               moduleId: lesson.module_id,
+              contentType: lesson.content_type,
               status: lesson.status,
             }}
             modules={modules}
+            categories={categories}
           />
         </CardContent>
       </Card>
@@ -170,7 +178,11 @@ export default async function TeacherLessonEditorPage({
             </p>
           )}
 
-          <MaterialUploader lessonId={lesson.id} courseId={course.id} />
+          <MaterialUploader
+            lessonId={lesson.id}
+            courseId={course.id}
+            initialCategory={lesson.content_type}
+          />
 
           {materials.length > 0 && (
             <p className="text-xs text-muted-foreground">

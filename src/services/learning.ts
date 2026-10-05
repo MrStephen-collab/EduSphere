@@ -5,6 +5,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { studentMayAccessCourse } from "@/services/material-storage";
+import { getSchoolLevel } from "@/services/schools";
+import {
+  contentCategoryLabels,
+  isContentCategory,
+  levelOffersCategory,
+} from "@/lib/content-categories";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import { asArray } from "@/lib/embed";
 import type {
@@ -20,11 +26,53 @@ import type {
 // Validation
 // ---------------------------------------------------------------------------
 
+const contentCategorySchema = z
+  .enum([
+    "video",
+    "slides",
+    "audio",
+    "pdf",
+    "document",
+    "image",
+    "link",
+    "lecture",
+    "seminar",
+    "lab",
+    "project",
+    "exam_prep",
+  ])
+  .optional()
+  .nullable();
+
+/**
+ * Rejects a category this school's level does not offer.
+ *
+ * The picker already only lists what the level allows, so this is the backstop
+ * for a hand-crafted request. The database enforces the same rule with a
+ * trigger; doing it here means the teacher gets a sentence they can act on
+ * rather than a check_violation.
+ */
+async function assertCategoryAllowedForSchool(
+  schoolId: string,
+  category: string | null | undefined,
+): Promise<void> {
+  if (!category) return;
+  if (!isContentCategory(category)) {
+    throw new Error("Choose a valid content category.");
+  }
+  const level = await getSchoolLevel(schoolId);
+  if (levelOffersCategory(level, category)) return;
+  throw new Error(
+    `${contentCategoryLabels[category]} is only available to a college, polytechnic or university.`,
+  );
+}
+
 export const courseSchema = z.object({
   title: z.string().trim().min(2, "Title is required").max(120),
   description: z.string().trim().max(2000).optional().nullable(),
   subjectId: z.string().uuid("Choose a valid subject").optional().nullable(),
   classId: z.string().uuid("Choose a valid class").optional().nullable(),
+  contentType: contentCategorySchema,
   status: z.enum(["draft", "published"]).optional().default("draft"),
 });
 
@@ -42,6 +90,7 @@ export const lessonSchema = z.object({
   description: z.string().trim().max(1000).optional().nullable(),
   content: z.string().max(50000).optional().nullable(),
   videoUrl: z.string().trim().max(1000).optional().nullable(),
+  contentType: contentCategorySchema,
   status: z.enum(["draft", "published"]).optional().default("draft"),
 });
 
@@ -275,6 +324,7 @@ export async function createCourse(input: z.infer<typeof courseSchema>): Promise
   invalidateCacheByPrefix("dash:teacher:");
   const { schoolId, teacherId } = await requireContentEditor();
   const data = courseSchema.parse(input);
+  await assertCategoryAllowedForSchool(schoolId, data.contentType);
   const admin = createAdminClient();
 
   const { data: row, error } = await admin
@@ -286,6 +336,7 @@ export async function createCourse(input: z.infer<typeof courseSchema>): Promise
       teacher_id: teacherId,
       title: data.title,
       description: data.description ?? null,
+      content_type: data.contentType ?? null,
       status: data.status,
     })
     .select("id")
@@ -300,6 +351,7 @@ export async function updateCourse(
 ): Promise<void> {
   const { schoolId } = await requireContentEditor();
   const data = courseSchema.partial().parse(input);
+  await assertCategoryAllowedForSchool(schoolId, data.contentType);
   const admin = createAdminClient();
 
   const { error } = await admin
@@ -309,6 +361,7 @@ export async function updateCourse(
       description: data.description ?? null,
       subject_id: data.subjectId ?? null,
       class_id: data.classId ?? null,
+      content_type: data.contentType ?? null,
     })
     .eq("id", id)
     .eq("school_id", schoolId);
@@ -401,6 +454,7 @@ export async function deleteModule(id: string): Promise<void> {
 export async function createLesson(input: z.infer<typeof lessonSchema>): Promise<string> {
   const { schoolId, userId } = await requireContentEditor();
   const data = lessonSchema.parse(input);
+  await assertCategoryAllowedForSchool(schoolId, data.contentType);
   const admin = createAdminClient();
 
   const { data: row, error } = await admin
@@ -413,6 +467,7 @@ export async function createLesson(input: z.infer<typeof lessonSchema>): Promise
       description: data.description ?? null,
       content: data.content ?? null,
       video_url: data.videoUrl ?? null,
+      content_type: data.contentType ?? null,
       status: data.status,
       created_by: userId,
     })
@@ -434,6 +489,7 @@ export async function updateLesson(
 ): Promise<void> {
   const { schoolId } = await requireContentEditor();
   const data = lessonSchema.partial().parse(input);
+  await assertCategoryAllowedForSchool(schoolId, data.contentType);
   const admin = createAdminClient();
 
   const { error } = await admin
@@ -444,6 +500,7 @@ export async function updateLesson(
       content: data.content ?? null,
       video_url: data.videoUrl ?? null,
       module_id: data.moduleId ?? null,
+      content_type: data.contentType ?? null,
     })
     .eq("id", id)
     .eq("school_id", schoolId);

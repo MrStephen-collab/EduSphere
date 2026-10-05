@@ -11,6 +11,7 @@ Each school gets its own isolated, branded digital academic environment.
 - **Multi-tenant by design** — every school is fully isolated (RLS enforced at the database level).
 - **Role-based access control** — `SUPER_ADMIN`, `SCHOOL_OWNER`, `SCHOOL_ADMIN`, `PRINCIPAL`, `TEACHER`, `STUDENT`, `PARENT`.
 - **Digital learning** — courses → modules → lessons with videos, PDFs, notes and practice. Courses and Lessons are the higher-education surface: a school at `college`, `polytechnic` or `university` level sees them in the teacher navigation and dashboard, while nursery / primary / secondary schools do not (see `src/lib/education/levels.ts`).
+- **Content categories** — every course and lesson is tagged with what it is made of: video, slides (PPT), audio, PDF, document, image or link for any school, plus lecture, seminar, lab, project and exam prep for higher education. The tag drives the icon on the card, the label in lists, and which uploader the lesson page opens on.
 - **Assignments** — multimedia submissions, grading and teacher feedback.
 - **Computer-based testing (CBT) engine** — question banks, randomization, timers, auto-marking, results and attempt history.
 - **Essays & Paper-2 marking** — full-answer essay questions on any series; students type their working, teachers mark them manually against an answer guide, and the score rolls into the student's attempt after marking.
@@ -152,6 +153,16 @@ Open [http://localhost:3000](http://localhost:3000).
    - `supabase/migrations/0014_course_materials.sql`
    - `supabase/migrations/0015_parent_complaints.sql`
    - `supabase/migrations/0016_parent_fee_payments.sql`
+   - `supabase/migrations/0017_fee_payment_credited_amount.sql`
+   - `supabase/migrations/0018_student_fee_visibility.sql`
+   - `supabase/migrations/0019_timetable.sql`
+   - `supabase/migrations/0020_live_sessions.sql`
+   - `supabase/migrations/0021_live_attendance_read_scope.sql`
+   - `supabase/migrations/0022_live_session_read_scope.sql`
+   - `supabase/migrations/0023_lesson_material_read_scope.sql`
+   - `supabase/migrations/0024_lesson_material_upload_state.sql`
+   - `supabase/migrations/0025_education_levels.sql`
+   - `supabase/migrations/0026_content_categories.sql`
 3. With `npm run dev` running, execute the demo-user seeder once:
 
 ```bash
@@ -209,6 +220,7 @@ npm run verify:live-rls       # live session/attendance isolation
 npm run verify:live           # live class announcements, register, scheduling (needs a server)
 npm run verify:platform-access # super admin console reachability + role scoping
 npm run verify:lesson-nav     # courses and lessons are distinct destinations
+npm run verify:content-categories # a school cannot record a category its level does not offer
 npm run verify:webhook        # Paystack webhook signature handling
 npm run verify:mux-signing    # Mux playback token signing
 npm run verify:mux-playback   # signed vs unsigned playback enforcement
@@ -289,8 +301,9 @@ to the correct dashboard. This logic lives in
 ## Testing
 
 - Unit tests cover the RBAC/permissions matrix, auth validation, the education
-  level rules that gate Courses/Lessons and the email templates (rendering +
-  escaping). **Currently 116 passed across 10 files.**
+  level rules that gate Courses/Lessons, the content-category taxonomy and the
+  email templates (rendering + escaping). **Currently 128 passed across 11
+  files.**
 
   ```bash
   npm run test
@@ -319,6 +332,22 @@ to the correct dashboard. This logic lives in
   the teacher navigation and the dashboard, so a secondary school never shows a
   Courses/Lessons entry point it cannot use. A school with no level set is
   treated as `secondary` (the safe default).
+- The category rule is verified twice, because a dropdown is not a guarantee.
+  `src/lib/content-categories.test.ts` covers the level→category list and the
+  uploader default, and `npm run verify:content-categories` writes to the
+  database through the service-role key to prove the trigger refuses a
+  higher-education category for a secondary school, accepts the same category for
+  a college, rejects a label that is not a category at all, and still allows a
+  course to be uncategorised.
+- What a course or lesson is *made of* is a separate axis from the level gate:
+  video, slides, audio, PDF, document, image and link are available to every
+  school, and lecture, seminar, lab, project and exam prep are offered only at a
+  college, polytechnic or university. `contentCategoriesForLevel` in
+  `src/lib/content-categories.ts` filters the picker, the label and icon come
+  from the same table, and the lesson page opens its uploader on the matching
+  file type. `0026_content_categories.sql` enforces the same rule with a trigger
+  so a direct write cannot bypass it. A category is nullable: existing content
+  stays uncategorised rather than being forced into a label.
 - Parent statements and receipts are rendered from the same request-scoped
   client as the rest of the app, so they inherit the RLS policies rather than
   re-implementing them. A receipt exists only for an approved payment, since

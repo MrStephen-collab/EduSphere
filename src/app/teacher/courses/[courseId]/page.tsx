@@ -6,6 +6,8 @@ import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { getCourseDetail } from "@/services/learning";
 import { getSubjects, getClasses } from "@/services/academics";
+import { getSchoolLevel } from "@/services/schools";
+import { contentCategoriesForLevel } from "@/lib/content-categories";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import {
   Card,
@@ -25,6 +27,7 @@ import {
   ModuleCard,
   LessonCreateForm,
   LessonRow,
+  ContentCategoryBadge,
 } from "@/components/learning/course-forms";
 import { asArray } from "@/lib/embed";
 
@@ -46,11 +49,14 @@ export default async function TeacherCourseDetailPage({
 
   const { schoolId } = await requireContentEditor();
 
-  const [detail, subjects, classes] = await Promise.all([
+  const [detail, subjects, classes, level] = await Promise.all([
     getCourseDetail(schoolId, courseId),
     getSubjects(schoolId),
     getClasses(schoolId),
+    getSchoolLevel(schoolId),
   ]);
+
+  const categories = contentCategoriesForLevel(level);
 
   if (!detail.course) {
     return (
@@ -97,6 +103,7 @@ export default async function TeacherCourseDetailPage({
               {asArray(course.classes)[0]?.name ?? "All classes"} · {totalLessons} lesson
               {totalLessons === 1 ? "" : "s"}
               <span className="mx-2">·</span>
+              <ContentCategoryBadge category={course.content_type} />
               <Badge variant={course.status === "published" ? "default" : "outline"}>
                 {course.status === "published" ? "Published" : "Draft"}
               </Badge>
@@ -109,8 +116,10 @@ export default async function TeacherCourseDetailPage({
               initialDescription={course.description}
               initialSubjectId={course.subject_id}
               initialClassId={course.class_id}
+              initialContentType={course.content_type}
               subjects={subjects.map((s) => ({ id: s.id, name: s.name }))}
               classes={classes.map((c) => ({ id: c.id, name: c.name }))}
+              categories={categories}
             />
           </CardContent>
         </Card>
@@ -169,6 +178,7 @@ export default async function TeacherCourseDetailPage({
                         description: lesson.description,
                         materialCount: lesson.materialCount,
                         hasVideo: lesson.hasVideo,
+                        contentType: lesson.content_type,
                       }}
                       courseId={course.id}
                       showDelete
@@ -176,7 +186,7 @@ export default async function TeacherCourseDetailPage({
                   ))}
                 </ul>
               )}
-              <LessonCreateForm courseId={course.id} moduleId={module.id} />
+              <LessonCreateForm courseId={course.id} moduleId={module.id} categories={categories} />
             </div>
           </ModuleCard>
         ))}
@@ -204,13 +214,14 @@ export default async function TeacherCourseDetailPage({
                       description: lesson.description,
                       materialCount: lesson.materialCount,
                       hasVideo: lesson.hasVideo,
+                      contentType: lesson.content_type,
                     }}
                     courseId={course.id}
                     showDelete
                   />
                 ))}
               </ul>
-              <LessonCreateForm courseId={course.id} />
+              <LessonCreateForm courseId={course.id} categories={categories} />
             </CardContent>
           </Card>
         )}

@@ -6,6 +6,8 @@ import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { listCourses } from "@/services/learning";
 import { getSubjects, getClasses } from "@/services/academics";
+import { getSchoolLevel } from "@/services/schools";
+import { contentCategoriesForLevel } from "@/lib/content-categories";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import {
   Card,
@@ -20,6 +22,7 @@ import {
   CourseCreateForm,
   CourseStatusToggle,
   CourseDeleteButton,
+  ContentCategoryBadge,
 } from "@/components/learning/course-forms";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { asArray } from "@/lib/embed";
@@ -36,13 +39,15 @@ export default async function TeacherCoursesPage() {
 
   const { schoolId, teacherId } = await requireContentEditor();
 
-  const [courses, subjects, classes] = await Promise.all([
+  const [courses, subjects, classes, level] = await Promise.all([
     listCourses(schoolId),
     getSubjects(schoolId),
     getClasses(schoolId),
+    getSchoolLevel(schoolId),
   ]);
 
   const mine = courses.filter((c) => c.teacher_id === teacherId);
+  const categories = contentCategoriesForLevel(level);
 
   return (
     <DashboardShell title="My Courses" badge="Teacher">
@@ -58,6 +63,7 @@ export default async function TeacherCoursesPage() {
             <CourseCreateForm
               subjects={subjects.map((s) => ({ id: s.id, name: s.name }))}
               classes={classes.map((c) => ({ id: c.id, name: c.name }))}
+              categories={categories}
             />
           </CardContent>
         </Card>
@@ -80,6 +86,7 @@ export default async function TeacherCoursesPage() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-semibold">{course.title}</h3>
+                          <ContentCategoryBadge category={course.content_type} />
                           <Badge variant={course.status === "published" ? "default" : "outline"}>
                             {course.status === "published" ? "Published" : "Draft"}
                           </Badge>

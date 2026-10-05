@@ -43,7 +43,7 @@ import {
   addBankQuestion,
   deleteBankQuestion,
 } from "@/services/question-bank";
-import type { ContentStatus } from "@/types/database";
+import type { ContentCategory, ContentStatus } from "@/types/database";
 
 export type ActionState =
   | { ok: true; message?: string; id?: string }
@@ -71,6 +71,7 @@ export async function createCourseAction(input: {
   description?: string | null;
   subjectId?: string | null;
   classId?: string | null;
+  contentType?: ContentCategory | null;
   status?: ContentStatus;
 }): Promise<ActionState> {
   return run(
@@ -80,6 +81,7 @@ export async function createCourseAction(input: {
         description: input.description,
         subjectId: input.subjectId,
         classId: input.classId,
+        contentType: input.contentType,
         status: input.status === "published" ? "published" : "draft",
       });
       return id;
@@ -95,6 +97,7 @@ export async function updateCourseAction(
     description?: string | null;
     subjectId?: string | null;
     classId?: string | null;
+    contentType?: ContentCategory | null;
   },
 ): Promise<ActionState> {
   return run(
@@ -174,6 +177,7 @@ export async function createLessonAction(input: {
   description?: string | null;
   content?: string | null;
   videoUrl?: string | null;
+  contentType?: ContentCategory | null;
   status?: ContentStatus;
 }): Promise<ActionState> {
   return run(
@@ -185,6 +189,7 @@ export async function createLessonAction(input: {
         description: input.description,
         content: input.content,
         videoUrl: input.videoUrl,
+        contentType: input.contentType,
         status: input.status === "published" ? "published" : "draft",
       });
       return id;
@@ -202,6 +207,7 @@ export async function updateLessonAction(
     content?: string | null;
     videoUrl?: string | null;
     moduleId?: string | null;
+    contentType?: ContentCategory | null;
   },
 ): Promise<ActionState> {
   return run(
