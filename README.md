@@ -12,6 +12,7 @@ Each school gets its own isolated, branded digital academic environment.
 - **Role-based access control** — `SUPER_ADMIN`, `SCHOOL_OWNER`, `SCHOOL_ADMIN`, `PRINCIPAL`, `TEACHER`, `STUDENT`, `PARENT`.
 - **Digital learning** — courses → modules → lessons with videos, PDFs, notes and practice. Courses and Lessons are the higher-education surface: a school at `college`, `polytechnic` or `university` level sees them in the teacher navigation and dashboard, while nursery / primary / secondary schools do not (see `src/lib/education/levels.ts`).
 - **Content categories** — every course and lesson is tagged with what it is made of: video, slides (PPT), audio, PDF, document, image or link for any school, plus lecture, seminar, lab, project and exam prep for higher education. The tag drives the icon on the card, the label in lists, and which uploader the lesson page opens on.
+- **School structure** — a school declares its education level (nursery through university), which decides what its classes are called, whether they group under departments or faculties, whether a polytechnic class sits in an OND or HND programme, and whether teachers get the Courses and Lessons menus. Managed at `/school/structure`.
 - **Assignments** — multimedia submissions, grading and teacher feedback.
 - **Computer-based testing (CBT) engine** — question banks, randomization, timers, auto-marking, results and attempt history.
 - **Essays & Paper-2 marking** — full-answer essay questions on any series; students type their working, teachers mark them manually against an answer guide, and the score rolls into the student's attempt after marking.
@@ -221,6 +222,7 @@ npm run verify:live           # live class announcements, register, scheduling (
 npm run verify:platform-access # super admin console reachability + role scoping
 npm run verify:lesson-nav     # courses and lessons are distinct destinations
 npm run verify:content-categories # a school cannot record a category its level does not offer
+npm run verify:structure     # school level + departments, and the level-aware class form (needs a server)
 npm run verify:webhook        # Paystack webhook signature handling
 npm run verify:mux-signing    # Mux playback token signing
 npm run verify:mux-playback   # signed vs unsigned playback enforcement
@@ -230,10 +232,10 @@ npm run verify:video-indicator # video lessons show a play affordance, not a fil
 ```
 
 `acceptance`, `smoke`, `verify:timetable`, `verify:live`, `verify:fee-statement`,
-`verify:lesson-nav`, `verify:platform-access` and `verify:video-upload` need the
-preview server running; the rest talk to the database directly. Run
-`node scripts/seed.mjs` once before `acceptance` to create the School A demo
-data it walks through.
+`verify:lesson-nav`, `verify:platform-access`, `verify:structure` and
+`verify:video-upload` need the preview server running; the rest talk to the
+database directly. Run `node scripts/seed.mjs` once before `acceptance` to create
+the School A demo data it walks through.
 
 The video harnesses need a real MP4 to hand to the video host. They synthesise
 a tiny clip with `ffmpeg` when it is on `PATH`, cache it in `%TEMP%`, and fall
@@ -301,9 +303,9 @@ to the correct dashboard. This logic lives in
 ## Testing
 
 - Unit tests cover the RBAC/permissions matrix, auth validation, the education
-  level rules that gate Courses/Lessons, the content-category taxonomy and the
-  email templates (rendering + escaping). **Currently 128 passed across 11
-  files.**
+  level rules that gate Courses/Lessons, the content-category taxonomy, the
+  level-aware class naming and the email templates (rendering + escaping).
+  **Currently 132 passed across 11 files.**
 
   ```bash
   npm run test
@@ -339,6 +341,23 @@ to the correct dashboard. This logic lives in
   higher-education category for a secondary school, accepts the same category for
   a college, rejects a label that is not a category at all, and still allows a
   course to be uncategorised.
+- The education level is set at `/school/structure`, and it is not only a label:
+  it decides what classes are called, whether classes and courses are grouped
+  under a department or faculty, whether a class can sit in an OND or HND
+  programme, and whether teachers get Courses and Lessons. `setSchoolEducationLevel`,
+  `getDepartments`, `createDepartment` and `deleteDepartment` were written with
+  migration `0025` but had no page, component or action, so none of it could be
+  reached; `/school/structure` is that missing surface. Changing a level never
+  renames an existing class — the form offers the new level's names as
+  suggestions and leaves the text box editable, because a school that calls its
+  classes "Sets" is describing itself accurately.
+- `npm run verify:structure` checks the level actually drives the form rather
+  than just being stored. It reads the seeded school as a secondary school and
+  asserts no department or programme picker appears, then declares the same school
+  a polytechnic with two departments and asserts the pickers appear, the
+  programmes are OND and HND, and the class names become
+  "Computer Science OND Year 1" — restoring the level and removing the
+  departments in a `finally`.
 - What a course or lesson is *made of* is a separate axis from the level gate:
   video, slides, audio, PDF, document, image and link are available to every
   school, and lecture, seminar, lab, project and exam prep are offered only at a

@@ -10,6 +10,8 @@ import {
   createSession,
   setCurrentSession,
   setCurrentTerm,
+  createDepartment,
+  deleteDepartment,
 } from "@/services/academics";
 import {
   createTeacher,
@@ -19,7 +21,7 @@ import {
   type ImportRow,
   type ImportSummary,
 } from "@/services/people";
-import { updateBranding } from "@/services/schools";
+import { updateBranding, setSchoolEducationLevel } from "@/services/schools";
 import { startCheckout } from "@/services/billing";
 import {
   createAnnouncement,
@@ -50,6 +52,7 @@ import {
   voidFeeInvoice,
 } from "@/services/fees";
 import type { z } from "zod";
+import type { EducationLevel } from "@/types/database";
 
 export type ActionState =
   | { ok: true; message?: string; authorizationUrl?: string }
@@ -72,8 +75,51 @@ async function run(fn: () => Promise<void>, path?: string): Promise<ActionState>
 export async function createClassAction(input: {
   name: string;
   order?: number;
+  departmentId?: string | null;
+  programme?: string | null;
 }): Promise<ActionState> {
   return run(async () => createClass(input), "/school/classes");
+}
+
+/**
+ * Declares the school's education level.
+ *
+ * Revalidated beyond this page because the level is read all over the product:
+ * it decides whether Courses and Lessons appear in the teacher navigation, which
+ * class names the class form suggests, and which content categories a lesson may
+ * be tagged with.
+ */
+export async function setEducationLevelAction(input: {
+  schoolId: string;
+  level: string;
+}): Promise<ActionState> {
+  try {
+    await setSchoolEducationLevel({
+      schoolId: input.schoolId,
+      level: input.level as EducationLevel,
+    });
+    for (const path of [
+      "/school/structure",
+      "/school/classes",
+      "/school",
+      "/teacher",
+    ]) {
+      revalidatePath(path);
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function createDepartmentAction(input: {
+  name: string;
+}): Promise<ActionState> {
+  return run(async () => createDepartment(input), "/school/structure");
+}
+
+export async function deleteDepartmentAction(id: string): Promise<ActionState> {
+  return run(async () => deleteDepartment(id), "/school/structure");
 }
 
 export async function createStreamAction(input: { name: string }): Promise<ActionState> {

@@ -1,6 +1,7 @@
 import {
   Bell,
   BookOpen,
+  Building2,
   CalendarCheck2,
   CalendarDays,
   ClipboardList,
@@ -30,6 +31,7 @@ export const navIcons = {
   students: Users,
   teachers: GraduationCap,
   classes: Menu,
+  structure: Building2,
   courses: BookOpen,
   lessons: Library,
   assignments: ClipboardList,
@@ -102,6 +104,7 @@ export const schoolNav: NavSection[] = [
   {
     label: "Academics",
     items: [
+      { title: "Structure", href: "/school/structure", icon: "structure" },
       { title: "Classes", href: "/school/classes", icon: "classes" },
       { title: "Subjects", href: "/school/subjects", icon: "courses" },
       { title: "Sessions", href: "/school/sessions", icon: "calendar" },
