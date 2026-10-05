@@ -17,6 +17,7 @@
 //
 // Run with: npm run build && npm run app, then: npm run verify:live
 
+import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import dotenv from "dotenv";
 import { installHttp1Fetch } from "./lib/http1-fetch.mjs";
@@ -25,6 +26,7 @@ dotenv.config({ path: ".env.local" });
 installHttp1Fetch();
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const password = process.env.DEMO_USER_PASSWORD || "Testing2026";
 const BASE = process.env.BASE || "http://localhost:3100";
 
@@ -96,6 +98,58 @@ function checkPage(name, page, role) {
       : `status ${page.status}`,
   );
 }
+
+// The demo schedule is seeded relative to the moment the seeder ran, so it is
+// right on the day it is created and quietly wrong a day later: the session
+// marked live ends, the scheduled one passes, and the student page stops
+// offering a join link -- correctly, because the class is not in a lesson any
+// more. That is the app behaving properly and the fixture going stale, so
+// rather than reporting a failure for it, slide the schedule forward until the
+// live session is running again.
+//
+// The same offset is applied to every session, so the spacing survives: the
+// ended session stays in the past, the draft and cancelled sessions keep their
+// meaning, and the assertions below are about state (announced, cancelled,
+// taken) rather than about dates. It is idempotent -- once the live session is
+// where it belongs the offset is a few minutes of drift, not a growing shift.
+async function retimeDemoSchedule() {
+  if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required");
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  const { data, error } = await admin
+    .from("live_sessions")
+    .select("id, starts_at, ends_at, status");
+  if (error) throw new Error(error.message);
+
+  const live = (data ?? []).find((s) => s.status === "live");
+  if (!live) {
+    throw new Error(
+      "no session with status 'live' to re-time -- run `node scripts/seed.mjs` first",
+    );
+  }
+
+  // Start it ten minutes ago, so "running now" is true and there is still most
+  // of the hour left, matching how the seeder writes it.
+  const target = Date.now() - 10 * 60_000;
+  const offset = target - new Date(live.starts_at).getTime();
+  if (Math.abs(offset) < 60_000) return offset;
+
+  for (const row of data) {
+    await admin
+      .from("live_sessions")
+      .update({
+        starts_at: new Date(new Date(row.starts_at).getTime() + offset).toISOString(),
+        ends_at: new Date(new Date(row.ends_at).getTime() + offset).toISOString(),
+      })
+      .eq("id", row.id);
+  }
+  return offset;
+}
+
+const offset = await retimeDemoSchedule();
+console.log(
+  `demo schedule shifted by ${Math.round(offset / 60_000)} min so the live session is running\n`,
+);
 
 // The student page is the one with no editing affordances, so it is also the
 // only one where a missing session is a silent failure rather than a visible

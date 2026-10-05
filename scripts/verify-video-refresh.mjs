@@ -39,9 +39,14 @@ const admin = createServerClient(url, service, { cookies: { getAll: () => [], se
 const muxAuth = () =>
   `Basic ${Buffer.from(`${process.env.MUX_TOKEN_ID}:${process.env.MUX_TOKEN_SECRET}`).toString("base64")}`;
 
+// The fallback is passed as a function, not awaited here. sampleVideo tries the
+// cached clip and then synthesises a tiny one with ffmpeg, and only calls this if
+// neither worked -- which is the point: pulling a signed rendition off the host is
+// a multi-megabyte download over a network that has been known to reset the
+// connection, and doing it eagerly made this harness fail with "terminated" even
+// though it never needed the bytes.
 async function sampleVideo() {
-  const pulled = await pullSample();
-  const sample = await sampleVideoLib(sampleVideoPath(), pulled);
+  const sample = await sampleVideoLib(sampleVideoPath(), pullSample);
   return sample.real ? sample.bytes : null;
 }
 
@@ -65,8 +70,10 @@ async function pullSample() {
   signer.update(`${header}.${payload}`);
   const token = `${header}.${payload}.${signer.sign(pem).toString("base64url")}`;
 
-  const res = await fetch(`https://stream.mux.com/${playbackId}/highest.mp4?token=${token}`);
-  if (!res.ok) return null;
+  const res = await fetch(`https://stream.mux.com/${playbackId}/highest.mp4?token=${token}`).catch(
+    () => null,
+  );
+  if (!res?.ok) return null;
   return Buffer.from(await res.arrayBuffer());
 }
 
