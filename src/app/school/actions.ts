@@ -22,6 +22,7 @@ import {
   type ImportSummary,
 } from "@/services/people";
 import { updateBranding, setSchoolEducationLevel } from "@/services/schools";
+import { setSchoolLearningThreshold } from "@/services/fee-access";
 import { startCheckout } from "@/services/billing";
 import {
   createAnnouncement,
@@ -116,6 +117,32 @@ export async function createDepartmentAction(input: {
   name: string;
 }): Promise<ActionState> {
   return run(async () => createDepartment(input), "/school/structure");
+}
+
+/**
+ * Sets the percentage of a student's fees that must be paid before course
+ * materials open.
+ *
+ * Revalidated across the student surfaces as well as this page, because the
+ * threshold is read on every lesson view: without it a bursar who lowers the
+ * gate would leave students locked out until the next unrelated revalidation.
+ */
+export async function setLearningAccessThresholdAction(input: {
+  schoolId: string;
+  thresholdPct: string;
+}): Promise<ActionState> {
+  try {
+    await setSchoolLearningThreshold({
+      schoolId: input.schoolId,
+      thresholdPct: input.thresholdPct,
+    });
+    return {
+      ok: true,
+      message: "Fee gate saved. Students below it will see materials held.",
+    };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
 }
 
 export async function deleteDepartmentAction(id: string): Promise<ActionState> {

@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthContext } from "@/lib/auth/auth-context";
+import { describeAccessBlock } from "@/lib/fee-gate";
+import { getStudentLearningAccess } from "@/services/fee-access";
 import { requireContentEditor } from "@/services/shared";
 import {
   categoryForFileType,
@@ -269,6 +271,20 @@ async function authorizeMaterialRead(
 
     if (!allowed) {
       throw new MaterialAccessError("That material belongs to another class.");
+    }
+
+    // The school's fee gate, applied here rather than on the lesson page.
+    //
+    // This is the only check that has to exist: every path that hands a student
+    // bytes -- a signed URL, a download disposition, a Mux playback token, or a
+    // bare external link -- comes through this function, so a gate enforced on
+    // the page would stop the button while leaving the API open behind it.
+    const access = await getStudentLearningAccess(schoolId, student.id);
+    if (!access.allowed) {
+      throw new MaterialAccessError(
+        describeAccessBlock(access) ||
+          "Your fees need attention before this material opens.",
+      );
     }
   } else if (membership.role === "TEACHER") {
     const { data: teacher } = await supabase

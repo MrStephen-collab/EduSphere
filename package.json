@@ -28,6 +28,7 @@
     "verify:lesson-nav": "node scripts/verify-lesson-navigation.mjs",
     "verify:content-categories": "node scripts/verify-content-categories.mjs",
     "verify:structure": "node scripts/verify-structure.mjs",
+    "verify:fee-gate": "node scripts/verify-fee-gate.mjs",
     "verify:webhook": "node scripts/verify-webhook-signature.mjs",
     "verify:video-refresh": "node scripts/verify-video-refresh.mjs",
     "superadmin": "node scripts/set-super-admin.mjs",

@@ -164,6 +164,7 @@ Open [http://localhost:3000](http://localhost:3000).
    - `supabase/migrations/0024_lesson_material_upload_state.sql`
    - `supabase/migrations/0025_education_levels.sql`
    - `supabase/migrations/0026_content_categories.sql`
+   - `supabase/migrations/0027_learning_access_threshold.sql`
 3. With `npm run dev` running, execute the demo-user seeder once:
 
 ```bash
@@ -223,6 +224,7 @@ npm run verify:platform-access # super admin console reachability + role scoping
 npm run verify:lesson-nav     # courses and lessons are distinct destinations
 npm run verify:content-categories # a school cannot record a category its level does not offer
 npm run verify:structure     # school level + departments, and the level-aware class form (needs a server)
+npm run verify:fee-gate      # unpaid students lose course materials, and the lesson survives (needs a server)
 npm run verify:webhook        # Paystack webhook signature handling
 npm run verify:mux-signing    # Mux playback token signing
 npm run verify:mux-playback   # signed vs unsigned playback enforcement
@@ -232,7 +234,8 @@ npm run verify:video-indicator # video lessons show a play affordance, not a fil
 ```
 
 `acceptance`, `smoke`, `verify:timetable`, `verify:live`, `verify:fee-statement`,
-`verify:lesson-nav`, `verify:platform-access`, `verify:structure` and
+`verify:lesson-nav`, `verify:platform-access`, `verify:structure`,
+`verify:fee-gate` and
 `verify:video-upload` need the preview server running; the rest talk to the
 database directly. Run `node scripts/seed.mjs` once before `acceptance` to create
 the School A demo data it walks through.

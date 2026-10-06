@@ -34,6 +34,12 @@ export type School = {
   status: SchoolStatus;
   owner_id: string | null;
   education_level: EducationLevel | null;
+  /**
+   * Percentage of billed fees that must be paid before a student can open
+   * course materials. 0 disables the gate. See 0027_learning_access_threshold.sql
+   * and src/lib/fee-gate.ts.
+   */
+  learning_access_threshold_pct: number;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

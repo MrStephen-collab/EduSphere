@@ -4,6 +4,7 @@ import { requireSchoolAdmin } from "@/services/shared";
 import { getClasses, getSchoolTerms } from "@/services/academics";
 import { getStudents } from "@/services/people";
 import { getSchoolFees } from "@/services/fees";
+import { getSchoolLearningThreshold } from "@/services/fee-access";
 import { isOverdue } from "@/lib/fee-math";
 import { feeInvoiceStatusLabel, formatNaira } from "@/lib/fee-labels";
 import { asArray } from "@/lib/embed";
@@ -12,6 +13,7 @@ import { EmptyState } from "@/components/dashboard/empty-state";
 import { FeeReviewRow } from "@/components/school/fee-review-row";
 import { FeeIssueForm } from "@/components/school/fee-issue-form";
 import { FeeGenerateForm } from "@/components/school/fee-generate-form";
+import { LearningAccessGateForm } from "@/components/school/learning-access-gate-form";
 import {
   Card,
   CardContent,
@@ -48,12 +50,13 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 export default async function SchoolFeesPage() {
   const { schoolId } = await requireSchoolAdmin();
 
-  const [{ stats, reviewQueue, invoices }, classes, terms, students] =
+  const [{ stats, reviewQueue, invoices }, classes, terms, students, learningThreshold] =
     await Promise.all([
       getSchoolFees(),
       getClasses(schoolId),
       getSchoolTerms(schoolId),
       getStudents(schoolId),
+      getSchoolLearningThreshold(schoolId),
     ]);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -159,6 +162,21 @@ export default async function SchoolFeesPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Fee gate</CardTitle>
+            <CardDescription>
+              Hold course materials from students whose fees are behind.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LearningAccessGateForm
+              schoolId={schoolId}
+              thresholdPct={learningThreshold}
+            />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

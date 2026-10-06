@@ -5,11 +5,13 @@ import {
   ArrowRight,
   CheckCircle2,
   ExternalLink,
+  Lock,
   Paperclip,
   Video,
 } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireStudent, getStudentLessonView } from "@/services/learning";
+import { getStudentLearningAccess } from "@/services/fee-access";
 import { getYouTubeEmbedUrl } from "@/lib/video";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import {
@@ -24,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { LessonContent } from "@/components/learning/lesson-content";
 import { MarkCompleteButton } from "@/components/learning/progress-actions";
 import { MaterialViewer } from "@/components/learning/material-viewer";
+import { FeeGateNotice } from "@/components/learning/fee-gate-notice";
 import { isRestrictedMaterial } from "@/lib/material-types";
 
 export const metadata: Metadata = {
@@ -44,6 +47,7 @@ export default async function StudentLessonPage({
 
   const { schoolId, studentId } = await requireStudent();
   const view = await getStudentLessonView(schoolId, studentId, courseId, lessonId);
+  const access = await getStudentLearningAccess(schoolId, studentId);
 
   if (!view.course || !view.lesson) {
     return (
@@ -65,6 +69,12 @@ export default async function StudentLessonPage({
   const lesson = view.lesson;
   const done = view.progress?.progress_percentage === 100;
   const embedUrl = getYouTubeEmbedUrl(lesson.video_url);
+  // Materials withheld, but the lesson itself stays readable: the student can see
+  // what they are missing and how far through the course they are, which is the
+  // difference between a school holding a balance and a student feeling punished.
+  // The refusal that actually matters is in authorizeMaterialRead, so this is the
+  // half that makes it legible rather than the half that enforces it.
+  const materialsLocked = access.gateActive && !access.allowed;
 
   return (
     <DashboardShell title={lesson.title} badge="Lesson">
@@ -78,6 +88,8 @@ export default async function StudentLessonPage({
         {view.moduleTitle && <Badge variant="secondary">{view.moduleTitle}</Badge>}
       </div>
 
+      <FeeGateNotice access={access} className="mb-4" />
+
       {done && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-medium text-primary">
           <CheckCircle2 className="size-4" aria-hidden="true" />
@@ -87,7 +99,16 @@ export default async function StudentLessonPage({
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="grid gap-4 lg:col-span-2">
-          {embedUrl ? (
+          {materialsLocked ? (
+            <Card>
+              <CardContent className="flex items-center gap-3 pt-4">
+                <Lock className="size-8 text-muted-foreground" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">
+                  This lesson&apos;s video opens once your fees are on track.
+                </p>
+              </CardContent>
+            </Card>
+          ) : embedUrl ? (
             <Card className="overflow-hidden">
               <div className="aspect-video w-full bg-black">
                 <iframe
@@ -139,6 +160,12 @@ export default async function StudentLessonPage({
             </CardHeader>            <CardContent>
               {view.materials.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No materials for this lesson.</p>
+              ) : materialsLocked ? (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Lock className="size-4" aria-hidden="true" />
+                  {view.materials.length} material
+                  {view.materials.length === 1 ? "" : "s"} held until your fees are on track.
+                </p>
               ) : (
                 <div className="grid gap-2">
                   {view.materials.map((material) => (

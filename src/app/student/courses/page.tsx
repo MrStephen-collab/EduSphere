@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { BookOpen, GraduationCap, MoveUpRight } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireStudent, getStudentCourses } from "@/services/learning";
+import { getStudentLearningAccess } from "@/services/fee-access";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { FeeGateNotice } from "@/components/learning/fee-gate-notice";
 import {
   Card,
   CardContent,
@@ -43,10 +45,14 @@ export default async function StudentCoursesPage() {
   if (!context.roles.includes("STUDENT")) redirect("/dashboard");
 
   const { schoolId, studentId } = await requireStudent();
-  const courses = await getStudentCourses(schoolId, studentId);
+  const [courses, access] = await Promise.all([
+    getStudentCourses(schoolId, studentId),
+    getStudentLearningAccess(schoolId, studentId),
+  ]);
 
   return (
     <DashboardShell title="My Courses" badge="Student">
+      <FeeGateNotice access={access} className="mb-4" />
       {courses.length === 0 ? (
         <EmptyState
           icon={BookOpen}

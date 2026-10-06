@@ -8,6 +8,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { getStudentFees } from "@/services/fees";
+import { getStudentLearningAccess } from "@/services/fee-access";
+import { requireStudent } from "@/services/learning";
 import { isOverdue, paidFraction } from "@/lib/fee-math";
 import {
   feeInvoiceStatusLabel,
@@ -15,6 +17,7 @@ import {
   formatNaira,
 } from "@/lib/fee-labels";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { FeeGateNotice } from "@/components/learning/fee-gate-notice";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +43,8 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ba
 
 export default async function StudentFeesPage() {
   const { summary, totals } = await getStudentFees();
+  const { schoolId, studentId } = await requireStudent();
+  const access = await getStudentLearningAccess(schoolId, studentId);
 
   const outstandingRows = summary.filter((r) => r.outstanding > 0);
   const settledRows = summary.filter((r) => r.outstanding <= 0);
@@ -55,6 +60,8 @@ export default async function StudentFeesPage() {
             still owed. Payments are made by your parent or guardian.
           </p>
         </header>
+
+        <FeeGateNotice access={access} />
 
         <div className="grid gap-3 sm:grid-cols-3">
           <Stat label="Total billed" value={formatNaira(totals.invoiced)} />
