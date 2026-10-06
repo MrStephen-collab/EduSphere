@@ -21,7 +21,11 @@
 -- is one a person keeps. The status enum is reused from 0012_attendance.sql
 -- rather than invented again.
 
-create type public.live_session_status as enum ('scheduled', 'live', 'ended', 'cancelled');
+-- Guarded in a DO block, like every enum in 0001, so re-running this file is a
+-- no-op instead of aborting on "type live_session_status already exists".
+do $$ begin
+  create type public.live_session_status as enum ('scheduled', 'live', 'ended', 'cancelled');
+exception when duplicate_object then null; end $$;
 
 create table if not exists public.live_sessions (
   id uuid primary key default gen_random_uuid(),

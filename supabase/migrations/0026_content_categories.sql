@@ -31,20 +31,24 @@
 -- See src/lib/content-categories.ts, which is the same taxonomy in the
 -- application, and src/lib/education/levels.ts for the level vocabulary.
 
-create type public.content_category as enum (
-  'video',
-  'slides',
-  'audio',
-  'pdf',
-  'document',
-  'image',
-  'link',
-  'lecture',
-  'seminar',
-  'lab',
-  'project',
-  'exam_prep'
-);
+-- Guarded in a DO block, like every enum in 0001, so re-running this file is a
+-- no-op instead of aborting on "type content_category already exists".
+do $$ begin
+  create type public.content_category as enum (
+    'video',
+    'slides',
+    'audio',
+    'pdf',
+    'document',
+    'image',
+    'link',
+    'lecture',
+    'seminar',
+    'lab',
+    'project',
+    'exam_prep'
+  );
+exception when duplicate_object then null; end $$;
 
 alter table public.courses
   add column if not exists content_type public.content_category;

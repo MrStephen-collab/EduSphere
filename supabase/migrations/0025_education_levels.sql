@@ -26,14 +26,18 @@
 -- school keeps working unchanged. A school with classes but no declared level
 -- is left null rather than guessed at, so an operator sets it deliberately.
 
-create type public.education_level as enum (
-  'nursery',
-  'primary',
-  'secondary',
-  'college',
-  'polytechnic',
-  'university'
-);
+-- Guarded in a DO block, like every enum in 0001, so re-running this file is a
+-- no-op instead of aborting on "type education_level already exists".
+do $$ begin
+  create type public.education_level as enum (
+    'nursery',
+    'primary',
+    'secondary',
+    'college',
+    'polytechnic',
+    'university'
+  );
+exception when duplicate_object then null; end $$;
 
 alter table public.schools
   add column if not exists education_level public.education_level;
