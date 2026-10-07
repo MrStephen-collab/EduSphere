@@ -2,6 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlatformAdmin } from "@/services/billing";
 import { getServerData, invalidateCacheByPrefix } from "@/lib/server-cache";
 import { asArray } from "@/lib/embed";
+import { EDUCATION_LEVELS, isEducationLevel } from "@/lib/education/levels";
+import type { EducationLevel } from "@/types/database";
 import { z } from "zod";
 
 function invalidatePlatformCache() {
@@ -22,6 +24,7 @@ export type PlatformSchoolRow = {
   id: string;
   name: string;
   slug: string;
+  educationLevel: EducationLevel | null;
   status: string;
   motto: string | null;
   description: string | null;
@@ -61,6 +64,10 @@ const optionalText = (max: number) =>
  */
 export const platformSchoolEditSchema = z.object({
   name: z.string().trim().min(2, "School name is required").max(160),
+  educationLevel: z
+    .union([z.enum(EDUCATION_LEVELS.map((level) => level.value) as [string, ...string[]]), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => (v === "" || v == null ? null : v)),
   motto: optionalText(200),
   description: optionalText(2000),
   email: optionalText(160),
@@ -83,7 +90,7 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
     admin
       .from("schools")
       .select(
-        "id, name, slug, status, motto, description, email, phone, address, city, state, website, deleted_at, created_at, profiles!schools_owner_id_fkey(full_name, email)",
+        "id, name, slug, status, education_level, motto, description, email, phone, address, city, state, website, deleted_at, created_at, profiles!schools_owner_id_fkey(full_name, email)",
       )
       .order("created_at", { ascending: false })
       .limit(200),
@@ -138,6 +145,7 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
     name: string;
     slug: string;
     status: string;
+    education_level: string | null;
     motto: string | null;
     description: string | null;
     email: string | null;
@@ -155,6 +163,7 @@ export async function getPlatformSchools(): Promise<PlatformSchoolRow[]> {
       id: s.id,
       name: s.name,
       slug: s.slug,
+      educationLevel: isEducationLevel(s.education_level) ? s.education_level : null,
       status: s.status,
       motto: s.motto,
       description: s.description,
@@ -193,7 +202,11 @@ export async function platformUpdateSchool(
   await requirePlatformAdmin();
   const data = platformSchoolEditSchema.parse(input);
   const admin = createAdminClient();
-  const { error } = await admin.from("schools").update(data).eq("id", id);
+  const { educationLevel, ...fields } = data;
+  const { error } = await admin
+    .from("schools")
+    .update({ ...fields, education_level: educationLevel })
+    .eq("id", id);
   if (error) throw new Error("We couldn't update that school.");
   invalidatePlatformCache();
 }

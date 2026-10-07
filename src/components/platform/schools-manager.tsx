@@ -22,6 +22,8 @@ import {
   updateSchoolAction,
 } from "@/app/platform/actions";
 import type { PlatformSchoolStatus } from "@/services/platform";
+import { EDUCATION_LEVELS } from "@/lib/education/levels";
+import type { EducationLevel } from "@/types/database";
 
 export type ClientPlanOption = {
   id: string;
@@ -33,6 +35,7 @@ export type ClientSchool = {
   id: string;
   name: string;
   slug: string;
+  educationLevel: EducationLevel | null;
   status: PlatformSchoolStatus;
   archived: boolean;
   motto: string | null;
@@ -71,6 +74,14 @@ const statusClasses: Record<string, string> = {
 const selectClass =
   "h-8 w-full rounded-md border bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
 
+const levelSelectClass =
+  "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+function levelLabel(level: EducationLevel | null): string {
+  if (!level) return "Not set";
+  return EDUCATION_LEVELS.find((entry) => entry.value === level)?.label ?? level;
+}
+
 const inputClass =
   "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
@@ -79,6 +90,7 @@ const textareaClass =
 
 type SchoolForm = {
   name: string;
+  educationLevel: EducationLevel | "";
   motto: string;
   description: string;
   email: string;
@@ -92,6 +104,7 @@ type SchoolForm = {
 function toForm(s: ClientSchool): SchoolForm {
   return {
     name: s.name,
+    educationLevel: s.educationLevel ?? "",
     motto: s.motto ?? "",
     description: s.description ?? "",
     email: s.email ?? "",
@@ -200,6 +213,7 @@ function SchoolEditor({
     startTransition(async () => {
       const result = await updateSchoolAction(school.id, {
         ...values,
+        educationLevel: values.educationLevel || null,
         motto: values.motto || null,
         description: values.description || null,
         email: values.email || null,
@@ -255,6 +269,29 @@ function SchoolEditor({
             value={values.name}
             onChange={(e) => setValues({ ...values, name: e.target.value })}
           />
+        </Label>
+        <Label className="grid gap-1 text-xs font-medium text-muted-foreground sm:col-span-2">
+          Portal level
+          <select
+            className={levelSelectClass}
+            value={values.educationLevel}
+            onChange={(e) =>
+              setValues({
+                ...values,
+                educationLevel: e.target.value as SchoolForm["educationLevel"],
+              })
+            }
+          >
+            <option value="">Not set — treated as secondary</option>
+            {EDUCATION_LEVELS.map((entry) => (
+              <option key={entry.value} value={entry.value}>
+                {entry.label}
+              </option>
+            ))}
+          </select>
+          <span className="text-[11px] font-normal text-muted-foreground">
+            Decides whether teachers get the Courses and Lessons menus.
+          </span>
         </Label>
         <Label className="grid gap-1 text-xs font-medium text-muted-foreground sm:col-span-2">
           Motto
@@ -461,11 +498,12 @@ export function SchoolsManager({
         )
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[1060px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="py-2 pr-3 font-medium">School</th>
                 <th className="py-2 pr-3 font-medium">Location</th>
+                <th className="py-2 pr-3 font-medium">Level</th>
                 <th className="py-2 pr-3 font-medium">Owner</th>
                 <th className="py-2 pr-3 text-right font-medium">Students</th>
                 <th className="py-2 pr-3 text-right font-medium">Teachers</th>
@@ -493,6 +531,17 @@ export function SchoolsManager({
                   </td>
                   <td className="py-2 pr-3">
                     {[s.city, s.state].filter(Boolean).join(", ") || "—"}
+                  </td>
+                  <td className="py-2 pr-3">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                        s.educationLevel
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {levelLabel(s.educationLevel)}
+                    </span>
                   </td>
                   <td className="py-2 pr-3">
                     <p className="font-medium">{s.ownerName ?? "—"}</p>

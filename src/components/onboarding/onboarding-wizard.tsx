@@ -13,6 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EDUCATION_LEVELS } from "@/lib/education/levels";
+import type { EducationLevel } from "@/types/database";
 import {
   onboardingCreateSchool,
   onboardingSaveClasses,
@@ -50,6 +52,7 @@ type ImportStats = { created: number; duplicates: number; errors: string[] };
 export function OnboardingWizard({ init }: { init: OnboardingInit }) {
   const [schoolId, setSchoolId] = useState(init.schoolId);
   const [schoolName, setSchoolName] = useState(init.schoolName ?? "");
+  const [educationLevel, setEducationLevel] = useState<EducationLevel | "">("");
   const [motto, setMotto] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
@@ -178,6 +181,30 @@ export function OnboardingWizard({ init }: { init: OnboardingInit }) {
                   />
                 </div>
                 <div className="grid gap-2">
+                  <Label htmlFor="school-level">Portal level</Label>
+                  <select
+                    id="school-level"
+                    className="h-9 w-full rounded-md border bg-background px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={educationLevel}
+                    onChange={(e) =>
+                      setEducationLevel(e.target.value as EducationLevel | "")
+                    }
+                  >
+                    <option value="">Choose a level (defaults to secondary)</option>
+                    {EDUCATION_LEVELS.map((entry) => (
+                      <option key={entry.value} value={entry.value}>
+                        {entry.label} — {entry.description}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    The level decides what classes are called, whether they are
+                    grouped by department, and whether teachers get the Courses
+                    and Lessons menus. You can change it later in School
+                    structure.
+                  </p>
+                </div>
+                <div className="grid gap-2">
                   <Label htmlFor="school-motto">Motto</Label>
                   <Input
                     id="school-motto"
@@ -303,6 +330,7 @@ export function OnboardingWizard({ init }: { init: OnboardingInit }) {
                         if (!schoolName.trim()) return { ok: false, error: "Enter your school name." };
                         const result = await onboardingCreateSchool({
                           name: schoolName.trim(),
+                          educationLevel: educationLevel || null,
                           motto,
                           description,
                           email,

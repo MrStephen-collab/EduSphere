@@ -8,6 +8,7 @@ import { createSchoolWithOwner, ensureSchoolSession } from "@/services/schools";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createStudent, createTeacher } from "@/services/people";
+import type { EducationLevel } from "@/types/database";
 
 type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -52,6 +53,7 @@ async function requireOnboardingSchool(schoolId: string) {
 
 export async function onboardingCreateSchool(input: {
   name: string;
+  educationLevel?: EducationLevel | null;
   motto?: string;
   description?: string;
   email?: string;

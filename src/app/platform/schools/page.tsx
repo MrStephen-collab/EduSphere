@@ -56,6 +56,7 @@ function toClientSchool(
     id: s.id,
     name: s.name,
     slug: s.slug,
+    educationLevel: s.educationLevel,
     status: status.success ? status.data : "inactive",
     archived: s.archived,
     motto: s.motto,
