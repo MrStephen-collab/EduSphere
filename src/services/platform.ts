@@ -235,6 +235,32 @@ export async function platformSetSchoolStatus(
 }
 
 /**
+ * Sets which portal level a school runs at, on the owner's behalf.
+ *
+ * The level is not cosmetic: it decides whether teachers get the Courses and
+ * Lessons menus, what classes are called, and whether classes group under a
+ * department. A super admin sets it for a school that never declared one, or
+ * corrects one that declared wrong. `null` clears it back to the secondary
+ * default the app assumes for an unset school.
+ */
+export async function platformSetSchoolLevel(
+  id: string,
+  level: EducationLevel | null,
+): Promise<void> {
+  await requirePlatformAdmin();
+  if (level !== null && !isEducationLevel(level)) {
+    throw new Error("Choose a valid portal level.");
+  }
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("schools")
+    .update({ education_level: level })
+    .eq("id", id);
+  if (error) throw new Error("We couldn't change that school's portal level.");
+  invalidatePlatformCache();
+}
+
+/**
  * Archives a school.
  *
  * This is the same soft delete the rest of the product uses (courses, lessons
@@ -288,6 +314,53 @@ export async function platformRestoreSchool(id: string): Promise<void> {
     .update({ deleted_at: null, status: "active" })
     .eq("id", id);
   if (error) throw new Error("We couldn't restore that school.");
+  invalidatePlatformCache();
+}
+
+/**
+ * Permanently deletes a school and everything under it.
+ *
+ * This is the one irreversible button in the product. Every table that carries a
+ * school_id references it `on delete cascade`, so classes, students, results,
+ * courses, invoices and the school's own audit rows go with it in one
+ * transaction. There is no bin to restore from.
+ *
+ * Archiving is the normal way to part with a school — it keeps every record.
+ * Deleting exists for the junk: an abandoned signup, or the throwaway schools a
+ * verification harness leaves behind. The confirmation is the school's own name
+ * typed out, exactly as archiving asks, so nobody drops a live school by muscle
+ * memory.
+ */
+export async function platformDeleteSchool(
+  id: string,
+  confirmation: string,
+): Promise<void> {
+  await requirePlatformAdmin();
+  const admin = createAdminClient();
+  const { data: school, error: readError } = await admin
+    .from("schools")
+    .select("name, slug")
+    .eq("id", id)
+    .maybeSingle();
+  if (readError) throw new Error("We couldn't find that school.");
+  if (!school) throw new Error("We couldn't find that school.");
+  if (confirmation.trim().toLowerCase() !== school.name.trim().toLowerCase()) {
+    throw new Error("Type the school's name exactly to confirm.");
+  }
+
+  const { error } = await admin.from("schools").delete().eq("id", id);
+  if (error) throw new Error("We couldn't delete that school.");
+
+  // The row is gone, so record what it was from the values read above rather
+  // than pointing at the school that no longer exists.
+  await admin.from("audit_logs").insert({
+    user_id: null,
+    school_id: null,
+    action: "school_deleted",
+    entity_type: "schools",
+    entity_id: id,
+    metadata: { name: school.name, slug: school.slug, source: "platform_console" },
+  });
   invalidatePlatformCache();
 }
 

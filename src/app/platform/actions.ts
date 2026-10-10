@@ -11,12 +11,15 @@ import {
 } from "@/services/billing";
 import {
   platformArchiveSchool,
+  platformDeleteSchool,
   platformRestoreSchool,
+  platformSetSchoolLevel,
   platformSetSchoolStatus,
   platformUpdateSchool,
   setSupportTicketStatus,
   type PlatformSchoolStatus,
 } from "@/services/platform";
+import type { EducationLevel } from "@/types/database";
 
 export type PlatformActionState =
   | { ok: true; message?: string }
@@ -114,6 +117,22 @@ export async function setSchoolStatusAction(
   }
 }
 
+export async function setSchoolLevelAction(
+  id: string,
+  level: EducationLevel | null,
+): Promise<PlatformActionState> {
+  try {
+    await platformSetSchoolLevel(id, level);
+    revalidatePath("/platform/schools");
+    return {
+      ok: true,
+      message: level ? "Portal level updated." : "Portal level cleared.",
+    };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
 export async function setSchoolPlanAction(
   schoolId: string,
   planId: string,
@@ -145,6 +164,19 @@ export async function restoreSchoolAction(id: string): Promise<PlatformActionSta
     await platformRestoreSchool(id);
     revalidatePath("/platform/schools");
     return { ok: true, message: "School restored." };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function deleteSchoolAction(
+  id: string,
+  confirmation: string,
+): Promise<PlatformActionState> {
+  try {
+    await platformDeleteSchool(id, confirmation);
+    revalidatePath("/platform/schools");
+    return { ok: true, message: "School deleted permanently." };
   } catch (e) {
     return { ok: false, error: message(e) };
   }

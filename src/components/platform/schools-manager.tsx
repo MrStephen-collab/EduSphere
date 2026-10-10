@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Loader2, Pencil, RotateCcw, Save, Search } from "lucide-react";
+import { Archive, Loader2, Pencil, RotateCcw, Save, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,9 @@ import {
 } from "@/components/ui/sheet";
 import {
   archiveSchoolAction,
+  deleteSchoolAction,
   restoreSchoolAction,
+  setSchoolLevelAction,
   setSchoolPlanAction,
   setSchoolStatusAction,
   updateSchoolAction,
@@ -149,6 +151,43 @@ function StatusSelect({ school }: { school: ClientSchool }) {
   );
 }
 
+function LevelSelect({ school }: { school: ClientSchool }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="grid gap-1">
+      <select
+        aria-label={`Portal level for ${school.name}`}
+        className={selectClass}
+        value={school.educationLevel ?? ""}
+        disabled={isPending || school.archived}
+        onChange={(e) => {
+          setError(null);
+          const next = e.target.value;
+          startTransition(async () => {
+            const result = await setSchoolLevelAction(
+              school.id,
+              next === "" ? null : (next as EducationLevel),
+            );
+            if (result.ok) router.refresh();
+            else setError(result.error);
+          });
+        }}
+      >
+        <option value="">Not set</option>
+        {EDUCATION_LEVELS.map((entry) => (
+          <option key={entry.value} value={entry.value}>
+            {entry.label}
+          </option>
+        ))}
+      </select>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
 function PlanSelect({ school, plans }: { school: ClientSchool; plans: ClientPlanOption[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -207,6 +246,7 @@ function SchoolEditor({
   const [values, setValues] = useState<SchoolForm>(() => toForm(school));
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const save = () => {
     setError(null);
@@ -258,6 +298,23 @@ function SchoolEditor({
       }
     });
   };
+
+  const remove = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteSchoolAction(school.id, deleteConfirmation);
+      if (result.ok) {
+        setDeleteConfirmation("");
+        router.refresh();
+        onClose();
+      } else {
+        setError(result.error);
+      }
+    });
+  };
+
+  const nameMatchesDelete =
+    deleteConfirmation.trim().toLowerCase() === school.name.trim().toLowerCase();
 
   return (
     <div className="grid gap-4">
@@ -411,6 +468,42 @@ function SchoolEditor({
         )}
       </div>
 
+      <div className="grid gap-2 rounded-md border border-destructive bg-destructive/10 p-3">
+        <p className="text-sm font-medium text-destructive">
+          Delete this school permanently
+        </p>
+        <p className="text-xs text-muted-foreground">
+          This cannot be undone. The school and everything under it — classes,
+          students, results, courses and invoices — is removed for good. Archive
+          it instead if you only mean to switch it off.
+        </p>
+        <Label className="grid gap-1 text-xs font-medium text-muted-foreground">
+          Type <span className="font-semibold text-foreground">{school.name}</span>{" "}
+          to confirm
+          <input
+            className={inputClass}
+            value={deleteConfirmation}
+            onChange={(e) => setDeleteConfirmation(e.target.value)}
+            autoComplete="off"
+          />
+        </Label>
+        <div>
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={isPending || !nameMatchesDelete}
+            onClick={remove}
+          >
+            {isPending ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Trash2 className="size-4" aria-hidden="true" />
+            )}
+            Delete permanently
+          </Button>
+        </div>
+      </div>
+
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <SheetFooter>
@@ -542,6 +635,9 @@ export function SchoolsManager({
                     >
                       {levelLabel(s.educationLevel)}
                     </span>
+                    <div className="mt-1 w-40">
+                      <LevelSelect school={s} />
+                    </div>
                   </td>
                   <td className="py-2 pr-3">
                     <p className="font-medium">{s.ownerName ?? "—"}</p>
