@@ -780,6 +780,7 @@ export type NotificationType =
   | "fee_payment_submitted"
   | "fee_payment_approved"
   | "fee_payment_rejected"
+  | "admission_application_received"
   | "system";
 
 export type Notification = {
@@ -790,6 +791,58 @@ export type Notification = {
   title: string;
   message: string | null;
   read_at: string | null;
+  created_at: string;
+};
+
+/**
+ * Where an online admission application sits in the school's workflow.
+ * Mirrors the public.admission_status enum from 0028_online_admission.sql.
+ */
+export type AdmissionStatus =
+  | "submitted"
+  | "under_review"
+  | "entrance"
+  | "offered"
+  | "enrolled"
+  | "rejected"
+  | "withdrawn";
+
+export type AdmissionApplication = {
+  id: string;
+  school_id: string;
+  application_number: string;
+  applicant_first_name: string;
+  applicant_last_name: string;
+  date_of_birth: string | null;
+  gender: "male" | "female" | null;
+  class_id: string | null;
+  /** The class name at the time of application; survives a rename or delete. */
+  class_name: string;
+  guardian_name: string;
+  guardian_email: string;
+  guardian_phone: string | null;
+  address: string | null;
+  previous_school: string | null;
+  notes: string | null;
+  status: AdmissionStatus;
+  entrance_score: number | null;
+  entrance_date: string | null;
+  decision_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdmissionEvent = {
+  id: string;
+  application_id: string;
+  school_id: string;
+  author_id: string | null;
+  author_name: string;
+  /** note | status | score | system */
+  kind: string;
+  body: string;
   created_at: string;
 };
 
@@ -1000,6 +1053,16 @@ export type Database = {
         Row: Notification;
         Insert: Partial<Notification>;
         Update: Partial<Notification>;
+      };
+      admission_applications: {
+        Row: AdmissionApplication;
+        Insert: Partial<AdmissionApplication>;
+        Update: Partial<AdmissionApplication>;
+      };
+      admission_events: {
+        Row: AdmissionEvent;
+        Insert: Partial<AdmissionEvent>;
+        Update: Partial<AdmissionEvent>;
       };
       live_sessions: {
         Row: LiveSession;

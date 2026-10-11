@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, ClipboardCheck, FileUser, MessageSquareText, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdmissionApplicationForm } from "@/components/site/admission-application-form";
 import { getSchoolSite } from "@/services/school-site";
 
 export async function generateMetadata({
@@ -81,20 +82,25 @@ export default async function AdmissionsPage({
       <section className="mt-10 rounded-xl border bg-muted/40 p-6 text-center sm:p-8">
         <h2 className="text-xl font-semibold">Ready to begin?</h2>
         <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-          Contact {site.name} to confirm this term&apos;s intake. Current students and
-          parents sign in on EduSphere.
+          Apply online below and the school will receive your application immediately.
+          Current students and parents sign in on EduSphere.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
+          <Button render={<a href="#apply" />}>
+            Start an application
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Button>
           <Button
+            variant="outline"
             render={<Link href={`/schools/${site.slug}/contact`} />}
           >
             Contact the school
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Button>
-          <Button variant="outline" render={<Link href="/auth/login" />}>
-            Student / parent login
           </Button>
         </div>
+      </section>
+
+      <section id="apply" className="mt-10 scroll-mt-20">
+        <AdmissionApplicationForm slug={site.slug} classes={site.classes} />
       </section>
     </div>
   );

@@ -2,35 +2,75 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * EduSphere design tokens — see the UI/UX master spec, Part B & O.
+ * Primary Indigo drives actions; Blue drives links/learning; Cyan/Teal/Violet
+ * are learning accents. Light is the default experience; the deep navy dark
+ * theme is optional and reserved for branding, the loading screen and surface.
+ */
 :root {
-  --radius: 0.625rem;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  /* Radii: inputs/buttons 8-10px, cards 12-16px, featured panels 16-20px */
+  --radius: 0.75rem; /* 12px */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Brand indigo scale */
+  --brand-50: #eef2ff;
+  --brand-100: #e0e7ff;
+  --brand-200: #c7d2fe;
+  --brand-300: #a5b4fc;
+  --brand-400: #818cf8;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5;
+  --brand-700: #4338ca;
+  --brand-800: #3730a3;
+  --brand-900: #312e81;
+  --brand-950: #1e1b4b;
+
+  /* Light theme */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: var(--brand-700); /* Primary Indigo #4338CA */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #475569;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #eff6ff; /* Soft Blue surface */
+  --accent-foreground: #1e40af;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --gold: #f59e0b; /* Amber: pending / upcoming */
+  --gold-foreground: #451a03;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: var(--brand-700);
+
+  --blue: #2563eb;
+  --cyan: #06b6d4;
+  --teal: #0d9488;
+  --violet: #7c3aed;
+  --orange: #f97316;
+
+  --soft-blue: #eff6ff;
+  --soft-indigo: #eef2ff;
+  --soft-teal: #f0fdfa;
+
+  --chart-1: #2563eb;
+  --chart-2: #4338ca;
+  --chart-3: #06b6d4;
+  --chart-4: #0d9488;
+  --chart-5: #7c3aed;
+
+  --shadow-color: 222 47% 11%;
 }
 
 @theme inline {
@@ -49,19 +89,49 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-blue: var(--blue);
+  --color-cyan: var(--cyan);
+  --color-teal: var(--teal);
+  --color-violet: var(--violet);
+  --color-orange: var(--orange);
+
+  --color-soft-blue: var(--soft-blue);
+  --color-soft-indigo: var(--soft-indigo);
+  --color-soft-teal: var(--soft-teal);
+
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-xl: var(--radius-xl);
-  --font-sans: var(--font-manrope);
+
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -71,24 +141,48 @@
 
 .dark {
   color-scheme: dark;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+
+  --background: #07172a;
+  --foreground: #e2e8f0;
+  --card: #0f2747;
+  --card-foreground: #e2e8f0;
+  --popover: #0f2747;
+  --popover-foreground: #e2e8f0;
+  --primary: #818cf8;
+  --primary-foreground: #0b1020;
+  --secondary: #14304f;
+  --secondary-foreground: #dbe6f5;
+  --muted: #122b47;
+  --muted-foreground: #94a3b8;
+  --accent: #16324f;
+  --accent-foreground: #cfe0ff;
+  --destructive: #f87171;
+  --destructive-foreground: #2a0a0a;
+  --success: #34d399;
+  --success-foreground: #062b1c;
+  --gold: #fbbf24;
+  --gold-foreground: #2a1e00;
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: #818cf8;
+
+  --blue: #60a5fa;
+  --cyan: #22d3ee;
+  --teal: #2dd4bf;
+  --violet: #a78bfa;
+  --orange: #fb923c;
+
+  --soft-blue: #12263f;
+  --soft-indigo: #171d3a;
+  --soft-teal: #0d2a2a;
+
+  --chart-1: #60a5fa;
+  --chart-2: #818cf8;
+  --chart-3: #22d3ee;
+  --chart-4: #2dd4bf;
+  --chart-5: #a78bfa;
+
+  --shadow-color: 222 60% 2%;
 }
 
 @layer base {
@@ -97,6 +191,27 @@
   }
   body {
     @apply bg-background text-foreground;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+@layer components {
+  /* Subtle, low-opacity card elevation; borders carry most of the separation. */
+  .shadow-card {
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  }
+  .dark .shadow-card {
+    box-shadow: 0 1px 0 0 oklch(1 0 0 / 0.03), 0 2px 10px -4px hsl(var(--shadow-color) / 0.6);
+  }
+  .shadow-dialog {
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
+  }
+  .dark .shadow-dialog {
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  }
+  /* Selective brand gradient — Part B. */
+  .bg-brand-gradient {
+    background-image: linear-gradient(110deg, #4338ca 0%, #2563eb 55%, #06b6d4 100%);
   }
 }
 
@@ -196,7 +311,7 @@
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: oklch(0.922 0 0 / 0.6);
+  background: var(--muted);
 }
 
 .skeleton::after {
@@ -214,11 +329,11 @@
 }
 
 .dark .skeleton {
-  background: oklch(1 0 0 / 0.08);
+  background: oklch(1 0 0 / 0.06);
 }
 
 .dark .skeleton::after {
-  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.12), transparent);
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.10), transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

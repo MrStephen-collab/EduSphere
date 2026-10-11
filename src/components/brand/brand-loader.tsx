@@ -17,9 +17,9 @@ export function BrandLoader({
         <LogoMark size={104} theme="auto" animated />
       </div>
       <div className="es-loader-in flex flex-col items-center gap-1" style={{ animationDelay: "0.15s" }}>
-        <span className="whitespace-nowrap text-2xl font-bold tracking-tight text-[#123B8E] sm:text-3xl dark:text-white">
+        <span className="whitespace-nowrap text-2xl font-bold tracking-tight text-brand-800 sm:text-3xl dark:text-white">
           Edu
-          <span className="bg-clip-text text-transparent bg-linear-to-r from-[#1677E8] to-[#19A7F2] dark:from-[#19A7F2] dark:to-[#4AC0FF]">
+          <span className="bg-brand-gradient bg-clip-text text-transparent">
             Sphere
           </span>
         </span>

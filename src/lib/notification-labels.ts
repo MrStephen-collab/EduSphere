@@ -11,6 +11,7 @@ export const notificationTypeLabels: Record<NotificationType, string> = {
   fee_payment_submitted: "Payment submitted",
   fee_payment_approved: "Payment approved",
   fee_payment_rejected: "Payment rejected",
+  admission_application_received: "Admission application",
   system: "Notification",
 };
 

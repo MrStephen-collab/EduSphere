@@ -15,6 +15,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { getServerData } from "@/lib/server-cache";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { WelcomeHeader } from "@/components/dashboard/welcome-header";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -191,16 +192,27 @@ export default async function SchoolDashboardPage({
   if (!isSchoolStaff) redirect("/dashboard");
 
   const membership = context.memberships[0];
+  const name = context.profile?.full_name?.split(" ")[0] ?? "there";
 
   return (
-    <DashboardShell title="School Dashboard" badge="Administrator">
-      <Suspense fallback={<SchoolDashboardSkeleton />}>
-        <SchoolDashboardContent
-          schoolId={membership?.school.id}
-          welcome={!!welcome}
-          schoolName={membership?.school.name}
-        />
-      </Suspense>
+    <DashboardShell title="Dashboard" badge="Administrator">
+      <WelcomeHeader
+        name={name}
+        subtitle={
+          membership?.school.name
+            ? `Managing ${membership.school.name}`
+            : "Managing your school"
+        }
+      />
+      <div className="mt-6">
+        <Suspense fallback={<SchoolDashboardSkeleton />}>
+          <SchoolDashboardContent
+            schoolId={membership?.school.id}
+            welcome={!!welcome}
+            schoolName={membership?.school.name}
+          />
+        </Suspense>
+      </div>
     </DashboardShell>
   );
 }

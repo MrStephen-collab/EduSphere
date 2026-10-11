@@ -15,6 +15,7 @@ import { getParentAnnouncements } from "@/services/announcements";
 import { getServerData } from "@/lib/server-cache";
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { WelcomeHeader } from "@/components/dashboard/welcome-header";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
@@ -170,11 +171,16 @@ export default async function ParentDashboardPage() {
   if (!context.user) redirect("/auth/login");
   if (!context.roles.includes("PARENT")) redirect("/dashboard");
 
+  const name = context.profile?.full_name?.split(" ")[0] ?? "there";
+
   return (
-    <DashboardShell title="Parent Dashboard" badge="Parent">
-      <Suspense fallback={<ParentDashboardSkeleton />}>
-        <ParentDashboardContent />
-      </Suspense>
+    <DashboardShell title="Dashboard" badge="Parent">
+      <WelcomeHeader name={name} subtitle="A quick look at your children's learning." />
+      <div className="mt-6">
+        <Suspense fallback={<ParentDashboardSkeleton />}>
+          <ParentDashboardContent />
+        </Suspense>
+      </div>
     </DashboardShell>
   );
 }

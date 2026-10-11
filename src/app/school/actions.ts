@@ -52,6 +52,15 @@ import {
   reviewFeePayment,
   voidFeeInvoice,
 } from "@/services/fees";
+import {
+  admissionNoteSchema,
+  admissionScoreSchema,
+  admissionStatusSchema,
+  addAdmissionNote,
+  deleteAdmissionApplication,
+  recordEntranceScore,
+  setAdmissionStatus,
+} from "@/services/admissions";
 import type { z } from "zod";
 import type { EducationLevel } from "@/types/database";
 
@@ -373,6 +382,37 @@ export async function setComplaintStatusAction(
   return run(
     async () => setComplaintStatus(input),
     "/school/complaints",
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Admissions
+// ---------------------------------------------------------------------------
+
+export async function setAdmissionStatusAction(
+  input: z.infer<typeof admissionStatusSchema>,
+): Promise<ActionState> {
+  return run(async () => setAdmissionStatus(input), "/school/admissions");
+}
+
+export async function recordAdmissionScoreAction(
+  input: z.infer<typeof admissionScoreSchema>,
+): Promise<ActionState> {
+  return run(async () => recordEntranceScore(input), "/school/admissions");
+}
+
+export async function addAdmissionNoteAction(
+  input: z.infer<typeof admissionNoteSchema>,
+): Promise<ActionState> {
+  return run(async () => addAdmissionNote(input), "/school/admissions");
+}
+
+export async function deleteAdmissionApplicationAction(
+  applicationId: string,
+): Promise<ActionState> {
+  return run(
+    async () => deleteAdmissionApplication(applicationId),
+    "/school/admissions",
   );
 }
 

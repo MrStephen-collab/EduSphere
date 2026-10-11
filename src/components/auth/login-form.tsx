@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,15 +14,16 @@ export function LoginForm() {
     ActionState | null,
     FormData
   >(loginAction, null);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <AuthCard
       title="Welcome back"
-      description="Sign in to your account to continue."
+      description="Sign in to access your learning portal."
       footer={
         <>
           Don&apos;t have an account?{" "}
-          <Link href="/auth/register" className="font-medium underline underline-offset-4">
+          <Link href="/auth/register" className="font-medium text-primary underline-offset-4 hover:underline">
             Get started
           </Link>
         </>
@@ -45,12 +47,34 @@ export function LoginForm() {
             <Label htmlFor="password">Password</Label>
             <Link
               href="/auth/forgot-password"
-              className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+              className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             >
               Forgot password?
             </Link>
           </div>
-          <Input id="password" name="password" type="password" autoComplete="current-password" required />
+          <div className="relative">
+            <Input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {showPassword ? (
+                <EyeOff className="size-4" aria-hidden="true" />
+              ) : (
+                <Eye className="size-4" aria-hidden="true" />
+              )}
+            </button>
+          </div>
         </div>
         <Button type="submit" className="w-full" disabled={pending}>
           {pending ? "Signing in..." : "Sign in"}

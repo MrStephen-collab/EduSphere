@@ -17,6 +17,22 @@ const badgeVariants = cva(
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
+        brand:
+          "bg-primary/12 text-primary [a]:hover:bg-primary/20",
+        blue:
+          "bg-blue/12 text-blue [a]:hover:bg-blue/20",
+        cyan:
+          "bg-cyan/12 text-cyan [a]:hover:bg-cyan/20",
+        teal:
+          "bg-teal/12 text-teal [a]:hover:bg-teal/20",
+        violet:
+          "bg-violet/12 text-violet [a]:hover:bg-violet/20",
+        amber:
+          "bg-gold/15 text-[#b45309] dark:text-gold [a]:hover:bg-gold/25",
+        gold:
+          "bg-gold/15 text-[#b45309] dark:text-gold [a]:hover:bg-gold/25",
+        success:
+          "bg-success/12 text-success [a]:hover:bg-success/20",
         link: "text-primary underline-offset-4 hover:underline",
       },
     },

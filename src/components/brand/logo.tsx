@@ -41,7 +41,7 @@ const TAG_PX: Record<LogoSize, number> = {
   xl: 17,
 };
 
-export const BRAND_TAGLINE = "Your School. Your Students. Your Digital Classroom.";
+export const BRAND_TAGLINE = "Your School. Your Learning Sphere.";
 export const BRAND_LABEL = "EduSphere — Digital Learning Platform";
 
 function toPx(size: LogoSize | number, table: Record<LogoSize, number>) {

@@ -119,6 +119,15 @@ const navFor = (
   }
 };
 
+const ROLE_LABELS: Record<ShellKind, string> = {
+  platform: "Platform admin",
+  school: "School admin",
+  teacher: "Teacher",
+  student: "Student",
+  parent: "Parent",
+  "no-role": "Account",
+};
+
 async function NotificationUnreadBadge({ userId }: { userId: string }) {
   const unread = await getUnreadNotificationCount(userId);
   if (unread === 0) return null;
@@ -165,6 +174,7 @@ export async function DashboardShell({
       title={title}
       badge={badge}
       schoolName={firstMembership?.school.name}
+      roleLabel={ROLE_LABELS[kind]}
       userName={context.profile?.full_name ?? undefined}
       userEmail={context.user.email ?? undefined}
       avatarUrl={context.profile?.avatar_url}

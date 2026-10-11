@@ -22,7 +22,7 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: "system",
+  theme: "light",
   setTheme: () => {},
   resolvedTheme: "light",
 });
@@ -33,14 +33,14 @@ function getSystemTheme(): ResolvedTheme {
 }
 
 function getStoredTheme(): Theme {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "light";
   try {
     const value = localStorage.getItem(STORAGE_KEY);
     if (value === "light" || value === "dark" || value === "system") return value;
   } catch {
     /* storage unavailable */
   }
-  return "system";
+  return "light";
 }
 
 function applyResolvedTheme(resolved: ResolvedTheme) {

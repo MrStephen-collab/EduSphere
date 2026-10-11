@@ -15,6 +15,7 @@ import {
   Receipt,
   ShieldCheck,
   ShieldX,
+  UserPlus,
 } from "lucide-react";
 import { markReadAction } from "@/app/notifications/actions";
 import { notificationTypeLabel } from "@/lib/notification-labels";
@@ -48,6 +49,7 @@ const typeIcons: Record<NotificationType, typeof Bell> = {
   fee_payment_submitted: Receipt,
   fee_payment_approved: ShieldCheck,
   fee_payment_rejected: ShieldX,
+  admission_application_received: UserPlus,
   system: Info,
 };
 

@@ -14,7 +14,7 @@ import { getPublicPlans } from "@/services/billing";
 import { PricingCards } from "@/components/marketing/pricing-cards";
 
 export const metadata: Metadata = {
-  title: "Your School. Your Digital Classroom.",
+  title: "Your School. Your Learning Sphere.",
   description:
     "Give your school a modern digital learning environment where teachers teach, students learn, assessments happen and parents stay connected.",
 };
@@ -65,25 +65,46 @@ export default async function HomePage() {
 
   return (
     <>
-      <section className="mx-auto max-w-6xl px-4 pb-16 pt-16 text-center md:pt-24">
-        <span className="inline-flex items-center rounded-full border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-          Built for Nigerian schools 🇳🇬
-        </span>
-        <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl md:text-6xl">
-          Your School. Your{" "}
-          <span className="text-primary">Digital Classroom.</span>
-        </h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-          Give your school a modern digital learning environment where teachers
-          teach, students learn, assessments happen and parents stay connected.
-        </p>
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button size="lg" render={<Link href="/auth/register" />} className="w-full sm:w-auto">
-            Get Started <ArrowRight className="ml-2 size-4" aria-hidden="true" />
-          </Button>
-          <Button size="lg" variant="outline" render={<Link href="/contact" />} className="w-full sm:w-auto">
-            Book a Demo
-          </Button>
+      <section className="relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-40 left-1/2 h-[26rem] w-[48rem] -translate-x-1/2 rounded-full bg-brand-200/40 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[-4rem] top-40 size-80 rounded-full bg-cyan-200/30 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 left-[-4rem] size-72 rounded-full bg-violet-200/30 blur-3xl"
+        />
+        <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-16 text-center md:pt-24">
+          <span className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-card">
+            <GraduationCap className="size-3.5 text-primary" aria-hidden="true" />
+            Built for schools in Nigeria
+          </span>
+          <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl md:text-6xl">
+            Your School. Your{" "}
+            <span className="bg-brand-gradient bg-clip-text text-transparent">
+              Learning Sphere.
+            </span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
+            Give your school a modern digital learning environment where teachers
+            teach, students learn, assessments happen and parents stay connected.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button size="lg" render={<Link href="/auth/register" />} className="w-full sm:w-auto">
+              Get Started <ArrowRight className="ml-2 size-4" aria-hidden="true" />
+            </Button>
+            <Button size="lg" variant="outline" render={<Link href="/contact" />} className="w-full sm:w-auto">
+              Book a Demo
+            </Button>
+          </div>
+          <p className="mx-auto mt-6 max-w-xl text-sm text-muted-foreground">
+            Digital lessons, computer-based testing, instant results and parent
+            updates — in one safe, branded space for your school.
+          </p>
         </div>
       </section>
 

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import localFont from "next/font/local";
 import { ServiceWorkerRegister } from "@/components/pwa/sw-register";
 import { Toaster } from "@/components/ui/sonner";
@@ -6,11 +7,11 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { siteConfig } from "@/config/site";
 import "./globals.css";
 
-const manrope = localFont({
-  src: "./fonts/Manrope-Variable.woff2",
-  variable: "--font-manrope",
-  weight: "200 800",
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
   display: "swap",
+  fallback: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
 });
 
 const geistMono = localFont({
@@ -60,7 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${manrope.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
@@ -69,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var e=localStorage.getItem("theme")||"system";var d=e==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):e;var r=document.documentElement;r.classList.remove("light","dark");r.classList.add(d);r.style.colorScheme=d}catch(e){}})();`,
+            __html: `(function(){try{var e=localStorage.getItem("theme")||"light";var d=e==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):e;var r=document.documentElement;r.classList.remove("light","dark");r.classList.add(d);r.style.colorScheme=d}catch(e){}})();`,
           }}
         />
       </head>

@@ -23,6 +23,7 @@ Each school gets its own isolated, branded digital academic environment.
 - **Fees & payments** — schools invoice per child, one-off or by whole class for a term. A parent pays the outstanding balance through Paystack; the webhook only *queues* the payment, and a bursar approves it from `/school/fees` before any money is credited. Bulk term billing is idempotent (a deterministic `billing_key`), approval clamps to the amount owed and is guarded against two bursars approving at once, and the school sees live invoiced / collected / outstanding / overdue totals. A parent can never mark themselves paid.
 - **Global search** — Ctrl/Cmd+K command bar across the whole app: schools, classes, teachers, students, subjects, courses, lessons, assignments, exam series and announcements, with role-aware results.
 - **Public school websites** — every school gets a branded public homepage at `/schools/[slug]` (about, academics, admissions, news, events, gallery, contact) rendered from real database data with its own theming.
+- **Online admission** — a school's public admissions page is a working application form, not a leaflet: a signed-out visitor (no account needed) submits the child's and guardian's details against a class, gets an `ADM-XXXXXXXX` reference, and the application lands in the school's `/school/admissions` inbox. The school works it through `submitted → under_review → entrance → offered → enrolled` (or `rejected` / `withdrawn`), records the entrance score and any notes on a per-application timeline, and prints an offer letter once a place is offered. The public form is the product's only anonymous write and runs entirely through trusted server code — the database has no `anon` insert policy.
 - **Email notifications** — provider-agnostic transactional emails (Welcome, password reset, assignment created/graded, exam result, school announcements, subscription confirmation) with an exam-reminder template ready for a scheduler. Defaults to console logging until an API key is added.
 - **Attendance** — teachers take a per-class daily register (present / late / absent / excused); report cards and the class results sheet aggregate days present plus attendance rate.
 - **Subscriptions & payments** — DB-driven pricing plans (Starter / Professional / Premium) with a Paystack integration: schools start a checkout from `/school/billing`, pay on Paystack, and Paystack webhooks (`/api/webhooks/paystack`) instantly activate or switch the school's subscription. A super-admin plan manager (`/platform/subscriptions`) creates, edits and toggles plans and refunds payments. The marketing site reads plans live from the database — no hard-coded prices.
@@ -165,6 +166,7 @@ Open [http://localhost:3000](http://localhost:3000).
    - `supabase/migrations/0025_education_levels.sql`
    - `supabase/migrations/0026_content_categories.sql`
    - `supabase/migrations/0027_learning_access_threshold.sql`
+   - `supabase/migrations/0028_online_admission.sql`
 3. With `npm run dev` running, execute the demo-user seeder once:
 
 ```bash
@@ -272,12 +274,15 @@ npx supabase db push --include-all
 /school                 School admin / owner / principal
 /school/billing         School subscription + payment history
 /school/fees            Issue invoices, bulk term billing, approve payments
+/school/admissions      Review applications from the public admissions form
+/school/admissions/[id]/letter  Printable offer of admission
 /teacher                Teacher dashboard
 /student                Student dashboard
 /parent                 Parent dashboard
 /pricing                Public pricing page (database-driven)
 
 /api/webhooks/paystack          Paystack payment webhooks
+/api/admissions/[slug]          Public admission application submission (no account)
 
 /student/report-cards         Student report card (per term, printable)
 /student/report-cards/annual  Student cumulative annual report card
@@ -307,8 +312,9 @@ to the correct dashboard. This logic lives in
 
 - Unit tests cover the RBAC/permissions matrix, auth validation, the education
   level rules that gate Courses/Lessons, the content-category taxonomy, the
-  level-aware class naming and the email templates (rendering + escaping).
-  **Currently 132 passed across 11 files.**
+  level-aware class naming, the admission reference-number format and workflow
+  and the email templates (rendering + escaping).
+  **Currently 165 passed across 13 files.**
 
   ```bash
   npm run test

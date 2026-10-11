@@ -17,6 +17,7 @@ import {
   ScrollText,
   Settings,
   UserRound,
+  UserPlus,
   Users,
   BarChart3,
   HelpCircle,
@@ -30,6 +31,7 @@ export const navIcons = {
   dashboard: LayoutDashboard,
   students: Users,
   teachers: GraduationCap,
+  admissions: UserPlus,
   classes: Menu,
   structure: Building2,
   courses: BookOpen,
@@ -96,6 +98,7 @@ export const schoolNav: NavSection[] = [
   {
     label: "People",
     items: [
+      { title: "Admissions", href: "/school/admissions", icon: "admissions" },
       { title: "Students", href: "/school/students", icon: "students" },
       { title: "Teachers", href: "/school/teachers", icon: "teachers" },
       { title: "Parents", href: "/school/parents", icon: "profile" },

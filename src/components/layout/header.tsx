@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, LogOut, UserRound, Bell } from "lucide-react";
+import { Menu, LogOut, UserRound, Bell, CircleHelp } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { EduSphereLogo } from "@/components/brand/logo";
 import { logoutAction } from "@/lib/auth/actions";
+import { siteConfig } from "@/config/site";
 import type { NavSection } from "@/config/nav";
 import { SidebarNav } from "./sidebar-nav";
 
@@ -34,6 +35,7 @@ export function Header({
   title,
   badge,
   schoolName,
+  roleLabel,
   userName,
   userEmail,
   avatarUrl,
@@ -44,6 +46,7 @@ export function Header({
   title: string;
   badge?: string;
   schoolName?: string;
+  roleLabel?: string;
   userName?: string;
   userEmail?: string;
   avatarUrl?: string | null;
@@ -60,30 +63,32 @@ export function Header({
     .toUpperCase();
 
   return (
-    <header className="z-30 flex h-16 shrink-0 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur md:px-6">
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0"
-              aria-label="Open menu"
-            />
-          }
-        >
-          <Menu className="size-5" />
-        </SheetTrigger>
-        <SheetContent side="left" className="w-72 p-0">
-          <SheetHeader className="flex h-16 flex-row items-center gap-3 border-b px-5 text-left">
-            <EduSphereLogo variant="icon" size="md" className="shrink-0" />
-            <SheetTitle>EduSphere</SheetTitle>
-          </SheetHeader>
-          <div className="overflow-y-auto">
-            <SidebarNav sections={sections} />
-          </div>
-        </SheetContent>
-      </Sheet>
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur md:px-6 lg:px-8">
+      <div className="lg:hidden">
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0"
+                aria-label="Open menu"
+              />
+            }
+          >
+            <Menu className="size-5" />
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 p-0">
+            <SheetHeader className="flex h-16 flex-row items-center gap-3 border-b px-5 text-left">
+              <EduSphereLogo variant="icon" size="md" className="shrink-0" />
+              <SheetTitle>EduSphere</SheetTitle>
+            </SheetHeader>
+            <div className="overflow-y-auto">
+              <SidebarNav sections={sections} />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <h1 className="truncate text-base font-semibold md:text-lg">{title}</h1>
@@ -97,6 +102,14 @@ export function Header({
       )}
 
       <SearchDialog />
+
+      <a
+        href={`mailto:${siteConfig.supportEmail}`}
+        aria-label="Help and support"
+        className="hidden size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:inline-flex"
+      >
+        <CircleHelp className="size-5" aria-hidden="true" />
+      </a>
 
       {notificationUnread !== undefined && (
         <Link
@@ -131,6 +144,11 @@ export function Header({
           <DropdownMenuLabel>
             <div className="flex flex-col">
               <span className="text-sm font-medium">{userName ?? "Account"}</span>
+              {roleLabel && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  {roleLabel}
+                </span>
+              )}
               {userEmail && <span className="text-xs text-muted-foreground">{userEmail}</span>}
             </div>
           </DropdownMenuLabel>

@@ -15,7 +15,7 @@ export function MobileBottomNav({ items }: { items: NavItem[] }) {
 
   return (
     <nav
-      className="grid shrink-0 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      className="grid shrink-0 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
       style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}
       aria-label="Bottom navigation"
     >

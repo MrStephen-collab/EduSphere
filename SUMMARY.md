@@ -5,7 +5,7 @@ Working directory: `G:\EduSphere`. Build against spec `G:\EduSphere\EduSphere.tx
 Git repo on `main` (remote `origin` configured). No Docker; hosted Supabase linked.
 
 ## Verification commands
-`npm run typecheck`, `npm run lint`, `npm run test` (vitest, 116 tests), `npm run build` — all pass.
+`npm run typecheck`, `npm run lint`, `npm run test` (vitest, 165 tests), `npm run build` — all pass.
 Machine cannot reliably fetch Google Fonts → self-hosted fonts (see below), always relevant for build.
 
 ## Completed this session
@@ -51,6 +51,15 @@ CSV student import already exists (`src/components/school/student-import.tsx`) �
 - Supabase CLI 2.113.0; `supabase/.temp/linked-project.json` for hosted project.
 - Dev server: `localhost:3000`; PWA test via `npm run build && npm run start` with `NEXT_PUBLIC_ENABLE_PWA_DEV=true`.
 - This network kills pooled HTTP/2 sessions. Supabase queries use the fresh-connection HTTP/1.1 transport in `src/lib/supabase/http1.ts` (3 attempts, short backoff); set `SUPABASE_TRANSPORT=http1` to force it for the preview server, `=platform` to force the platform fetch. Verification scripts install the same workaround via `scripts/lib/http1-fetch.mjs`, scoped to `*.supabase.co` only so Mux calls keep the platform transport.
+
+## This session — online admission (§39)
+- Public admission form on every school website: `src/app/schools/[slug]/admissions/page.tsx` now renders `AdmissionApplicationForm` (`src/components/site/admission-application-form.tsx`), a client component that posts JSON to a new route handler `src/app/api/admissions/[slug]/route.ts` (`POST`, nodejs runtime). This is the product's **first anonymous write** — there is no session, so the handler trusts only the path slug; the service resolves the school (`status='active'`) and checks the chosen class belongs to it.
+- New migration `0028_online_admission.sql`: `admission_status` enum (`submitted|under_review|entrance|offered|enrolled|rejected|withdrawn`), `admission_applications` (denormalised `class_name`, `entrance_score` 0–100, `decision_note`, `reviewed_by/at`, `unique (school_id, application_number)`) and `admission_events` (timeline: `note|status|score|system`). RLS = select/update/delete for `is_super_admin()` or `is_school_admin(school_id)`; **no insert policy** — the service role is the only writer. Helper `can_access_admission()`. Adds `notification_type` value `admission_application_received`.
+- `src/lib/admission.ts` is pure + unit-tested (`admission.test.ts`, 14 tests): `buildApplicationNumber()` → `ADM-XXXXXXXX` (first 8 hex of a uuid), `applicationNumberFromSeed` (seeded, testable), `nextAdmissionStatus`, `isTerminalAdmissionStatus`, `canIssueAdmissionLetter` (offered/enrolled), `isValidEntranceScore`. Client-safe labels in `src/lib/admission-labels.ts`.
+- `src/services/admissions.ts`: `submitAdmissionApplication` (public; retries on a 23505 reference clash), `getAdmissionApplications`, `getAdmissionCounts`, `getAdmissionApplication`, `getAdmissionLetterData`, `setAdmissionStatus`, `recordEntranceScore`, `addAdmissionNote`, `deleteAdmissionApplication`. Every admin read/write goes through `requireSchoolAdmin()` + the admin client, scoped by `school_id`; a fresh application notifies the school's admins.
+- School console `/school/admissions` (`AdmissionsInbox` client component): status select, a one-click "move forward" (`nextAdmissionStatus`), entrance score + date, free-text note, collapsible activity timeline and delete. `/school/admissions/[id]/letter` prints an offer letter (`AdmissionLetterPaper`) — only for `offered`/`enrolled`. Actions added to `src/app/school/actions.ts`.
+- Nav: `Admissions` at the top of the school **People** section (new `UserPlus` icon key `admissions`). Notification icon map gained `admission_application_received`.
+- **Migration 0028 is NOT yet applied to the hosted DB** — run `npx supabase db push --include-all` (mind the `.env.local` PEM parse caveat above). `typecheck`, `lint`, `test` (165) and `build` all pass locally; no DB-backed `verify:*` script was added for admissions.
 
 ## Latest session — platform console: sheet width, school delete, inline portal level
 - The `/platform/schools` "Manage" editor opens in a right-side `SheetContent`. `sheet.tsx` forced `data-[side=right]:w-3/4` and `data-[side=right]:sm:max-w-sm` on every side panel. Tailwind treats a variant class as distinct from the caller's plain `sm:max-w-lg`, so it was never merged away and the form stayed pinned to a cramped 384px on desktop regardless of what the caller passed.
