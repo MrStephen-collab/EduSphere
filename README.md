@@ -233,11 +233,12 @@ npm run verify:mux-playback   # signed vs unsigned playback enforcement
 npm run verify:video-upload   # Mux direct upload → ready → signed playback (needs a server)
 npm run verify:video-refresh  # a stranded upload can still be pulled to ready
 npm run verify:video-indicator # video lessons show a play affordance, not a file icon
+npm run verify:admissions      # public admissions form + isolatable application workflow (needs a server)
 ```
 
 `acceptance`, `smoke`, `verify:timetable`, `verify:live`, `verify:fee-statement`,
 `verify:lesson-nav`, `verify:platform-access`, `verify:structure`,
-`verify:fee-gate` and
+`verify:fee-gate`, `verify:admissions` and
 `verify:video-upload` need the preview server running; the rest talk to the
 database directly. Run `node scripts/seed.mjs` once before `acceptance` to create
 the School A demo data it walks through.
