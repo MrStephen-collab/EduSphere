@@ -167,6 +167,7 @@ Open [http://localhost:3000](http://localhost:3000).
    - `supabase/migrations/0026_content_categories.sql`
    - `supabase/migrations/0027_learning_access_threshold.sql`
    - `supabase/migrations/0028_online_admission.sql`
+   - `supabase/migrations/0029_teacher_subject_management.sql`
 3. With `npm run dev` running, execute the demo-user seeder once:
 
 ```bash
@@ -234,6 +235,7 @@ npm run verify:video-upload   # Mux direct upload → ready → signed playback 
 npm run verify:video-refresh  # a stranded upload can still be pulled to ready
 npm run verify:video-indicator # video lessons show a play affordance, not a file icon
 npm run verify:admissions      # public admissions form + isolatable application workflow (needs a server)
+npm run verify:subject-rls     # teachers can manage their own school's subjects, and no further
 ```
 
 `acceptance`, `smoke`, `verify:timetable`, `verify:live`, `verify:fee-statement`,

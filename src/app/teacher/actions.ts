@@ -37,6 +37,7 @@ import {
   saveEssayMarks,
 } from "@/services/exam";
 import { saveClassRegister } from "@/services/attendance";
+import { createSubject, deleteSubject } from "@/services/academics";
 import {
   createQuestionBank,
   deleteQuestionBank,
@@ -682,4 +683,15 @@ export async function deleteBankQuestionAction(
     },
     [`/teacher/question-bank/${bankId}`],
   );
+}
+
+export async function createSubjectAction(input: {
+  name: string;
+  code?: string | null;
+}): Promise<ActionState> {
+  return run(async () => createSubject(input), ["/teacher/subjects"]);
+}
+
+export async function deleteSubjectAction(id: string): Promise<ActionState> {
+  return run(async () => deleteSubject(id), ["/teacher/subjects"]);
 }

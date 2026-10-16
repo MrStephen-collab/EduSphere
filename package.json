@@ -33,7 +33,8 @@
     "verify:video-refresh": "node scripts/verify-video-refresh.mjs",
     "superadmin": "node scripts/set-super-admin.mjs",
     "verify:platform-access": "node scripts/verify-platform-access.mjs",
-    "verify:admissions": "node scripts/verify-admissions.mjs"
+    "verify:admissions": "node scripts/verify-admissions.mjs",
+    "verify:subject-rls": "node scripts/verify-subject-rls.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

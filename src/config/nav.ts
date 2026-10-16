@@ -150,6 +150,7 @@ export const teacherNav: NavSection[] = [
     label: "Teaching",
     items: [
       { title: "Classes", href: "/teacher/classes", icon: "classes" },
+      { title: "Subjects", href: "/teacher/subjects", icon: "courses" },
       { title: "Courses", href: "/teacher/courses", icon: "courses" },
       // A page of its own rather than another link to /teacher/courses. Two nav
       // entries pointing at the same URL is what made "Courses" and "Lessons"

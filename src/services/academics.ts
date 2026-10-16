@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireSchoolAdmin } from "@/services/shared";
+import { requireSchoolAdmin, requireContentEditor } from "@/services/shared";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import type {
   AcademicSession,
@@ -190,7 +190,7 @@ export async function createSubject(input: {
   code?: string | null;
 }): Promise<void> {
   invalidateSchoolCounts();
-  const { schoolId } = await requireSchoolAdmin();
+  const { schoolId } = await requireContentEditor();
   const parsed = subjectSchema.parse(input);
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("subjects").insert({
@@ -206,7 +206,7 @@ export async function createSubject(input: {
 
 export async function deleteSubject(id: string): Promise<void> {
   invalidateSchoolCounts();
-  const { schoolId } = await requireSchoolAdmin();
+  const { schoolId } = await requireContentEditor();
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("subjects")

@@ -151,6 +151,7 @@ const ROLES = [
       "/teacher/profile",
       "/teacher/question-bank",
       "/teacher/report-cards",
+      "/teacher/subjects",
     ],
   },
   {
