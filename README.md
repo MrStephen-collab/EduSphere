@@ -19,12 +19,12 @@ Each school gets its own isolated, branded digital academic environment.
 - **Low-data mode** — Data Saver / Balanced / High Quality per learner (saved choice wins over the device's own save-data request and the school default), a 360p/480p/720p video ceiling enforced by capping the adaptive stream's ladder in the player, and an honest footer note wherever the browser cannot hold the cap. Schools can start their learners in Data Saver from settings.
 - **Essays & Paper-2 marking** — full-answer essay questions on any series; students type their working, teachers mark them manually against an answer guide, and the score rolls into the student's attempt after marking.
 - **Exam series** — a catalogue of past-question practice series for **Common Entrance, WAEC, NECO and JAMB** (plus school-format papers), with instant auto-marking and answer reviews.
-- **Results & analytics** — student, teacher, class and subject performance analytics. The school dashboard opens with **important alerts** — students whose results are declining, assignments still awaiting marking, examinations due in the next two weeks, students who have gone quiet, and subjects averaging below the pass mark — each judged with an honest threshold (a decline needs results either side of the comparison, a fresh account is never called inactive, a subject needs enough results before it is named). School analytics carries a **date filter** (a period or a custom from/to) that narrows results and topic performance by when they were recorded, and shows the counts of active students, teachers, courses, lessons, assignments and examinations alongside the averages.
+- **Results & analytics** — student, teacher, class and subject performance analytics. The school dashboard opens with **important alerts** — students whose results are declining, assignments still awaiting marking, examinations due in the next two weeks, students who have gone quiet, and subjects averaging below the pass mark — each judged with an honest threshold (a decline needs results either side of the comparison, a fresh account is never called inactive, a subject needs enough results before it is named). School analytics carries a **date filter** (a period or a custom from/to) that narrows results and topic performance by when they were recorded, and shows the counts of active students, teachers, courses, lessons, assignments and examinations alongside the averages. The teacher analytics view rolls examination answers up by **topic** to name the weakest and strongest topics **per class** (or across all of them, with a class filter), and only names a topic once it has enough answers to mean something.
 - **Report cards & termly results** — printable per-term and cumulative annual report cards with grade bands, class positions and a class results sheet for teachers (computed live from graded assignments, CBT practice and daily attendance marks).
 - **Parent portal** — a linked parent can view each child's results, assignments, course progress and printable report cards.
 - **Fees & payments** — schools invoice per child, one-off or by whole class for a term. A parent pays the outstanding balance through Paystack; the webhook only *queues* the payment, and a bursar approves it from `/school/fees` before any money is credited. Bulk term billing is idempotent (a deterministic `billing_key`), approval clamps to the amount owed and is guarded against two bursars approving at once, and the school sees live invoiced / collected / outstanding / overdue totals. A parent can never mark themselves paid.
 - **Global search** — Ctrl/Cmd+K command bar across the whole app: schools, classes, teachers, students, subjects, courses, lessons, assignments, exam series and announcements, with role-aware results.
-- **Public school websites** — every school gets a branded public homepage at `/schools/[slug]` (about, academics, admissions, news, events, gallery, contact) rendered from real database data with its own theming.
+- **Public school websites** — every school gets a branded public homepage at `/schools/[slug]` (about, academics, admissions, news, events, gallery, contact) rendered from real database data with its own theming. A school **logo** can be uploaded during onboarding or later in settings and appears on the public site, admission letters and report cards; uploads go straight to a public `school-assets` bucket (PNG/JPG/WebP, 2 MB) with a one-time signed URL, so the bytes never pass through the app server.
 - **Online admission** — a school's public admissions page is a working application form, not a leaflet: a signed-out visitor (no account needed) submits the child's and guardian's details against a class, gets an `ADM-XXXXXXXX` reference, and the application lands in the school's `/school/admissions` inbox. The school works it through `submitted → under_review → entrance → offered → enrolled` (or `rejected` / `withdrawn`), records the entrance score and any notes on a per-application timeline, and prints an offer letter once a place is offered. The public form is the product's only anonymous write and runs entirely through trusted server code — the database has no `anon` insert policy.
 - **Email notifications** — provider-agnostic transactional emails (Welcome, password reset, assignment created/graded, exam result, school announcements, subscription confirmation) with an exam-reminder template ready for a scheduler. Defaults to console logging until an API key is added.
 - **Attendance** — teachers take a per-class daily register (present / late / absent / excused); report cards and the class results sheet aggregate days present plus attendance rate.
@@ -171,7 +171,8 @@ Open [http://localhost:3000](http://localhost:3000).
    - `supabase/migrations/0028_online_admission.sql`
    - `supabase/migrations/0029_teacher_subject_management.sql`
    - `supabase/migrations/0030_practice_attempt_integrity.sql`
-   - `supabase/migrations/0031_user_data_preferences.sql`
+    - `supabase/migrations/0031_user_data_preferences.sql`
+    - `supabase/migrations/0032_school_assets.sql`
 3. With `npm run dev` running, execute the demo-user seeder once:
 
 ```bash
@@ -243,6 +244,8 @@ npm run verify:subject-rls     # teachers can manage their own school's subjects
 npm run verify:exam-security   # the practice-attempt integrity trail: stored, readable, un-editable by students
 npm run verify:data-preferences # data-mode preferences are personal: own-write, no cross-user reads, school default only its admin can set
 npm run verify:school-alerts    # the dashboard alert queries run: pending-marking and upcoming-exam joins resolve, results date filter narrows by created_at
+npm run verify:school-assets    # the public school-assets bucket: 2 MB PNG/JPG/WebP only, signed-upload → public-read round trip
+npm run verify:teacher-topics   # a student's answer resolves to its topic and its class, so per-class weak topics can be computed
 ```
 
 `acceptance`, `smoke`, `verify:timetable`, `verify:live`, `verify:fee-statement`,
@@ -275,7 +278,8 @@ npx supabase db push --include-all
 ```text
 /                      Landing (marketing)
 /auth/login            Sign in
-/auth/register         Create school account
+/auth/register         Create school account (drops a confirmed owner straight into onboarding)
+/school/onboarding     Guided setup: school details, classes, subjects, session, people, logo
 
 /schools/[slug]        Public (branded) school website
 

@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 export type OnboardingInit = {
   schoolId: string | null;
   schoolName: string | null;
+  logoUrl: string | null;
   hasSession: boolean;
   classNames: string[];
   subjects: { name: string; code: string | null }[];
@@ -39,7 +40,7 @@ export default async function OnboardingPage() {
       (sessionsRes.data?.length ?? 0) > 0;
     if (complete) redirect("/school");
 
-    const [classesFull, subjectsRes] = await Promise.all([
+    const [classesFull, subjectsRes, schoolRes] = await Promise.all([
       supabase
         .from("classes")
         .select("name")
@@ -50,11 +51,17 @@ export default async function OnboardingPage() {
         .select("name, code")
         .eq("school_id", schoolId)
         .order("name", { ascending: true }),
+      supabase
+        .from("schools")
+        .select("logo_url")
+        .eq("id", schoolId)
+        .maybeSingle(),
     ]);
 
     const init: OnboardingInit = {
       schoolId,
       schoolName: context.memberships[0].school.name,
+      logoUrl: schoolRes.data?.logo_url ?? null,
       hasSession: (sessionsRes.data?.length ?? 0) > 0,
       classNames: classesFull.data?.map((c) => c.name) ?? [],
       subjects:
@@ -63,5 +70,18 @@ export default async function OnboardingPage() {
     return <OnboardingWizard init={init} />;
   }
 
-  return <OnboardingWizard init={{ schoolId: null, schoolName: null, hasSession: false, classNames: [], subjects: [] }} />;
+  return (
+    <OnboardingWizard
+      init={{
+        schoolId: null,
+        schoolName:
+          (context.user.user_metadata?.school_name as string | undefined)?.trim() ||
+          null,
+        logoUrl: null,
+        hasSession: false,
+        classNames: [],
+        subjects: [],
+      }}
+    />
+  );
 }

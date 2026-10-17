@@ -5,7 +5,8 @@ import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateBrandingAction } from "@/app/school/actions";
+import { updateBrandingAction, updateSchoolLogoAction } from "@/app/school/actions";
+import { LogoUploader } from "@/components/school/logo-uploader";
 
 export type BrandingFormData = {
   name: string;
@@ -19,6 +20,7 @@ export type BrandingFormData = {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
+  logoUrl: string | null;
 };
 
 export function BrandingForm({ initial }: { initial: BrandingFormData }) {
@@ -49,6 +51,8 @@ export function BrandingForm({ initial }: { initial: BrandingFormData }) {
     >
       {error && <p className="text-sm text-destructive">{error}</p>}
       {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
+
+      <LogoUploader currentUrl={form.logoUrl} onUploaded={updateSchoolLogoAction} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">

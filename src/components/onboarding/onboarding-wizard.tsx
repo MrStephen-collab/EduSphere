@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { EDUCATION_LEVELS } from "@/lib/education/levels";
 import type { EducationLevel } from "@/types/database";
+import { LogoUploader } from "@/components/school/logo-uploader";
 import {
   onboardingCreateSchool,
   onboardingSaveClasses,
@@ -22,6 +23,7 @@ import {
   onboardingSaveSession,
   onboardingImportTeachers,
   onboardingImportStudents,
+  onboardingSaveLogo,
   completeOnboarding,
 } from "@/app/school/onboarding/actions";
 import type { OnboardingInit } from "@/app/school/onboarding/page";
@@ -52,6 +54,7 @@ type ImportStats = { created: number; duplicates: number; errors: string[] };
 export function OnboardingWizard({ init }: { init: OnboardingInit }) {
   const [schoolId, setSchoolId] = useState(init.schoolId);
   const [schoolName, setSchoolName] = useState(init.schoolName ?? "");
+  const [logoUrl, setLogoUrl] = useState(init.logoUrl);
   const [educationLevel, setEducationLevel] = useState<EducationLevel | "">("");
   const [motto, setMotto] = useState("");
   const [city, setCity] = useState("");
@@ -304,16 +307,27 @@ export function OnboardingWizard({ init }: { init: OnboardingInit }) {
             )}
 
             {step === 6 && (
-              <div className="text-sm text-muted-foreground">
-                <p className="flex items-center gap-2 font-medium text-foreground">
-                  <Sparkles className="size-4 text-primary" aria-hidden="true" />
-                  Your school is ready for the new term.
-                </p>
-                <ul className="mt-3 list-inside space-y-1">
-                  <li>Invite your teachers and students now.</li>
-                  <li>Next: create your first announcements and courses.</li>
-                  <li>Add parents to keep them involved.</li>
-                </ul>
+              <div className="grid gap-5">
+                <LogoUploader
+                  currentUrl={logoUrl}
+                  onUploaded={async (url) => {
+                    if (!schoolId) return { ok: false, error: "School not created yet." };
+                    const result = await onboardingSaveLogo(schoolId, url);
+                    if (result.ok) setLogoUrl(url);
+                    return result;
+                  }}
+                />
+                <div className="text-sm text-muted-foreground">
+                  <p className="flex items-center gap-2 font-medium text-foreground">
+                    <Sparkles className="size-4 text-primary" aria-hidden="true" />
+                    Your school is ready for the new term.
+                  </p>
+                  <ul className="mt-3 list-inside space-y-1">
+                    <li>Invite your teachers and students now.</li>
+                    <li>Next: create your first announcements and courses.</li>
+                    <li>Add parents to keep them involved.</li>
+                  </ul>
+                </div>
               </div>
             )}
 

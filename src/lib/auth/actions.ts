@@ -110,6 +110,7 @@ export async function registerAction(
       options: {
         data: {
           full_name: parsed.data.fullName,
+          school_name: parsed.data.schoolName,
         },
       },
     }),
@@ -123,8 +124,12 @@ export async function registerAction(
     return { error: error.message };
   }
 
+  // A session means sign-up did not need email confirmation: the account is
+  // live, so send the new owner straight to the role router, which lands a
+  // school-less user on onboarding (rather than bouncing them to a login form
+  // for an account they are already signed into).
   if (data.session) {
-    redirect("/auth/login");
+    redirect("/dashboard");
   }
 
   return {

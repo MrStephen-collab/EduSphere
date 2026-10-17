@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { parseCsv, mapCsvRows, type CsvMapping } from "@/lib/csv";
 import { createSchoolWithOwner, ensureSchoolSession } from "@/services/schools";
+import { setSchoolLogo } from "@/services/school-assets";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createStudent, createTeacher } from "@/services/people";
@@ -259,6 +260,19 @@ export async function onboardingImportStudents(
 
     revalidatePath("/school/students");
     return { ok: true, data: { created, duplicates, errors } };
+  } catch (e) {
+    return errorResult(e);
+  }
+}
+
+export async function onboardingSaveLogo(
+  schoolId: string,
+  logoUrl: string | null,
+): Promise<ActionResult> {
+  try {
+    await requireOnboardingSchool(schoolId);
+    await setSchoolLogo(schoolId, logoUrl);
+    return { ok: true, data: undefined };
   } catch (e) {
     return errorResult(e);
   }

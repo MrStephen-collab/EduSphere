@@ -42,7 +42,9 @@
     "verify:subject-rls": "node scripts/verify-subject-rls.mjs",
     "verify:exam-security": "node scripts/verify-exam-security.mjs",
     "verify:data-preferences": "node scripts/verify-data-preferences.mjs",
-    "verify:school-alerts": "node scripts/verify-school-alerts.mjs"
+    "verify:school-alerts": "node scripts/verify-school-alerts.mjs",
+    "verify:school-assets": "node scripts/verify-school-assets.mjs",
+    "verify:teacher-topics": "node scripts/verify-teacher-topics.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

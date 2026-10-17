@@ -22,6 +22,11 @@ import {
   type ImportSummary,
 } from "@/services/people";
 import { updateBranding, setSchoolEducationLevel } from "@/services/schools";
+import {
+  createSchoolLogoUpload,
+  updateSchoolLogoForCurrentAdmin,
+  type LogoUpload,
+} from "@/services/school-assets";
 import { setSchoolLowDataMode } from "@/services/data-preferences";
 import { setSchoolLearningThreshold } from "@/services/fee-access";
 import { startCheckout } from "@/services/billing";
@@ -267,6 +272,23 @@ export async function updateBrandingAction(input: {
   website?: string;
 }): Promise<ActionState> {
   return run(async () => updateBranding(input), "/school/settings");
+}
+
+export async function createSchoolLogoUploadAction(
+  mimeType: string,
+): Promise<{ ok: true; upload: LogoUpload } | { ok: false; error: string }> {
+  try {
+    const upload = await createSchoolLogoUpload(mimeType);
+    return { ok: true, upload };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
+}
+
+export async function updateSchoolLogoAction(
+  logoUrl: string | null,
+): Promise<ActionState> {
+  return run(async () => updateSchoolLogoForCurrentAdmin(logoUrl), "/school/settings");
 }
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getStudentCourses } from "@/services/learning";
 import type { PracticeAttempt } from "@/types/database";
 import { asArray } from "@/lib/embed";
+import {
+  computeTopicStats,
+  weakTopics as pickWeakTopics,
+  strongTopics as pickStrongTopics,
+  type TeacherTopicStat,
+} from "@/lib/teacher-topics";
 
 function pct(score: number | null, total: number | null | undefined): number | null {
   if (score == null || !total) return null;
@@ -239,6 +245,8 @@ export type TeacherClassStat = {
   pending: number;
   practiceAttempts: number;
   practiceAverage: number | null;
+  weakTopics: TeacherTopicStat[];
+  strongTopics: TeacherTopicStat[];
 };
 
 export type TeacherRecentAttempt = {
@@ -260,6 +268,10 @@ export type TeacherAnalytics = {
   practiceAttempts: number;
   practiceAverage: number | null;
   recentAttempts: TeacherRecentAttempt[];
+  /** Weakest topics across all the teacher's (filtered) classes. */
+  weakTopics: TeacherTopicStat[];
+  /** Strongest topics across the same set. */
+  strongTopics: TeacherTopicStat[];
   workload: {
     id: string;
     title: string;
@@ -276,6 +288,7 @@ export async function getTeacherAnalytics(
   userId: string,
   role: string,
   teacherId: string | null,
+  classId?: string | null,
 ): Promise<TeacherAnalytics> {
   const admin = createAdminClient();
   const ownOnly = role === "TEACHER";
@@ -295,6 +308,13 @@ export async function getTeacherAnalytics(
       .eq("teacher_id", teacherId);
     const linked = (links ?? []).map((l) => l.class_id);
     if (linked.length) classIds = linked;
+  }
+
+  // Focus on a single class when asked (?class=). The id must already be in
+  // this teacher's allowed set, so a teacher cannot open another class's
+  // figures by editing the query string.
+  if (classId && classIds.includes(classId)) {
+    classIds = [classId];
   }
 
   const classes = (allClasses ?? [])
@@ -397,9 +417,61 @@ export async function getTeacherAnalytics(
     studentCountByClass.set(s.class_id, (studentCountByClass.get(s.class_id) ?? 0) + 1);
   }
 
+  const { data: examClassRows } = await admin
+    .from("examinations")
+    .select("id, class_id")
+    .eq("school_id", schoolId)
+    .is("deleted_at", null);
+  const examClassMap = new Map<string, string | null>(
+    ((examClassRows ?? []) as { id: string; class_id: string | null }[]).map((e) => [
+      e.id,
+      e.class_id,
+    ]),
+  );
+
+  type TopicRow = { classId: string | null; topic: string | null; correct: boolean };
+  let topicRows: TopicRow[] = [];
+  if (classIds.length) {
+    const { data: answers } = await admin
+      .from("examination_answers")
+      .select("is_correct, examination_questions(examination_id, questions(topic))")
+      .eq("school_id", schoolId)
+      .not("is_correct", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+
+    const allowed = new Set(classIds);
+    topicRows = ((answers ?? []) as Array<{
+      is_correct: boolean;
+      examination_questions:
+        | { examination_id: string; questions: { topic: string | null }[] }[]
+        | { examination_id: string; questions: { topic: string | null }[] }
+        | null;
+    }>)
+      .flatMap((a) => {
+        const eq = asArray(a.examination_questions)[0];
+        const examId = eq?.examination_id ?? null;
+        const topic = eq ? asArray(eq.questions)[0]?.topic ?? null : null;
+        const classId = examId ? (examClassMap.get(examId) ?? null) : null;
+        if (!classId || !allowed.has(classId)) return [];
+        return [{ classId, topic, correct: a.is_correct === true }];
+      });
+  }
+
+  const topicRowsByClass = new Map<string, TopicRow[]>();
+  for (const row of topicRows) {
+    if (!row.classId) continue;
+    const list = topicRowsByClass.get(row.classId) ?? [];
+    list.push(row);
+    topicRowsByClass.set(row.classId, list);
+  }
+
+  const allTopicStats = computeTopicStats(topicRows);
+
   const classStats: TeacherClassStat[] = classes.map((c) => {
     const aList = workload.filter((w) => w.className === c.name);
     const attempt = classAttempts.get(c.id);
+    const topicStats = computeTopicStats(topicRowsByClass.get(c.id) ?? []);
     return {
       classId: c.id,
       className: c.name,
@@ -409,6 +481,8 @@ export async function getTeacherAnalytics(
       pending: aList.reduce((sum, w) => sum + w.pending, 0),
       practiceAttempts: attempt?.count ?? 0,
       practiceAverage: average(attempt?.pcts ?? []),
+      weakTopics: pickWeakTopics(topicStats),
+      strongTopics: pickStrongTopics(topicStats),
     };
   });
 
@@ -427,12 +501,14 @@ export async function getTeacherAnalytics(
   return {
     classes,
     classStats,
-    students: [...studentCountByClass.values()].reduce((s, n) => s + n, 0),
+    students: classStats.reduce((s, c) => s + c.students, 0),
     publishedAssignments: workload.filter((w) => w.published).length,
     toGrade: subs.length - gradedCount,
     practiceAttempts: attempts.length,
     practiceAverage: average(attemptPcts),
     recentAttempts,
+    weakTopics: pickWeakTopics(allTopicStats),
+    strongTopics: pickStrongTopics(allTopicStats),
     workload,
   };
 }

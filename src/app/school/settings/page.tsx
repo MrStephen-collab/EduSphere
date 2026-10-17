@@ -44,6 +44,7 @@ export default async function SettingsPage() {
     primaryColor: branding?.primary_color ?? "#2563eb",
     secondaryColor: branding?.secondary_color ?? "#334155",
     accentColor: branding?.accent_color ?? "#0ea5e9",
+    logoUrl: school?.logo_url ?? null,
   };
 
   return (
