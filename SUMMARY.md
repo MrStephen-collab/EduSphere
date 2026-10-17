@@ -5,8 +5,8 @@ Working directory: `G:\EduSphere`. Build against spec `G:\EduSphere\EduSphere.tx
 Git repo on `main` (remote `origin` configured). No Docker; hosted Supabase linked.
 
 ## Verification commands
-`npm run typecheck`, `npm run lint`, `npm run test` (vitest, 204 tests), `npm run build` — all pass.
-DB-backed: `npm run verify:exam-security` (10 checks) and `npm run verify:data-preferences` (13 checks), both pass against the hosted DB, plus the other `verify:*` scripts.
+`npm run typecheck`, `npm run lint`, `npm run test` (vitest, 229 tests), `npm run build` — all pass.
+DB-backed: `npm run verify:exam-security` (10 checks), `npm run verify:data-preferences` (13 checks) and `npm run verify:school-alerts` (4 checks), all pass against the hosted DB, plus the other `verify:*` scripts.
 Machine cannot reliably fetch Google Fonts → self-hosted fonts (see below), always relevant for build.
 
 ## Completed this session
@@ -61,6 +61,15 @@ CSV student import already exists (`src/components/school/student-import.tsx`) �
 - School console `/school/admissions` (`AdmissionsInbox` client component): status select, a one-click "move forward" (`nextAdmissionStatus`), entrance score + date, free-text note, collapsible activity timeline and delete. `/school/admissions/[id]/letter` prints an offer letter (`AdmissionLetterPaper`) — only for `offered`/`enrolled`. Actions added to `src/app/school/actions.ts`.
 - Nav: `Admissions` at the top of the school **People** section (new `UserPlus` icon key `admissions`). Notification icon map gained `admission_application_received`.
 - **Migration 0028 was applied to the hosted DB** along with 0029 and 0030 (see current session below). No DB-backed `verify:*` script was added for admissions.
+
+## This session — school dashboard alerts (§34) + analytics date filter (§73)
+- Spec §34 lists the alerts a school admin needs first (declining students, pending assignments, upcoming examinations, inactive students, low-performing subjects); §73 says school analytics should include date filtering and lists the counters to show.
+- **`src/lib/school-alerts.ts`** (pure, unit-tested x14): `computeDecliningStudents` (latest `DECLINE_WINDOW=3` results vs the previous 3, needs `DECLINE_MIN_PER_WINDOW=2` on each side so one bad test never flags a student, claimed fall ≥ `DECLINE_THRESHOLD=10`), `computeInactiveStudents` (`INACTIVE_AFTER_DAYS=30`; a never-active student is only flagged once enrolled that long), `computeLowSubjects` (`LOW_SUBJECT_THRESHOLD=50` with `LOW_SUBJECT_MIN_RESULTS=5`), plus the constants incl. `UPCOMING_EXAM_DAYS=14`.
+- **`src/services/school-alerts.ts`**: `getSchoolAlerts(schoolId)` runs the queries in parallel (results, students, classes, subjects, lesson-progress, submissions, practice-attempts, pending-marking submissions, upcoming examinations) and hands the rows to the pure helpers. `getSchoolAlertsForCurrentAdmin()` pairs it with `requireSchoolAdmin()`. Last-seen per student is the max across lesson progress / submissions / attempts.
+- **`src/components/dashboard/important-alerts.tsx`** (server component): five sections with counts and top-4 lists, links only where a real page exists (students / analytics), and a green "nothing needs your attention" state when empty. Wired into `/school` dashboard content (fetched alongside the counts).
+- **`src/lib/analytics-period.ts`** (pure, unit-tested x11): `resolveAnalyticsRange({period,from,to})` → `{from,to,label,custom}`. Periods `all|7d|30d|90d|year`; custom from/to clamp to whole days (from → 00:00:00.000Z, to → 23:59:59.999Z), custom dates win over the period, impossible dates (`2026-02-31`) and junk degrade to the period then All time.
+- **`getSchoolAnalytics(schoolId, range?)`** now applies `.gte/.lte("created_at", …)` to the results and examination-answers queries, and returns `activeStudentCount` (distinct students with a result in range) plus `teacherCount/courseCount/lessonCount/assignmentCount/examinationCount`. **`src/components/school/analytics-filters.tsx`** (client) drives the period + from/to via the URL; `/school/analytics` shows the active range label and the new stat cards.
+- **`scripts/verify-school-alerts.mjs`** (`npm run verify:school-alerts`, 4 checks): the nested joins the service depends on — `assignment_submissions → assignments → classes` and `examinations → classes` — resolve against the live schema, and the `created_at` date filter returns only in-window results. README + SUMMARY updated; typecheck, lint, test (229) and build all pass.
 
 ## This session — low-data mode (§50)
 - Spec §50: Data Saver / Balanced / High Quality + video 360p/480p/720p, "prepare the UI and provider abstraction without building unnecessary video transcoding infrastructure".

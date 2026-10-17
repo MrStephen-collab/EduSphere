@@ -6,14 +6,20 @@ import {
   UsersRound,
   GraduationCap,
   BookOpenCheck,
+  BookOpen,
+  BookMarked,
+  ClipboardList,
+  FileText,
   AlertTriangle,
   Trophy,
 } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireSchoolAdmin } from "@/services/shared";
 import { getSchoolAnalytics } from "@/services/analytics";
+import { resolveAnalyticsRange } from "@/lib/analytics-period";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { AnalyticsFilters } from "@/components/school/analytics-filters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
@@ -41,16 +47,33 @@ function Bar({ label, value, sub, color }: { label: string; value: number; sub: 
   );
 }
 
-export default async function SchoolAnalyticsPage() {
+export default async function SchoolAnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
+}) {
   const context = await getAuthContext();
   if (!context.user) redirect("/auth/login");
   const { schoolId } = await requireSchoolAdmin();
 
-  const data = await getSchoolAnalytics(schoolId);
+  const params = await searchParams;
+  const range = resolveAnalyticsRange({
+    period: params.period,
+    from: params.from,
+    to: params.to,
+  });
+
+  const data = await getSchoolAnalytics(schoolId, { from: range.from, to: range.to });
 
   return (
     <DashboardShell title="School Analytics" badge="Admin">
       <div className="grid gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <AnalyticsFilters activeLabel={range.label} />
+          </CardContent>
+        </Card>
+
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             icon={TrendingUp}
@@ -66,8 +89,27 @@ export default async function SchoolAnalyticsPage() {
             tone="emerald"
             index={1}
           />
-          <StatCard icon={UsersRound} title="Students" value={data.studentCount} tone="sky" index={2} href="/school/students" />
+          <StatCard
+            icon={UsersRound}
+            title="Active students"
+            value={`${data.activeStudentCount}/${data.studentCount}`}
+            tone="sky"
+            index={2}
+            href="/school/students"
+            hint="Scored in this period"
+          />
           <StatCard icon={GraduationCap} title="Classes" value={data.classCount} tone="amber" index={3} href="/school/classes" />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard icon={GraduationCap} title="Teachers" value={data.teacherCount} tone="indigo" index={4} href="/school/teachers" />
+          <StatCard icon={BookOpen} title="Courses" value={data.courseCount} tone="emerald" index={5} />
+          <StatCard icon={BookMarked} title="Lessons" value={data.lessonCount} tone="sky" index={6} />
+          <StatCard icon={ClipboardList} title="Assignments" value={data.assignmentCount} tone="amber" index={7} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard icon={FileText} title="Examinations" value={data.examinationCount} tone="fuchsia" index={8} />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">

@@ -19,7 +19,7 @@ Each school gets its own isolated, branded digital academic environment.
 - **Low-data mode** — Data Saver / Balanced / High Quality per learner (saved choice wins over the device's own save-data request and the school default), a 360p/480p/720p video ceiling enforced by capping the adaptive stream's ladder in the player, and an honest footer note wherever the browser cannot hold the cap. Schools can start their learners in Data Saver from settings.
 - **Essays & Paper-2 marking** — full-answer essay questions on any series; students type their working, teachers mark them manually against an answer guide, and the score rolls into the student's attempt after marking.
 - **Exam series** — a catalogue of past-question practice series for **Common Entrance, WAEC, NECO and JAMB** (plus school-format papers), with instant auto-marking and answer reviews.
-- **Results & analytics** — student, teacher, class and subject performance analytics.
+- **Results & analytics** — student, teacher, class and subject performance analytics. The school dashboard opens with **important alerts** — students whose results are declining, assignments still awaiting marking, examinations due in the next two weeks, students who have gone quiet, and subjects averaging below the pass mark — each judged with an honest threshold (a decline needs results either side of the comparison, a fresh account is never called inactive, a subject needs enough results before it is named). School analytics carries a **date filter** (a period or a custom from/to) that narrows results and topic performance by when they were recorded, and shows the counts of active students, teachers, courses, lessons, assignments and examinations alongside the averages.
 - **Report cards & termly results** — printable per-term and cumulative annual report cards with grade bands, class positions and a class results sheet for teachers (computed live from graded assignments, CBT practice and daily attendance marks).
 - **Parent portal** — a linked parent can view each child's results, assignments, course progress and printable report cards.
 - **Fees & payments** — schools invoice per child, one-off or by whole class for a term. A parent pays the outstanding balance through Paystack; the webhook only *queues* the payment, and a bursar approves it from `/school/fees` before any money is credited. Bulk term billing is idempotent (a deterministic `billing_key`), approval clamps to the amount owed and is guarded against two bursars approving at once, and the school sees live invoiced / collected / outstanding / overdue totals. A parent can never mark themselves paid.
@@ -242,6 +242,7 @@ npm run verify:admissions      # public admissions form + isolatable application
 npm run verify:subject-rls     # teachers can manage their own school's subjects, and no further
 npm run verify:exam-security   # the practice-attempt integrity trail: stored, readable, un-editable by students
 npm run verify:data-preferences # data-mode preferences are personal: own-write, no cross-user reads, school default only its admin can set
+npm run verify:school-alerts    # the dashboard alert queries run: pending-marking and upcoming-exam joins resolve, results date filter narrows by created_at
 ```
 
 `acceptance`, `smoke`, `verify:timetable`, `verify:live`, `verify:fee-statement`,

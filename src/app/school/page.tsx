@@ -17,6 +17,8 @@ import { getServerData } from "@/lib/server-cache";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { WelcomeHeader } from "@/components/dashboard/welcome-header";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
+import { ImportantAlerts } from "@/components/dashboard/important-alerts";
+import { getSchoolAlerts } from "@/services/school-alerts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
@@ -92,7 +94,10 @@ async function SchoolDashboardContent({
   welcome: boolean;
   schoolName: string | undefined;
 }) {
-  const counts = await getSchoolDashboardCounts(schoolId);
+  const [counts, alerts] = await Promise.all([
+    getSchoolDashboardCounts(schoolId),
+    schoolId ? getSchoolAlerts(schoolId) : Promise.resolve(null),
+  ]);
 
   const setupSteps = [
     { label: "Create an academic session", done: counts.sessions > 0, href: "/school/sessions" },
@@ -116,6 +121,12 @@ async function SchoolDashboardContent({
         <StatCard title="Students" value={counts.students} icon={Users} href="/school/students" tone="emerald" />
         <StatCard title="Teachers" value={counts.teachers} icon={GraduationCap} href="/school/teachers" tone="sky" index={1} />
       </div>
+
+      {alerts && (
+        <div className="mt-5">
+          <ImportantAlerts alerts={alerts} />
+        </div>
+      )}
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
         <Card className="animate-card-enter" style={{ animationDelay: "200ms" }}>

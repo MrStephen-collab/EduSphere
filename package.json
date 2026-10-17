@@ -41,7 +41,8 @@
     "verify:admissions": "node scripts/verify-admissions.mjs",
     "verify:subject-rls": "node scripts/verify-subject-rls.mjs",
     "verify:exam-security": "node scripts/verify-exam-security.mjs",
-    "verify:data-preferences": "node scripts/verify-data-preferences.mjs"
+    "verify:data-preferences": "node scripts/verify-data-preferences.mjs",
+    "verify:school-alerts": "node scripts/verify-school-alerts.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

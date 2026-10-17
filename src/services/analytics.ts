@@ -475,6 +475,13 @@ export type SchoolAnalytics = {
   scoredResults: number;
   studentCount: number;
   classCount: number;
+  /** Students with at least one result recorded inside the selected range. */
+  activeStudentCount: number;
+  teacherCount: number;
+  courseCount: number;
+  lessonCount: number;
+  assignmentCount: number;
+  examinationCount: number;
   subjectAverages: SchoolSubjectAvg[];
   classAverages: SchoolClassAvg[];
   weakTopics: SchoolTopicStat[];
@@ -482,10 +489,37 @@ export type SchoolAnalytics = {
   topStudents: SchoolTopStudent[];
 };
 
-export async function getSchoolAnalytics(schoolId: string): Promise<SchoolAnalytics> {
+export type SchoolAnalyticsRange = {
+  from?: string | null;
+  to?: string | null;
+};
+
+export async function getSchoolAnalytics(
+  schoolId: string,
+  range: SchoolAnalyticsRange = {},
+): Promise<SchoolAnalytics> {
   const admin = createAdminClient();
 
-  const [classesRes, subjectsRes, studentsRes, resultsRes, answersRes] =
+  // The date filter (spec section 73) narrows the recorded results and
+  // topic-level answers by when they were created. The roster counts (classes,
+  // subjects, students) are always current, so they are not filtered.
+  let resultsQuery = admin
+    .from("results")
+    .select("id, percentage, subject_id, pass, students(id, display_name, class_id)")
+    .eq("school_id", schoolId)
+    .not("percentage", "is", null);
+  if (range.from) resultsQuery = resultsQuery.gte("created_at", range.from);
+  if (range.to) resultsQuery = resultsQuery.lte("created_at", range.to);
+
+  let answersQuery = admin
+    .from("examination_answers")
+    .select("is_correct, examination_questions(questions(topic))")
+    .eq("school_id", schoolId)
+    .not("is_correct", "is", null);
+  if (range.from) answersQuery = answersQuery.gte("created_at", range.from);
+  if (range.to) answersQuery = answersQuery.lte("created_at", range.to);
+
+  const [classesRes, subjectsRes, studentsRes, resultsRes, answersRes, countsRes] =
     await Promise.all([
       admin
         .from("classes")
@@ -501,21 +535,19 @@ export async function getSchoolAnalytics(schoolId: string): Promise<SchoolAnalyt
         .from("students")
         .select("id, class_id")
         .eq("school_id", schoolId),
-      admin
-        .from("results")
-        .select("id, percentage, subject_id, pass, students(id, display_name, class_id)")
-        .eq("school_id", schoolId)
-        .not("percentage", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(2000),
-      admin
-        .from("examination_answers")
-        .select("is_correct, examination_questions(questions(topic))")
-        .eq("school_id", schoolId)
-        .not("is_correct", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(2000),
+      resultsQuery.order("created_at", { ascending: false }).limit(2000),
+      answersQuery.order("created_at", { ascending: false }).limit(2000),
+      Promise.all([
+        admin.from("teachers").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
+        admin.from("courses").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
+        admin.from("lessons").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
+        admin.from("assignments").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
+        admin.from("examinations").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
+      ]),
     ]);
+
+  const [teachersCountRes, coursesCountRes, lessonsCountRes, assignmentsCountRes, examsCountRes] =
+    countsRes;
 
   const classNames = new Map<string, string>(
     ((classesRes.data ?? []) as { id: string; name: string }[]).map((c) => [c.id, c.name]),
@@ -627,6 +659,12 @@ export async function getSchoolAnalytics(schoolId: string): Promise<SchoolAnalyt
 
   const sorted = [...topicStats].sort((a, b) => a.average - b.average);
 
+  const activeStudentIds = new Set<string>();
+  for (const r of results) {
+    const student = asArray(r.students)[0];
+    if (student) activeStudentIds.add(student.id);
+  }
+
   return {
     averagePercentage:
       percentages.length > 0
@@ -636,6 +674,12 @@ export async function getSchoolAnalytics(schoolId: string): Promise<SchoolAnalyt
     scoredResults: results.length,
     studentCount: (studentsRes.data ?? []).length,
     classCount: (classesRes.data ?? []).length,
+    activeStudentCount: activeStudentIds.size,
+    teacherCount: teachersCountRes.count ?? 0,
+    courseCount: coursesCountRes.count ?? 0,
+    lessonCount: lessonsCountRes.count ?? 0,
+    assignmentCount: assignmentsCountRes.count ?? 0,
+    examinationCount: examsCountRes.count ?? 0,
     subjectAverages,
     classAverages,
     weakTopics: sorted.slice(0, 8),
