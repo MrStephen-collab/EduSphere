@@ -9,6 +9,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandingForm, type BrandingFormData } from "@/components/school/branding-form";
+import { DataUsageCard } from "@/components/school/data-usage-card";
 
 export const metadata: Metadata = {
   title: "Branding",
@@ -21,13 +22,15 @@ export default async function SettingsPage() {
   const { schoolId } = await requireSchoolAdmin();
 
   const supabase = await createSupabaseServerClient();
-  const [schoolRes, brandingRes] = await Promise.all([
+  const [schoolRes, brandingRes, settingsRes] = await Promise.all([
     supabase.from("schools").select("*").eq("id", schoolId).single(),
     supabase.from("school_branding").select("*").eq("school_id", schoolId).maybeSingle(),
+    supabase.from("school_settings").select("low_data_mode").eq("school_id", schoolId).maybeSingle(),
   ]);
 
   const school = schoolRes.data;
   const branding = brandingRes.data;
+  const lowDataMode = settingsRes.data?.low_data_mode ?? false;
 
   const initial: BrandingFormData = {
     name: school?.name ?? "",
@@ -90,6 +93,10 @@ export default async function SettingsPage() {
             )}
           </CardContent>
         </Card>
+
+        <div className="mt-6">
+          <DataUsageCard lowDataMode={lowDataMode} />
+        </div>
       </div>
     </DashboardShell>
   );

@@ -12,6 +12,7 @@ import {
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireStudent, getStudentLessonView } from "@/services/learning";
 import { getStudentLearningAccess } from "@/services/fee-access";
+import { getDataPreferences } from "@/services/data-preferences";
 import { getYouTubeEmbedUrl } from "@/lib/video";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import {
@@ -48,6 +49,7 @@ export default async function StudentLessonPage({
   const { schoolId, studentId } = await requireStudent();
   const view = await getStudentLessonView(schoolId, studentId, courseId, lessonId);
   const access = await getStudentLearningAccess(schoolId, studentId);
+  const dataPreferences = await getDataPreferences();
 
   if (!view.course || !view.lesson) {
     return (
@@ -171,6 +173,7 @@ export default async function StudentLessonPage({
                   {view.materials.map((material) => (
                     <MaterialViewer
                       key={material.id}
+                      preferences={dataPreferences}
                       material={{
                         id: material.id,
                         title: material.title,

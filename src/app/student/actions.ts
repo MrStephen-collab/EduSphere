@@ -11,6 +11,12 @@ import {
   type PracticeSecurityInput,
 } from "@/services/exam";
 import { sendExamResultEmail } from "@/email/hooks";
+import {
+  getDataPreferences,
+  saveDataPreferences,
+  type DataPreferencesView,
+} from "@/services/data-preferences";
+import type { DataPreferencesInput } from "@/lib/data-preferences";
 
 export type StudentActionState =
   | { ok: true }
@@ -129,5 +135,35 @@ export async function reportPracticeSecurityAction(
     await reportPracticeSecurity(attemptId, security);
   } catch {
     // Reporting is a courtesy, never a reason to block a candidate.
+  }
+}
+
+export type DataPreferencesState =
+  | { ok: true; preferences: DataPreferencesView }
+  | { ok: false; error: string };
+
+export async function loadDataPreferencesAction(): Promise<DataPreferencesState> {
+  try {
+    return { ok: true, preferences: await getDataPreferences() };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Something went wrong. Please try again.",
+    };
+  }
+}
+
+export async function saveDataPreferencesAction(
+  input: DataPreferencesInput,
+): Promise<StudentActionState> {
+  try {
+    await saveDataPreferences(input);
+    revalidatePath("/student/profile");
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Something went wrong. Please try again.",
+    };
   }
 }

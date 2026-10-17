@@ -16,6 +16,7 @@ Each school gets its own isolated, branded digital academic environment.
 - **Assignments** — multimedia submissions, grading and teacher feedback.
 - **Computer-based testing (CBT) engine** — question banks, randomization, timers, auto-marking, results and attempt history.
 - **Exam integrity controls** — browser-level anti-cheating for practice papers: tab-switch and focus-loss detection, an optional focus (fullscreen) mode whose exits are recorded, blocked copy/cut/paste/right-click/print/developer-tools shortcuts, and a device/session snapshot. The trail is stored only by the service role (a student can read it but never edit it), summarised for the teacher beside the marks, and honestly labelled a record — not proof of cheating. Shuffled papers shuffle answer options too.
+- **Low-data mode** — Data Saver / Balanced / High Quality per learner (saved choice wins over the device's own save-data request and the school default), a 360p/480p/720p video ceiling enforced by capping the adaptive stream's ladder in the player, and an honest footer note wherever the browser cannot hold the cap. Schools can start their learners in Data Saver from settings.
 - **Essays & Paper-2 marking** — full-answer essay questions on any series; students type their working, teachers mark them manually against an answer guide, and the score rolls into the student's attempt after marking.
 - **Exam series** — a catalogue of past-question practice series for **Common Entrance, WAEC, NECO and JAMB** (plus school-format papers), with instant auto-marking and answer reviews.
 - **Results & analytics** — student, teacher, class and subject performance analytics.
@@ -170,6 +171,7 @@ Open [http://localhost:3000](http://localhost:3000).
    - `supabase/migrations/0028_online_admission.sql`
    - `supabase/migrations/0029_teacher_subject_management.sql`
    - `supabase/migrations/0030_practice_attempt_integrity.sql`
+   - `supabase/migrations/0031_user_data_preferences.sql`
 3. With `npm run dev` running, execute the demo-user seeder once:
 
 ```bash
@@ -239,6 +241,7 @@ npm run verify:video-indicator # video lessons show a play affordance, not a fil
 npm run verify:admissions      # public admissions form + isolatable application workflow (needs a server)
 npm run verify:subject-rls     # teachers can manage their own school's subjects, and no further
 npm run verify:exam-security   # the practice-attempt integrity trail: stored, readable, un-editable by students
+npm run verify:data-preferences # data-mode preferences are personal: own-write, no cross-user reads, school default only its admin can set
 ```
 
 `acceptance`, `smoke`, `verify:timetable`, `verify:live`, `verify:fee-statement`,
@@ -342,9 +345,9 @@ to the correct dashboard. This logic lives in
 
 - Per-module RLS probes cover the areas where a leak would be worst: money,
   confidential complaints, timetables, lesson materials, live sessions,
-  practice-attempt integrity trails and platform-level access. All currently
-  pass in full — see the `verify:*-rls` and `verify:platform-access` commands
-  above.
+  practice-attempt integrity trails, personal data preferences and
+  platform-level access. All currently pass in full — see the `verify:*-rls`
+  and `verify:platform-access` commands above.
 - Courses and Lessons belong to the higher-education surface. `levelOffersCourses`
   in `src/lib/education/levels.ts` is the single source of truth, used by both
   the teacher navigation and the dashboard, so a secondary school never shows a

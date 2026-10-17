@@ -2,7 +2,12 @@
   "name": "edusphere",
   "version": "0.1.0",
   "private": true,
-  "browserslist": ["last 2 versions", "not dead", "not op_mini all", "since 2021"],
+  "browserslist": [
+    "last 2 versions",
+    "not dead",
+    "not op_mini all",
+    "since 2021"
+  ],
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "next build --webpack",
@@ -35,7 +40,8 @@
     "verify:platform-access": "node scripts/verify-platform-access.mjs",
     "verify:admissions": "node scripts/verify-admissions.mjs",
     "verify:subject-rls": "node scripts/verify-subject-rls.mjs",
-    "verify:exam-security": "node scripts/verify-exam-security.mjs"
+    "verify:exam-security": "node scripts/verify-exam-security.mjs",
+    "verify:data-preferences": "node scripts/verify-data-preferences.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -44,6 +50,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cn": "^0.2.6",
+    "hls.js": "^1.7.3",
     "lucide-react": "^1.42.0",
     "next": "16.3.4",
     "next-themes": "^0.4.6",

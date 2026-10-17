@@ -341,6 +341,17 @@ export type SchoolSettings = {
   updated_at: string;
 };
 
+export type DataMode = "saver" | "balanced" | "high";
+
+export type VideoQuality = "auto" | "360p" | "480p" | "720p";
+
+export type UserDataPreference = {
+  user_id: string;
+  data_mode: DataMode;
+  video_quality: VideoQuality;
+  updated_at: string;
+};
+
 export type SchoolBrandingRow = SchoolBranding & {
   school: Pick<School, "name" | "motto" | "logo_url" | "favicon_url" | "email" | "phone" | "address" | "city" | "state" | "website" | "description">;
 };
@@ -930,6 +941,11 @@ export type Database = {
         Row: SchoolSettings;
         Insert: Partial<SchoolSettings>;
         Update: Partial<SchoolSettings>;
+      };
+      user_data_preferences: {
+        Row: UserDataPreference;
+        Insert: Partial<UserDataPreference>;
+        Update: Partial<UserDataPreference>;
       };
       content_categories: {
         Row: { id: string; school_id: string; name: string; created_at: string };

@@ -10,6 +10,17 @@ import {
   requestMaterialAccessAction,
   requestVideoPlaybackAction,
 } from "@/app/learn/material-actions";
+import { saveDataPreferencesAction } from "@/app/student/actions";
+import { attachPlayback, describePlayback, type PlaybackHandle } from "@/lib/video-playback";
+import {
+  composeDataMode,
+  readDeviceSaveData,
+  resolveVideoCeiling,
+  VIDEO_QUALITIES,
+  VIDEO_QUALITY_LABELS,
+  type DataPreferencesView,
+  type VideoQuality,
+} from "@/lib/data-preferences";
 
 /**
  * Student-side renderer for one lesson material.
@@ -41,9 +52,11 @@ const ICONS = {
 
 export function MaterialViewer({
   material,
+  preferences,
   className,
 }: {
   material: StudentMaterial;
+  preferences: DataPreferencesView;
   className?: string;
 }) {
   const category = categoryForFileType(material.fileType);
@@ -71,7 +84,7 @@ export function MaterialViewer({
       </div>
 
       {category === "video" ? (
-        <VideoPanel material={material} />
+        <VideoPanel material={material} preferences={preferences} />
       ) : category === "audio" ? (
         <AudioPanel material={material} />
       ) : category === "link" ? (
@@ -87,7 +100,52 @@ export function MaterialViewer({
 // Video
 // -----------------------------------------------------------------------------
 
-function VideoPanel({ material }: { material: StudentMaterial }) {
+/** Compact quality picker, shown beside Watch and below the player. */
+function QualityChoice({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: VideoQuality;
+  disabled?: boolean;
+  onChange: (next: VideoQuality) => void;
+}) {
+  return (
+    <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      Quality
+      <select
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value as VideoQuality)}
+        aria-label="Video quality"
+        className="h-7 rounded-md border bg-background px-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {VIDEO_QUALITIES.map((quality) => (
+          <option key={quality} value={quality}>
+            {VIDEO_QUALITY_LABELS[quality]}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * Signed video playback under the learner's data preference.
+ *
+ * The ceiling is enforced through the adaptive stream (hls.js caps which rung
+ * it will climb); an ABR cap switch needs no re-attach, so changing quality
+ * mid-lesson never restarts playback. Where the browser cannot hold the cap —
+ * its own HLS stack, or the single-file fallback — the footer says so plainly
+ * rather than implying a saving that is not happening.
+ */
+function VideoPanel({
+  material,
+  preferences,
+}: {
+  material: StudentMaterial;
+  preferences: DataPreferencesView;
+}) {
   const [state, setState] = useState<
     | { status: "idle" }
     | { status: "loading" }
@@ -95,14 +153,24 @@ function VideoPanel({ material }: { material: StudentMaterial }) {
         status: "ready";
         url: string;
         hlsUrl: string;
-        usingHls: boolean;
         watermark: string;
         expiresAt: string;
       }
     | { status: "error"; error: string }
   >({ status: "idle" });
   const [playing, setPlaying] = useState(false);
+  const [quality, setQuality] = useState<VideoQuality>(
+    preferences.saved?.videoQuality ?? "auto",
+  );
+  const [note, setNote] = useState<string | null>(null);
+  const [preferenceError, setPreferenceError] = useState<string | null>(null);
+
   const videoRef = useRef<HTMLVideoElement>(null);
+  const handleRef = useRef<PlaybackHandle | null>(null);
+  const qualityRef = useRef<VideoQuality>(quality);
+  const ceilingRef = useRef<number>(
+    resolveVideoCeiling(preferences.defaultDataMode, preferences.saved?.videoQuality ?? "auto"),
+  );
 
   // Read inside the grant fetcher without making it depend on `playing`, which
   // would otherwise rebuild the timer on every play/pause.
@@ -128,10 +196,9 @@ function VideoPanel({ material }: { material: StudentMaterial }) {
     }
 
     if (playingRef.current) {
-      // Replacing `src` on a playing element resets the playhead, so hold the
-      // fresh URL back and swap it in at the next pause or when playback ends.
-      // The token already loaded keeps working until then, so the handover is
-      // invisible to the viewer.
+      // Replacing the source on a playing element resets the playhead, so hold
+      // the fresh URL back and swap it in at the next pause or when playback
+      // ends. The token already loaded keeps working until then.
       pendingUrl.current = result.streamUrl;
       setState((current) =>
         current.status === "ready"
@@ -140,15 +207,13 @@ function VideoPanel({ material }: { material: StudentMaterial }) {
       );
     } else {
       pendingUrl.current = null;
-      setState((current) => ({
+      setState({
         status: "ready",
         url: result.streamUrl,
         hlsUrl: result.hlsUrl,
-        // Keep whichever source is already working across a token refresh.
-        usingHls: current.status === "ready" ? current.usingHls : false,
         watermark: result.watermark,
         expiresAt: result.expiresAt,
-      }));
+      });
     }
 
     return true;
@@ -175,31 +240,92 @@ function VideoPanel({ material }: { material: StudentMaterial }) {
     return () => clearTimeout(timer);
   }, [state, fetchGrant]);
 
+  const url = state.status === "ready" ? state.url : null;
+  const hlsUrl = state.status === "ready" ? state.hlsUrl : null;
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!url || !hlsUrl || !video) return;
+
+    let cancelled = false;
+    let attached: PlaybackHandle | null = null;
+
+    void (async () => {
+      const mode = composeDataMode({
+        savedMode: preferences.saved?.dataMode ?? null,
+        schoolLowDataMode: preferences.schoolLowDataMode,
+        deviceSaveData: readDeviceSaveData(),
+      });
+      const ceiling = resolveVideoCeiling(mode, qualityRef.current);
+      ceilingRef.current = ceiling;
+
+      const handle = await attachPlayback({ video, streamUrl: url, hlsUrl, ceiling });
+      if (cancelled) {
+        handle.detach();
+        return;
+      }
+      attached = handle;
+      handleRef.current = handle;
+      handle.onFallback(() =>
+        setNote(describePlayback(handle.strategy, handle.enforced, ceilingRef.current)),
+      );
+      setNote(describePlayback(handle.strategy, handle.enforced, ceilingRef.current));
+    })();
+
+    return () => {
+      cancelled = true;
+      if (attached) attached.detach();
+      if (handleRef.current === attached) handleRef.current = null;
+    };
+  }, [url, hlsUrl, preferences]);
+
+  const changeQuality = useCallback(
+    async (next: VideoQuality) => {
+      const previous = qualityRef.current;
+      qualityRef.current = next;
+      setQuality(next);
+      setPreferenceError(null);
+
+      // Persist a concrete mode so the row counts as an explicit choice; the
+      // device's own save-data request is deliberately not written down.
+      const dataMode = preferences.saved?.dataMode ?? preferences.defaultDataMode;
+      const result = await saveDataPreferencesAction({ dataMode, videoQuality: next });
+      if (!result.ok) {
+        qualityRef.current = previous;
+        setQuality(previous);
+        setPreferenceError(result.error);
+        return;
+      }
+
+      const ceiling = resolveVideoCeiling(
+        composeDataMode({
+          savedMode: dataMode,
+          schoolLowDataMode: preferences.schoolLowDataMode,
+          deviceSaveData: readDeviceSaveData(),
+        }),
+        next,
+      );
+      ceilingRef.current = ceiling;
+      handleRef.current?.setCeiling(ceiling);
+      if (handleRef.current) {
+        setNote(
+          describePlayback(handleRef.current.strategy, handleRef.current.enforced, ceiling),
+        );
+      }
+    },
+    [preferences],
+  );
+
   if (state.status === "ready") {
     return (
       <div className="w-full">
         <div className="relative overflow-hidden rounded-lg bg-black">
           <video
             ref={videoRef}
-            src={state.usingHls ? state.hlsUrl : state.url}
             controls
             controlsList="nodownload noremoteplayback"
             disablePictureInPicture
             onContextMenu={(event) => event.preventDefault()}
-            onError={() => {
-              // A progressive MP4 only exists when the asset was uploaded with
-              // a static rendition. Anything else -- an older upload, or one
-              // added straight from the Mux dashboard -- still has an HLS
-              // manifest, so fall back to it rather than showing a dead player.
-              // A bare <video> cannot play HLS on every browser, so this is
-              // best-effort: it works on Safari natively and elsewhere only
-              // when the browser plays .m3u8 directly.
-              setState((current) =>
-                current.status === "ready" && !current.usingHls
-                  ? { ...current, usingHls: true }
-                  : current,
-              );
-            }}
             onPlay={() => setPlaying(true)}
             onPause={() => {
               setPlaying(false);
@@ -214,28 +340,47 @@ function VideoPanel({ material }: { material: StudentMaterial }) {
           />
           <ForensicWatermark label={state.watermark} animate={playing} />
         </div>
-        <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <Lock className="size-3" aria-hidden="true" />
-          Playback is signed to you and this link expires shortly.
-        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Lock className="size-3" aria-hidden="true" />
+            Playback is signed to you and this link expires shortly.
+          </p>
+          <QualityChoice value={quality} onChange={(next) => void changeQuality(next)} />
+        </div>
+        {note ? <p className="mt-1 text-[11px] text-muted-foreground">{note}</p> : null}
+        {preferenceError ? (
+          <p className="mt-1 text-[11px] text-destructive">{preferenceError}</p>
+        ) : null}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button
-        type="button"
-        size="sm"
-        onClick={start}
-        disabled={state.status === "loading"}
-      >
-        <Play className="size-3.5" aria-hidden="true" />
-        {state.status === "loading" ? "Preparing…" : "Watch"}
-      </Button>
+      <div className="flex items-center gap-2">
+        <QualityChoice
+          value={quality}
+          disabled={state.status === "loading"}
+          onChange={(next) => void changeQuality(next)}
+        />
+        <Button
+          type="button"
+          size="sm"
+          onClick={start}
+          disabled={state.status === "loading"}
+        >
+          <Play className="size-3.5" aria-hidden="true" />
+          {state.status === "loading" ? "Preparing…" : "Watch"}
+        </Button>
+      </div>
       {state.status === "error" ? (
         <p className="max-w-[16rem] text-right text-[11px] text-destructive">
           {state.error}
+        </p>
+      ) : null}
+      {preferenceError ? (
+        <p className="max-w-[16rem] text-right text-[11px] text-destructive">
+          {preferenceError}
         </p>
       ) : null}
     </div>

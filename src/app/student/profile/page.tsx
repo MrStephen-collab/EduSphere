@@ -4,11 +4,13 @@ import { Building2, IdCard, UserRound, Cake, PhoneCall } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireStudent } from "@/services/learning";
 import { getStudentProfile } from "@/services/profile";
+import { getDataPreferences } from "@/services/data-preferences";
 import { formatMemberSince } from "@/lib/format";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileIdentityCard } from "@/components/profile/profile-identity-card";
 import { AccountDetailsCard } from "@/components/profile/account-details-card";
+import { DataPreferencesCard } from "@/components/profile/data-preferences-card";
 import { InfoRow } from "@/components/profile/info-row";
 
 export const metadata: Metadata = {
@@ -22,6 +24,7 @@ export default async function StudentProfilePage() {
 
   const { schoolId, studentId } = await requireStudent();
   const profile = await getStudentProfile(schoolId, studentId);
+  const dataPreferences = await getDataPreferences();
 
   if (!profile) {
     return (
@@ -89,6 +92,8 @@ export default async function StudentProfilePage() {
             initialPhone={context.profile?.phone}
             initialAvatarUrl={context.profile?.avatar_url}
           />
+
+          <DataPreferencesCard initial={dataPreferences} />
         </div>
       </div>
     </DashboardShell>

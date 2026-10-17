@@ -22,6 +22,7 @@ import {
   type ImportSummary,
 } from "@/services/people";
 import { updateBranding, setSchoolEducationLevel } from "@/services/schools";
+import { setSchoolLowDataMode } from "@/services/data-preferences";
 import { setSchoolLearningThreshold } from "@/services/fee-access";
 import { startCheckout } from "@/services/billing";
 import {
@@ -472,4 +473,8 @@ export async function reviewFeePaymentAction(
 
 export async function voidFeeInvoiceAction(invoiceId: string): Promise<ActionState> {
   return run(async () => voidFeeInvoice(invoiceId), "/school/fees");
+}
+
+export async function setLowDataModeAction(enabled: boolean): Promise<ActionState> {
+  return run(async () => setSchoolLowDataMode(enabled), "/school/settings");
 }

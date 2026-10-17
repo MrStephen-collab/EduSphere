@@ -5,8 +5,8 @@ Working directory: `G:\EduSphere`. Build against spec `G:\EduSphere\EduSphere.tx
 Git repo on `main` (remote `origin` configured). No Docker; hosted Supabase linked.
 
 ## Verification commands
-`npm run typecheck`, `npm run lint`, `npm run test` (vitest, 179 tests), `npm run build` — all pass.
-DB-backed: `npm run verify:exam-security` (10 checks, passes against hosted DB), plus the other `verify:*` scripts.
+`npm run typecheck`, `npm run lint`, `npm run test` (vitest, 204 tests), `npm run build` — all pass.
+DB-backed: `npm run verify:exam-security` (10 checks) and `npm run verify:data-preferences` (13 checks), both pass against the hosted DB, plus the other `verify:*` scripts.
 Machine cannot reliably fetch Google Fonts → self-hosted fonts (see below), always relevant for build.
 
 ## Completed this session
@@ -61,6 +61,16 @@ CSV student import already exists (`src/components/school/student-import.tsx`) �
 - School console `/school/admissions` (`AdmissionsInbox` client component): status select, a one-click "move forward" (`nextAdmissionStatus`), entrance score + date, free-text note, collapsible activity timeline and delete. `/school/admissions/[id]/letter` prints an offer letter (`AdmissionLetterPaper`) — only for `offered`/`enrolled`. Actions added to `src/app/school/actions.ts`.
 - Nav: `Admissions` at the top of the school **People** section (new `UserPlus` icon key `admissions`). Notification icon map gained `admission_application_received`.
 - **Migration 0028 was applied to the hosted DB** along with 0029 and 0030 (see current session below). No DB-backed `verify:*` script was added for admissions.
+
+## This session — low-data mode (§50)
+- Spec §50: Data Saver / Balanced / High Quality + video 360p/480p/720p, "prepare the UI and provider abstraction without building unnecessary video transcoding infrastructure".
+- **Migration `0031_user_data_preferences.sql`** (applied to hosted DB): enums `data_mode` (`saver|balanced|high`) and `video_quality` (`auto|360p|480p|720p`), table `user_data_preferences` (user_id PK → profiles, data_mode, video_quality, updated_at trigger). RLS: select own or super admin; insert/update/delete own only. `school_settings.low_data_mode` (existing, unused) is now the school default for unchosen learners.
+- **`src/lib/data-preferences.ts`** (pure, client-safe, unit-tested x21 in `data-preferences.test.ts`): labels/hints, zod schemas, `defaultDataModeFor`, `composeDataMode` (precedence: saved choice > device `navigator.connection.saveData` > school flag > Balanced), `resolveVideoCeiling`, `resolveEffectivePreferences` (+`source`), `playbackPolicyFor`, `readDeviceSaveData`. Exports `DataMode`/`VideoQuality`/`DataPreferencesView` — the view type lives here (not in the service) so client components can take it as a prop without importing a service that pulls in `next/headers`.
+- **`src/lib/video-playback.ts`** (pure parts unit-tested x11): `choosePlaybackStrategy` (adaptive-capped via hls.js / adaptive-uncapped native HLS / progressive MP4), `canEnforceCeiling`, `capLevelIndex` (highest rung ≤ ceiling, order-independent), `describePlayback` (never claims an unenforced cap), and `attachPlayback` — dynamic-imports **hls.js@1.7.3** (new dep), sets `autoLevelCapping` on MANIFEST_PARSED, falls back to the MP4 on a fatal error (and flips strategy to progressive), exposes `setCeiling` (live ABR re-cap, no re-attach) + `onFallback`.
+- **Service/actions**: `src/services/data-preferences.ts` — `getDataPreferences` (own row + the schools' low_data_mode via own RLS session), `saveDataPreferences` (zod-validated upsert on user_id), `setSchoolLowDataMode` (`requireSchoolAdmin`). Actions: `loadDataPreferencesAction`/`saveDataPreferencesAction` in `src/app/student/actions.ts`; `setLowDataModeAction` in `src/app/school/actions.ts`.
+- **UI**: student `/student/profile` gains `DataPreferencesCard` (mode + quality selects, an "Active now: …" line naming the source — yours / school's default / device / not chosen — and a Save button); `src/components/learning/material-viewer.tsx` `VideoPanel` now takes `preferences`, plays through `attachPlayback`, has a Quality select beside Watch and below the player, and prints the honest ceiling note (or the admission that the browser can't hold it); `/school/settings` gains `DataUsageCard` (base-ui `Switch`; new `src/components/ui/switch.tsx` primitive). Lesson page fetches prefs and passes them to `MaterialViewer`.
+- **`scripts/verify-data-preferences.mjs`** (`npm run verify:data-preferences`, 13 checks): table shape; learner saves/changes own row; invalid mode refused by the enum; the app's upsert shape (insert then update-on-conflict) works; no cross-user read/update; cannot forge a row for someone else; school admin flips only their own school's default; a learner can read their own school's flag; signed-out visitor sees nothing.
+- README (feature bullet, migration 0031, verify command) + SUMMARY updated. `typecheck`, `lint`, `test` (204) and `build` all pass.
 
 ## This session — exam anti-cheating (§29/§70)
 - Spec §29/§70: record tab switches, focus loss, fullscreen exits, blocked copy/paste, and device info during CBT. Honesty rule: it is **a record, not proof** — every UI surface says so.
