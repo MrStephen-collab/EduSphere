@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStudent, setLessonCompletion } from "@/services/learning";
 import { saveSubmissionDraft, submitAssignment } from "@/services/assignments";
-import { submitPracticeAttempt, type PracticeResult } from "@/services/exam";
+import {
+  reportPracticeSecurity,
+  submitPracticeAttempt,
+  type PracticeResult,
+  type PracticeSecurityInput,
+} from "@/services/exam";
 import { sendExamResultEmail } from "@/email/hooks";
 
 export type StudentActionState =
@@ -88,10 +93,11 @@ export async function submitAssignmentAction(
 export async function submitPracticeAction(
   attemptId: string,
   answers: { questionId: string; optionId?: string | null; answerText?: string | null }[],
+  security?: PracticeSecurityInput,
 ): Promise<SubmitPracticeState> {
   try {
     const { schoolId, studentId } = await requireStudent();
-    const result = await submitPracticeAttempt(attemptId, answers);
+    const result = await submitPracticeAttempt(attemptId, answers, security);
     await sendExamResultEmail({
       schoolId,
       studentId,
@@ -107,5 +113,21 @@ export async function submitPracticeAction(
       ok: false,
       error: e instanceof Error ? e.message : "Something went wrong. Please try again.",
     };
+  }
+}
+
+/**
+ * Best-effort push of the exam integrity trail while the paper is still open,
+ * so a crash or a lost connection still leaves evidence. The final payload
+ * travels with submitPracticeAction; failures here never interrupt the paper.
+ */
+export async function reportPracticeSecurityAction(
+  attemptId: string,
+  security: PracticeSecurityInput,
+): Promise<void> {
+  try {
+    await reportPracticeSecurity(attemptId, security);
+  } catch {
+    // Reporting is a courtesy, never a reason to block a candidate.
   }
 }

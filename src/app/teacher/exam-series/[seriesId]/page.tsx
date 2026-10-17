@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, FileQuestion, PenLine, PlusCircle } from "lucide-react";
+import { ArrowLeft, FileQuestion, PenLine, PlusCircle, ShieldAlert } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
-import { getExamSeriesDetail, examTypeLabels } from "@/services/exam";
+import { getExamSeriesDetail, getSeriesAttempts, examTypeLabels } from "@/services/exam";
 import { getSubjects, getClasses } from "@/services/academics";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import {
@@ -63,9 +63,10 @@ export default async function TeacherExamSeriesDetailPage({
   }
 
   const series = detail.series;
-  const [subjects, classes] = await Promise.all([
+  const [subjects, classes, attempts] = await Promise.all([
     getSubjects(schoolId),
     getClasses(schoolId),
+    getSeriesAttempts(schoolId, seriesId),
   ]);
 
   return (
@@ -111,7 +112,7 @@ export default async function TeacherExamSeriesDetailPage({
               )}
               {series.shuffle_questions && (
                 <p className="text-xs text-muted-foreground">
-                  Questions are shuffled per attempt.
+                  Questions and answer options are shuffled per attempt.
                 </p>
               )}
               {series.description && (
@@ -208,6 +209,74 @@ export default async function TeacherExamSeriesDetailPage({
                   sections={detail.sections.map((s) => ({ id: s.id, name: s.title }))}
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2">
+                Attempts
+                {attempts.flaggedCount > 0 && (
+                  <Badge variant="destructive">
+                    <ShieldAlert className="mr-1 size-3" aria-hidden="true" />
+                    {attempts.flaggedCount} flagged
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Handed-in practice attempts on this series, newest first. A flagged attempt carries
+                a browser-level integrity trail — leaving the tab, losing focus or blocked
+                copy/paste attempts. It is a record, not proof.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {attempts.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No attempts yet. They appear here the moment a student submits.
+                </p>
+              ) : (
+                <div className="grid gap-2">
+                  {attempts.items.map((item) => (
+                    <div
+                      key={item.attemptId}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2.5"
+                    >
+                      <div className="grid">
+                        <p className="text-sm font-medium">{item.studentName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.admissionNumber}
+                          {item.className ? ` · ${item.className}` : ""}
+                          {item.submittedAt
+                            ? ` · ${new Date(item.submittedAt).toLocaleDateString(undefined, {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}`
+                            : ""}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {item.status === "timed_out" && (
+                          <Badge variant="outline">Timed out</Badge>
+                        )}
+                        {item.score != null && item.totalMarks != null && (
+                          <Badge variant="outline">
+                            {item.score}/{item.totalMarks}
+                          </Badge>
+                        )}
+                        {item.flagged ? (
+                          <Badge variant="destructive">
+                            <ShieldAlert className="mr-1 size-3" aria-hidden="true" />
+                            {item.integrityEventCount} event{item.integrityEventCount === 1 ? "" : "s"}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Clean</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

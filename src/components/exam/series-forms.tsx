@@ -192,7 +192,7 @@ function SeriesFields({
               onChange={(e) => onChange({ shuffleQuestions: e.target.checked })}
               className="size-4 accent-primary"
             />
-            Shuffle questions per attempt
+            Shuffle questions and options per attempt
           </label>
           <p className="text-xs text-muted-foreground">
             Each student sees the questions in a different order on every run.

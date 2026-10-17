@@ -10,6 +10,12 @@ drop policy if exists "p_subjects_insert" on public.subjects;
 drop policy if exists "p_subjects_update" on public.subjects;
 drop policy if exists "p_subjects_delete" on public.subjects;
 
+-- Re-runnable: the editor policies may already exist from an earlier manual
+-- apply that was never recorded in the migrations table.
+drop policy if exists "p_subjects_insert_editor" on public.subjects;
+drop policy if exists "p_subjects_update_editor" on public.subjects;
+drop policy if exists "p_subjects_delete_editor" on public.subjects;
+
 create policy "p_subjects_insert_editor"
   on public.subjects for insert
   with check (

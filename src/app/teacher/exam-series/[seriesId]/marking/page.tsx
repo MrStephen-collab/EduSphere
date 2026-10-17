@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ClipboardCheck, PenLine } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, PenLine, ShieldAlert } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { getSeriesMarkingQueue } from "@/services/exam";
@@ -88,6 +88,12 @@ export default async function TeacherSeriesMarkingPage({
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      {item.flagged && (
+                        <Badge variant="destructive">
+                          <ShieldAlert className="mr-1 size-3" aria-hidden="true" />
+                          {item.integrityEventCount} integrity event{item.integrityEventCount === 1 ? "" : "s"}
+                        </Badge>
+                      )}
                       {item.autoScore != null && item.autoTotal != null && (
                         <Badge variant="outline">
                           Objective {item.autoScore}/{item.autoTotal}

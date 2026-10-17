@@ -616,6 +616,8 @@ export type PracticeAttempt = {
   wrong_count: number;
   duration_minutes: number | null;
   time_used_seconds: number | null;
+  device_info: Record<string, unknown> | null;
+  suspicious_activity: Record<string, unknown>[];
   created_at: string;
   updated_at: string;
 };

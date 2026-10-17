@@ -15,6 +15,7 @@ Each school gets its own isolated, branded digital academic environment.
 - **School structure** — a school declares its education level (nursery through university), which decides what its classes are called, whether they group under departments or faculties, whether a polytechnic class sits in an OND or HND programme, and whether teachers get the Courses and Lessons menus. Managed at `/school/structure`.
 - **Assignments** — multimedia submissions, grading and teacher feedback.
 - **Computer-based testing (CBT) engine** — question banks, randomization, timers, auto-marking, results and attempt history.
+- **Exam integrity controls** — browser-level anti-cheating for practice papers: tab-switch and focus-loss detection, an optional focus (fullscreen) mode whose exits are recorded, blocked copy/cut/paste/right-click/print/developer-tools shortcuts, and a device/session snapshot. The trail is stored only by the service role (a student can read it but never edit it), summarised for the teacher beside the marks, and honestly labelled a record — not proof of cheating. Shuffled papers shuffle answer options too.
 - **Essays & Paper-2 marking** — full-answer essay questions on any series; students type their working, teachers mark them manually against an answer guide, and the score rolls into the student's attempt after marking.
 - **Exam series** — a catalogue of past-question practice series for **Common Entrance, WAEC, NECO and JAMB** (plus school-format papers), with instant auto-marking and answer reviews.
 - **Results & analytics** — student, teacher, class and subject performance analytics.
@@ -168,6 +169,7 @@ Open [http://localhost:3000](http://localhost:3000).
    - `supabase/migrations/0027_learning_access_threshold.sql`
    - `supabase/migrations/0028_online_admission.sql`
    - `supabase/migrations/0029_teacher_subject_management.sql`
+   - `supabase/migrations/0030_practice_attempt_integrity.sql`
 3. With `npm run dev` running, execute the demo-user seeder once:
 
 ```bash
@@ -236,6 +238,7 @@ npm run verify:video-refresh  # a stranded upload can still be pulled to ready
 npm run verify:video-indicator # video lessons show a play affordance, not a file icon
 npm run verify:admissions      # public admissions form + isolatable application workflow (needs a server)
 npm run verify:subject-rls     # teachers can manage their own school's subjects, and no further
+npm run verify:exam-security   # the practice-attempt integrity trail: stored, readable, un-editable by students
 ```
 
 `acceptance`, `smoke`, `verify:timetable`, `verify:live`, `verify:fee-statement`,
@@ -338,9 +341,10 @@ to the correct dashboard. This logic lives in
   ```
 
 - Per-module RLS probes cover the areas where a leak would be worst: money,
-  confidential complaints, timetables, lesson materials, live sessions and
-  platform-level access. All currently pass in full — see the
-  `verify:*-rls` and `verify:platform-access` commands above.
+  confidential complaints, timetables, lesson materials, live sessions,
+  practice-attempt integrity trails and platform-level access. All currently
+  pass in full — see the `verify:*-rls` and `verify:platform-access` commands
+  above.
 - Courses and Lessons belong to the higher-education surface. `levelOffersCourses`
   in `src/lib/education/levels.ts` is the single source of truth, used by both
   the teacher navigation and the dashboard, so a secondary school never shows a

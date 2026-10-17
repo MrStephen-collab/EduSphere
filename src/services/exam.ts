@@ -6,6 +6,16 @@ import { requireContentEditor } from "@/services/shared";
 import { requireStudent } from "@/services/learning";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import { asArray } from "@/lib/embed";
+import {
+  appendSuspiciousEvents,
+  deviceInfoSchema,
+  deviceInfoSummary,
+  isAttemptFlagged,
+  summarizeSuspiciousActivity,
+  suspiciousActivitySchema,
+  type DeviceInfo,
+  type SuspiciousEvent,
+} from "@/lib/exam-security";
 import type {
   AttemptStatus,
   ContentStatus,
@@ -100,6 +110,14 @@ export const practiceAnswerSchema = z
     message: "Provide an option or a written answer for the question.",
   });
 
+/** Client-reported exam integrity trail (section 29). Written by the service role only. */
+export const practiceSecuritySchema = z.object({
+  deviceInfo: deviceInfoSchema,
+  suspiciousActivity: suspiciousActivitySchema,
+});
+
+export type PracticeSecurityInput = z.infer<typeof practiceSecuritySchema>;
+
 // ---------------------------------------------------------------------------
 // Row / result helpers
 // ---------------------------------------------------------------------------
@@ -152,6 +170,8 @@ export type PracticeResult = {
   timeUsedSeconds: number;
   startedAt: string;
   submittedAt: string;
+  integrityEventCount: number;
+  flagged: boolean;
   items: PracticeReviewItem[];
 };
 
@@ -988,7 +1008,7 @@ export async function getPracticePaper(
       marks: q.marks,
       sectionId: q.section_id,
       sectionTitle: q.section_id ? sectionTitles.get(q.section_id) ?? null : null,
-      options,
+      options: detail.series.shuffleQuestions ? shuffleList(options) : options,
     });
     buckets.set(key, list);
   }
@@ -1038,6 +1058,46 @@ export type ActivePractice = {
   elapsedSeconds: number;
   timedOut: boolean;
 };
+
+/**
+ * Record the browser-level integrity trail (spec section 29) while an attempt
+ * is still open. The student can read their own attempt but never update it —
+ * there is no student update policy on practice_attempts — so this runs
+ * through the service role, scoped to the caller's own in-progress attempt.
+ * Late reports that arrive after submission are dropped: the trail freezes the
+ * moment the paper is handed in.
+ */
+export async function reportPracticeSecurity(
+  attemptId: string,
+  input: PracticeSecurityInput,
+): Promise<void> {
+  const { schoolId, studentId } = await requireStudent();
+  const safe = practiceSecuritySchema.parse(input ?? {});
+  const admin = createAdminClient();
+
+  const { data: attempt } = await admin
+    .from("practice_attempts")
+    .select("id, status, device_info, suspicious_activity")
+    .eq("id", attemptId)
+    .eq("school_id", schoolId)
+    .eq("student_id", studentId)
+    .maybeSingle();
+  if (!attempt) throw new Error("This attempt isn't yours.");
+  if (attempt.status !== "in_progress") return;
+
+  const existing = Array.isArray(attempt.suspicious_activity)
+    ? (attempt.suspicious_activity as SuspiciousEvent[])
+    : [];
+  const merged = appendSuspiciousEvents(existing, safe.suspiciousActivity ?? []);
+  const deviceInfo = safe.deviceInfo ?? attempt.device_info ?? null;
+
+  const { error } = await admin
+    .from("practice_attempts")
+    .update({ suspicious_activity: merged, device_info: deviceInfo })
+    .eq("id", attemptId)
+    .eq("status", "in_progress");
+  if (error) throw new Error("We couldn't record that.");
+}
 
 export async function startOrResumePracticeAttempt(
   schoolId: string,
@@ -1140,11 +1200,13 @@ export async function startOrResumePracticeAttempt(
 export async function submitPracticeAttempt(
   attemptId: string,
   answers: z.infer<typeof practiceAnswerSchema>[],
+  security?: PracticeSecurityInput,
 ): Promise<PracticeResult> {
   invalidateCacheByPrefix("dash:student:");
   invalidateCacheByPrefix("dash:child-results:");
   const { schoolId, studentId } = await requireStudent();
   const safeAnswers = z.array(practiceAnswerSchema).parse(answers ?? []);
+  const safeSecurity = practiceSecuritySchema.parse(security ?? {});
   const admin = createAdminClient();
 
   const { data: attempt } = await admin
@@ -1298,6 +1360,15 @@ export async function submitPracticeAttempt(
 
   const submittedAt = new Date(nowMs).toISOString();
 
+  const existingEvents = Array.isArray(attempt.suspicious_activity)
+    ? (attempt.suspicious_activity as SuspiciousEvent[])
+    : [];
+  const mergedEvents = appendSuspiciousEvents(existingEvents, safeSecurity.suspiciousActivity ?? []);
+  const deviceInfo = (safeSecurity.deviceInfo ?? attempt.device_info ?? null) as
+    | Partial<DeviceInfo>
+    | null;
+  const integrity = summarizeSuspiciousActivity(mergedEvents);
+
   const { error: attemptError } = await admin
     .from("practice_attempts")
     .update({
@@ -1308,6 +1379,8 @@ export async function submitPracticeAttempt(
       correct_count: correct,
       wrong_count: wrong,
       time_used_seconds: timeUsedSeconds,
+      suspicious_activity: mergedEvents,
+      device_info: deviceInfo,
     })
     .eq("id", attemptId)
     .eq("school_id", schoolId)
@@ -1363,6 +1436,8 @@ export async function submitPracticeAttempt(
     timeUsedSeconds,
     startedAt: attempt.started_at,
     submittedAt,
+    integrityEventCount: integrity.total,
+    flagged: integrity.flagged,
     items,
   };
 }
@@ -1381,6 +1456,8 @@ export type MarkingQueueItem = {
   pendingCount: number;
   autoScore: number | null;
   autoTotal: number | null;
+  flagged: boolean;
+  integrityEventCount: number;
 };
 
 export type EssayReviewAnswer = {
@@ -1403,6 +1480,9 @@ export type AttemptForMarking = {
   submittedAt: string | null;
   autoScore: number | null;
   autoTotal: number | null;
+  suspiciousActivity: SuspiciousEvent[];
+  deviceSummary: string | null;
+  flagged: boolean;
   essayAnswers: EssayReviewAnswer[];
 };
 
@@ -1444,7 +1524,7 @@ export async function getSeriesMarkingQueue(
   const { data: attemptRows } = await supabase
     .from("practice_attempts")
     .select(
-      "id, student_id, submitted_at, score, total_marks, students!inner(id, display_name, admission_number, classes(name))",
+      "id, student_id, submitted_at, score, total_marks, suspicious_activity, students!inner(id, display_name, admission_number, classes(name))",
     )
     .eq("school_id", schoolId)
     .eq("exam_series_id", seriesId)
@@ -1456,6 +1536,7 @@ export async function getSeriesMarkingQueue(
     submitted_at: string | null;
     score: number | null;
     total_marks: number | null;
+    suspicious_activity: SuspiciousEvent[] | null;
     students: {
       display_name: string | null;
       admission_number: string;
@@ -1492,6 +1573,7 @@ export async function getSeriesMarkingQueue(
   const items = attempts.flatMap((a) => {
     const s = stats.get(a.id);
     if (!s || s.essayCount === 0) return [];
+    const integrity = summarizeSuspiciousActivity(a.suspicious_activity);
     return [
       {
         attemptId: a.id,
@@ -1503,6 +1585,8 @@ export async function getSeriesMarkingQueue(
         pendingCount: s.pending,
         autoScore: a.score,
         autoTotal: a.total_marks,
+        flagged: integrity.flagged,
+        integrityEventCount: integrity.total,
       },
     ];
   });
@@ -1512,6 +1596,75 @@ export async function getSeriesMarkingQueue(
     pendingAttempts: items.reduce((sum, i) => sum + i.pendingCount, 0),
     items,
   };
+}
+
+export type SeriesAttemptItem = {
+  attemptId: string;
+  studentName: string;
+  admissionNumber: string;
+  className: string | null;
+  status: AttemptStatus;
+  submittedAt: string | null;
+  score: number | null;
+  totalMarks: number | null;
+  flagged: boolean;
+  integrityEventCount: number;
+};
+
+/**
+ * Every handed-in attempt on a series, so a teacher can see who sat the paper
+ * and which attempts carry an integrity trail — not just the essay papers in
+ * the marking queue.
+ */
+export async function getSeriesAttempts(
+  schoolId: string,
+  seriesId: string,
+): Promise<{ items: SeriesAttemptItem[]; flaggedCount: number }> {
+  const { userId, role } = await requireContentEditor();
+  await assertSeriesOwnership(schoolId, seriesId, userId, role);
+
+  const supabase = await createSupabaseServerClient();
+  const { data: attemptRows } = await supabase
+    .from("practice_attempts")
+    .select(
+      "id, status, submitted_at, score, total_marks, suspicious_activity, students!inner(display_name, admission_number, classes(name))",
+    )
+    .eq("school_id", schoolId)
+    .eq("exam_series_id", seriesId)
+    .in("status", ["submitted", "timed_out"])
+    .order("submitted_at", { ascending: false })
+    .limit(50);
+  const attempts = (attemptRows ?? []) as {
+    id: string;
+    status: AttemptStatus;
+    submitted_at: string | null;
+    score: number | null;
+    total_marks: number | null;
+    suspicious_activity: SuspiciousEvent[] | null;
+    students: {
+      display_name: string | null;
+      admission_number: string;
+      classes: { name: string }[] | null;
+    }[];
+  }[];
+
+  const items = attempts.map((a) => {
+    const integrity = summarizeSuspiciousActivity(a.suspicious_activity);
+    return {
+      attemptId: a.id,
+      studentName: asArray(a.students)[0]?.display_name ?? "Student",
+      admissionNumber: asArray(a.students)[0]?.admission_number ?? "",
+      className: asArray(asArray(a.students)[0]?.classes)[0]?.name ?? null,
+      status: a.status,
+      submittedAt: a.submitted_at,
+      score: a.score,
+      totalMarks: a.total_marks,
+      flagged: integrity.flagged,
+      integrityEventCount: integrity.total,
+    };
+  });
+
+  return { items, flaggedCount: items.filter((i) => i.flagged).length };
 }
 
 export async function getAttemptForMarking(
@@ -1527,7 +1680,7 @@ export async function getAttemptForMarking(
   const { data: attempt } = await supabase
     .from("practice_attempts")
     .select(
-      "id, submitted_at, score, total_marks, students!inner(id, display_name, admission_number, classes(name))",
+      "id, submitted_at, score, total_marks, device_info, suspicious_activity, students!inner(id, display_name, admission_number, classes(name))",
     )
     .eq("id", attemptId)
     .eq("school_id", schoolId)
@@ -1556,6 +1709,10 @@ export async function getAttemptForMarking(
     }[];
   }[];
 
+  const events = Array.isArray(attempt.suspicious_activity)
+    ? (attempt.suspicious_activity as SuspiciousEvent[])
+    : [];
+
   return {
     attemptId: attempt.id,
     seriesId,
@@ -1565,6 +1722,9 @@ export async function getAttemptForMarking(
     submittedAt: attempt.submitted_at,
     autoScore: attempt.score,
     autoTotal: attempt.total_marks,
+    suspiciousActivity: events,
+    deviceSummary: deviceInfoSummary(attempt.device_info as Partial<DeviceInfo> | null),
+    flagged: isAttemptFlagged(events),
     essayAnswers: answers
       .filter((a) => asArray(a.questions)[0]?.question_type === "essay")
       .map((a) => {

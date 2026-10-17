@@ -10,15 +10,19 @@ import {
   Clock,
   Flag,
   Loader2,
+  Maximize2,
+  Minimize2,
   PenLine,
   Send,
+  ShieldAlert,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { submitPracticeAction } from "@/app/student/actions";
+import { reportPracticeSecurityAction, submitPracticeAction } from "@/app/student/actions";
 import type { PracticePaper, PracticeResult } from "@/services/exam";
 import { difficultyLabels } from "@/lib/exam-labels";
+import { useExamProctor } from "@/components/exam/use-exam-proctor";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -76,6 +80,15 @@ function ResultSummary({ result, title }: { result: PracticeResult; title: strin
         {result.timeUsedSeconds > 0 && (
           <p className="mt-1 text-xs text-muted-foreground">
             Time used: {Math.floor(result.timeUsedSeconds / 60)}m {result.timeUsedSeconds % 60}s
+          </p>
+        )}
+        {result.integrityEventCount > 0 && (
+          <p
+            className={`mt-1 text-xs ${result.flagged ? "font-medium text-amber-800" : "text-muted-foreground"}`}
+          >
+            {result.flagged
+              ? `Integrity note: you left the exam screen ${result.integrityEventCount} times. Your teacher can see this record.`
+              : "Integrity note: a short record of this attempt (tab switches and similar) is kept for your teacher."}
           </p>
         )}
       </div>
@@ -212,6 +225,14 @@ export function PracticeQuiz({
   const [current, setCurrent] = useState(0);
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
 
+  const proctor = useExamProctor({
+    attemptId,
+    active: !result,
+    onReport: (payload) => {
+      void reportPracticeSecurityAction(attemptId, payload);
+    },
+  });
+
   const selectedRef = useRef(selected);
   const essaysRef = useRef(essays);
   const submittedRef = useRef(false);
@@ -244,7 +265,11 @@ export function PracticeQuiz({
         const essayAnswers = Object.entries(essaysRef.current)
           .filter(([, text]) => text.trim())
           .map(([questionId, text]) => ({ questionId, answerText: text.trim() }));
-        const res = await submitPracticeAction(attemptId, [...optionAnswers, ...essayAnswers]);
+        const res = await submitPracticeAction(
+          attemptId,
+          [...optionAnswers, ...essayAnswers],
+          proctor.getSecurityPayload(),
+        );
         if (res.ok) setResult(res.result);
         else {
           submittedRef.current = false;
@@ -252,7 +277,7 @@ export function PracticeQuiz({
         }
       });
     },
-    [attemptId, isPending],
+    [attemptId, isPending, proctor],
   );
 
   useEffect(() => {
@@ -326,6 +351,39 @@ export function PracticeQuiz({
 
   return (
     <div className="grid gap-4">
+      {proctor.eventCount > 0 && (
+        <div
+          role="status"
+          className={`rounded-md border p-3 ${
+            proctor.flagged
+              ? "border-destructive/50 bg-destructive/5"
+              : "border-amber-500/50 bg-amber-50"
+          }`}
+        >
+          <p
+            className={`inline-flex items-center gap-1.5 text-sm font-semibold ${
+              proctor.flagged ? "text-destructive" : "text-amber-900"
+            }`}
+          >
+            <ShieldAlert className="size-4 shrink-0" aria-hidden="true" />
+            {proctor.flagged
+              ? "This attempt is being recorded for integrity review."
+              : "Please stay on this page while you work."}
+          </p>
+          <p
+            className={`mt-1 text-xs ${
+              proctor.flagged ? "text-destructive/90" : "text-amber-900/90"
+            }`}
+          >
+            You&apos;ve left the exam screen {proctor.eventCount} time
+            {proctor.eventCount === 1 ? "" : "s"}. Leaving the tab, losing focus or leaving
+            focus mode is recorded and shown to your teacher, along with any attempt to copy,
+            paste, print or open developer tools. These are browser-level controls — a record,
+            not proof of anything.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background p-3">
         <p className="text-sm text-muted-foreground">
           Question {current + 1} of {paper.questions.length} · {answeredCount} answered
@@ -340,6 +398,22 @@ export function PracticeQuiz({
             {formatClock(remainingSeconds)}
           </span>
         )}
+        {proctor.focusAvailable && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={proctor.focusMode}
+            onClick={() => void proctor.enterFocusMode()}
+            title="Full-screen focus mode. Leaving it during the paper is recorded."
+          >
+            {proctor.focusMode ? (
+              <Minimize2 className="size-4" aria-hidden="true" />
+            ) : (
+              <Maximize2 className="size-4" aria-hidden="true" />
+            )}
+            {proctor.focusMode ? "Focus mode on" : "Focus mode"}
+          </Button>
+        )}
         <Button type="button" variant="outline" disabled={isPending} onClick={confirmSubmit}>
           {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Send className="size-4" aria-hidden="true" />}
           {isPending ? "Marking…" : durationMinutes ? "Finish & submit" : "Submit answers"}
@@ -350,7 +424,7 @@ export function PracticeQuiz({
         <p className="text-xs text-muted-foreground">
           {paper.sections.length} section{paper.sections.length === 1 ? "" : "s"}
           {durationMinutes ? ` · ${durationMinutes} minutes · auto-submits when time runs out` : " · untimed"}
-          {paper.shuffleQuestions ? " · question order is shuffled" : ""}
+          {paper.shuffleQuestions ? " · questions and answer options are shuffled" : ""}
         </p>
       )}
 
