@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rowExists } from "@/lib/supabase/queries";
 import { asArray } from "@/lib/embed";
 import { requireContentEditor } from "@/services/shared";
+import { assertPlanFeature } from "@/services/entitlements";
 import { requireStudent } from "@/services/learning";
 import { isAcceptableJoinUrl } from "@/lib/live-labels";
 
@@ -334,6 +335,7 @@ export const liveSessionSchema = sessionSchema;
 
 export async function createLiveSession(input: unknown): Promise<string> {
   const editor = await requireContentEditor();
+  await assertPlanFeature(editor.schoolId, "live_sessions");
   const parsed = sessionSchema.parse(input);
 
   await assertTeacherCanAnnounce(editor.schoolId, parsed.classId, editor.teacherId);

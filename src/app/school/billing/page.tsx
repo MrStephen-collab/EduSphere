@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CheckCircle2, TriangleAlert } from "lucide-react";
 import { requireSchoolAdmin } from "@/services/shared";
+import { getSeatCapacity } from "@/services/entitlements";
 import {
   confirmSchoolPayment,
   formatPrice,
@@ -28,6 +29,45 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+function SeatMeter({
+  label,
+  used,
+  limit,
+}: {
+  label: string;
+  used: number;
+  limit: number | null;
+}) {
+  const pct = limit && limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  const nearlyFull = limit != null && pct >= 90;
+
+  return (
+    <div className="grid gap-1">
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="font-medium">{label}</span>
+        <span className="text-muted-foreground">
+          {used} of {limit == null ? "unlimited" : limit}
+        </span>
+      </div>
+      {limit != null && (
+        <div
+          className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuenow={used}
+          aria-valuemin={0}
+          aria-valuemax={limit}
+          aria-label={`${label} used on this plan`}
+        >
+          <div
+            className={`h-full rounded-full ${nearlyFull ? "bg-destructive" : "bg-primary"}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default async function SchoolBillingPage({
   searchParams,
 }: {
@@ -41,9 +81,11 @@ export default async function SchoolBillingPage({
     outcome = await confirmSchoolPayment(req.schoolId, reference);
   }
 
-  const [plans, billing] = await Promise.all([
+  const [plans, billing, students, teachers] = await Promise.all([
     getPublicPlans(),
     getSchoolBilling(req.schoolId),
+    getSeatCapacity(req.schoolId, "student"),
+    getSeatCapacity(req.schoolId, "teacher"),
   ]);
   const paystackReady = isPaystackConfigured();
   const currentPlanId = billing.subscription?.plan?.id ?? null;
@@ -71,6 +113,19 @@ export default async function SchoolBillingPage({
                   : `Payment confirmed — your ${outcome.planName} subscription is now active.`
                 : outcome.ok === false && outcome.message}
             </p>
+          </div>
+        )}
+
+        {students.state !== "active" && (
+          <div
+            className={`flex items-start gap-2 rounded-md border p-3 text-sm ${
+              students.state === "grace"
+                ? "border-amber-200 bg-amber-50 text-amber-800"
+                : "border-destructive/20 bg-destructive/5 text-destructive"
+            }`}
+          >
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>{students.planMessage}</p>
           </div>
         )}
 
@@ -136,6 +191,15 @@ export default async function SchoolBillingPage({
                 cards, exam series and school analytics unlock for your school.
               </p>
             )}
+            <div className="grid gap-3 rounded-md border p-3 sm:col-span-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Seats used
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <SeatMeter label="Students" used={students.used} limit={students.limit} />
+                <SeatMeter label="Teachers" used={teachers.used} limit={teachers.limit} />
+              </div>
+            </div>
           </CardContent>
         </Card>
 

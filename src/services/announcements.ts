@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireSchoolAdmin } from "@/services/shared";
+import { assertPlanFeature } from "@/services/entitlements";
 import { fanOutAnnouncement } from "@/services/notifications";
 import { sendAnnouncementEmails } from "@/email/hooks";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
@@ -91,6 +92,7 @@ export async function getAnnouncements(schoolId: string): Promise<AnnouncementRo
 export async function createAnnouncement(input: AnnouncementInput): Promise<void> {
   invalidateAnnouncementDashboards();
   const { schoolId, userId } = await requireSchoolAdmin();
+  await assertPlanFeature(schoolId, "announcements");
   const data = announcementInputSchema.parse(input);
   const admin = createAdminClient();
 

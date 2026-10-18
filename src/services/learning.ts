@@ -4,6 +4,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
+import { assertPlanFeature } from "@/services/entitlements";
 import { studentMayAccessCourse } from "@/services/material-storage";
 import { getSchoolLevel } from "@/services/schools";
 import {
@@ -323,6 +324,7 @@ export async function getCourseDetail(
 export async function createCourse(input: z.infer<typeof courseSchema>): Promise<string> {
   invalidateCacheByPrefix("dash:teacher:");
   const { schoolId, teacherId } = await requireContentEditor();
+  await assertPlanFeature(schoolId, "courses_lessons");
   const data = courseSchema.parse(input);
   await assertCategoryAllowedForSchool(schoolId, data.contentType);
   const admin = createAdminClient();

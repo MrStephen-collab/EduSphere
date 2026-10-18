@@ -29,6 +29,7 @@ Each school gets its own isolated, branded digital academic environment.
 - **Email notifications** — provider-agnostic transactional emails (Welcome, password reset, assignment created/graded, exam result, school announcements, subscription confirmation) with an exam-reminder template ready for a scheduler. Defaults to console logging until an API key is added.
 - **Attendance** — teachers take a per-class daily register (present / late / absent / excused); report cards and the class results sheet aggregate days present plus attendance rate.
 - **Subscriptions & payments** — DB-driven pricing plans (Starter / Professional / Premium) with a Paystack integration: schools start a checkout from `/school/billing`, pay on Paystack, and Paystack webhooks (`/api/webhooks/paystack`) instantly activate or switch the school's subscription. A super-admin plan manager (`/platform/subscriptions`) creates, edits and toggles plans and refunds payments. The marketing site reads plans live from the database — no hard-coded prices.
+- **Plan entitlements are enforced, not decorative** — every plan carries seat limits and eight feature switches (courses & lessons, assignments, CBT, analytics, parent portal, announcements, live sessions, school media), and `src/lib/entitlements.ts` judges them server-side: adding a student, teacher or parent past the seat limit, or touching a feature the plan does not include, stops with a plain-language message instead of silently succeeding. Expired seats block *growth* only — existing data stays readable — and a brand-new school with no subscription yet runs on a 30-day grace period (`SUBSCRIPTION_GRACE_DAYS`). The billing page shows the same judgement back as seat meters and an expiry notice, `/school/analytics` and `/teacher/analytics` explain a missing feature as a plan gap, and `subscriptions`/`payments` are write-for-platform-only, so a school cannot upgrade itself by posting a row.
 - **PWA-ready, mobile-first** UI with bottom navigation for students/teachers/parents on phones. Add-to-home-screen is enabled via a web app manifest, app icons, a network-first service worker (`/sw.js`) with a cached offline fallback page, and apple-touch metadata — regenerate `public/icons/*` anytime with `powershell scripts/generate-icons.ps1`.
 
 > This is **Phase 1 (Foundation)** plus the first slices of the **Learning**
@@ -116,6 +117,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_PLATFORM_NAME=EduSphere
 PAYSTACK_SECRET_KEY=            # enables Paystack checkout + webhooks
 NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=
+SUBSCRIPTION_GRACE_DAYS=30      # days a new school runs before an absent subscription counts as expired
 
 # Email notifications (optional — logs to console when left as below)
 EMAIL_PROVIDER=log              # "resend" | "brevo" | "log"
@@ -172,7 +174,8 @@ Open [http://localhost:3000](http://localhost:3000).
    - `supabase/migrations/0029_teacher_subject_management.sql`
    - `supabase/migrations/0030_practice_attempt_integrity.sql`
     - `supabase/migrations/0031_user_data_preferences.sql`
-    - `supabase/migrations/0032_school_assets.sql`
+     - `supabase/migrations/0032_school_assets.sql`
+     - `supabase/migrations/0033_plan_entitlements.sql`
 3. With `npm run dev` running, execute the demo-user seeder once:
 
 ```bash
@@ -246,6 +249,7 @@ npm run verify:data-preferences # data-mode preferences are personal: own-write,
 npm run verify:school-alerts    # the dashboard alert queries run: pending-marking and upcoming-exam joins resolve, results date filter narrows by created_at
 npm run verify:school-assets    # the public school-assets bucket: 2 MB PNG/JPG/WebP only, signed-upload → public-read round trip
 npm run verify:teacher-topics   # a student's answer resolves to its topic and its class, so per-class weak topics can be computed
+npm run verify:plan-limits      # seat limits and feature flags round-trip, schools cannot forge their own subscription, expiry sweep flips only ended periods
 ```
 
 `acceptance`, `smoke`, `verify:timetable`, `verify:live`, `verify:fee-statement`,

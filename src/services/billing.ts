@@ -12,6 +12,12 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createPublicClient } from "@/lib/supabase/public";
 import { requireSchoolAdmin } from "@/services/shared";
+import { invalidateEntitlementCache } from "@/services/entitlements";
+import {
+  normaliseSeatLimit,
+  parseFeatureLimits,
+  type PlanFeatureKey,
+} from "@/lib/entitlements";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import { asArray } from "@/lib/embed";
@@ -41,6 +47,8 @@ export type Plan = {
   studentLimit: number | null;
   teacherLimit: number | null;
   features: string[];
+  /** Missing keys mean included; only an explicit `false` takes a feature away. */
+  flags: Partial<Record<PlanFeatureKey, boolean>>;
   status: string;
 };
 
@@ -52,27 +60,28 @@ export function formatPrice(amount: number): string {
   }).format(amount);
 }
 
-function featureList(row: Pick<SubscriptionPlan, "feature_limits">): string[] {
-  const limits = row.feature_limits;
-  const features = Array.isArray(limits?.features)
-    ? (limits.features as string[])
-    : [];
-  return features.filter((f): f is string => typeof f === "string");
-}
-
 function toPlan(row: SubscriptionPlan): Plan {
+  const { features, flags } = parseFeatureLimits(row.feature_limits);
   return {
     id: row.id,
     name: row.name,
     description: row.description,
     price: Number(row.price),
     billingInterval: row.billing_interval,
-    studentLimit: row.student_limit == null ? null : Number(row.student_limit),
-    teacherLimit: row.teacher_limit == null ? null : Number(row.teacher_limit),
-    features: featureList(row),
+    studentLimit: normaliseSeatLimit(row.student_limit),
+    teacherLimit: normaliseSeatLimit(row.teacher_limit),
+    features,
+    flags,
     status: row.status,
   };
 }
+
+const seatLimit = z
+  .preprocess(
+    (value) => (value === "" ? null : value),
+    z.coerce.number().int("Limits must be whole numbers.").min(0).nullable(),
+  )
+  .optional();
 
 export const planSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(120),
@@ -85,26 +94,18 @@ export const planSchema = z.object({
     .transform((v) => (v ? v : null)),
   price: z.coerce.number().min(0, "Price can't be negative.").max(100_000_000),
   billingInterval: z.enum(["monthly", "annual"]),
-  studentLimit: z.coerce
-    .number()
-    .int("Student limit must be a whole number.")
-    .min(0)
-    .optional()
-    .nullable()
-    .transform((v) => (v ? v : null)),
-  teacherLimit: z.coerce
-    .number()
-    .int("Teacher limit must be a whole number.")
-    .min(0)
-    .optional()
-    .nullable()
-    .transform((v) => (v ? v : null)),
+  studentLimit: seatLimit,
+  teacherLimit: seatLimit,
   features: z
     .array(z.string().trim().min(1))
     .max(30)
     .optional()
     .default([])
     .transform((v) => v.filter((f) => f) as string[]),
+  flags: z
+    .record(z.string(), z.boolean())
+    .nullish()
+    .transform((flags) => parseFeatureLimits({ flags }).flags),
 });
 
 export type PlanInput = z.infer<typeof planSchema>;
@@ -165,6 +166,8 @@ export function subscriptionDisplayStatus(
       return { label: "Overdue", tone: "warn" };
     case "canceled":
       return { label: "Canceled", tone: "muted" };
+    case "expired":
+      return { label: "Expired", tone: "warn" };
     default:
       return { label: "Inactive", tone: "muted" };
   }
@@ -479,6 +482,8 @@ export async function confirmPaystackPayment(
     periodEnd,
   });
 
+  invalidateEntitlementCache(payment.school_id);
+
   return {
     ok: true,
     planName: typeof meta.plan_name === "string" ? meta.plan_name : "Plan",
@@ -639,7 +644,7 @@ export async function platformCreatePlan(input: PlanInput): Promise<string> {
       billing_interval: parsed.billingInterval,
       student_limit: parsed.studentLimit,
       teacher_limit: parsed.teacherLimit,
-      feature_limits: { features: parsed.features },
+      feature_limits: { features: parsed.features, flags: parsed.flags },
       status: "active",
     })
     .select("id")
@@ -655,6 +660,7 @@ export async function platformCreatePlan(input: PlanInput): Promise<string> {
     entityId: data.id,
     metadata: { name: parsed.name, price: parsed.price },
   });
+  invalidateEntitlementCache();
   return data.id;
 }
 
@@ -672,13 +678,28 @@ export async function platformUpdatePlan(
   if (parsed.billingInterval !== undefined) patch.billing_interval = parsed.billingInterval;
   if (parsed.studentLimit !== undefined) patch.student_limit = parsed.studentLimit;
   if (parsed.teacherLimit !== undefined) patch.teacher_limit = parsed.teacherLimit;
-  if (parsed.features !== undefined) patch.feature_limits = { features: parsed.features };
+
+  if (parsed.features !== undefined || parsed.flags !== undefined) {
+    const { data: current } = await admin
+      .from("subscription_plans")
+      .select("feature_limits")
+      .eq("id", id)
+      .maybeSingle();
+    const existing = parseFeatureLimits(
+      (current as { feature_limits?: unknown } | null)?.feature_limits,
+    );
+    patch.feature_limits = {
+      features: parsed.features ?? existing.features,
+      flags: parsed.flags ?? existing.flags,
+    };
+  }
 
   const { error } = await admin.from("subscription_plans").update(patch).eq("id", id);
   if (error) {
     if (error.code === "23505") throw new Error("A plan with that name already exists.");
     throw new Error("We couldn't update the plan.");
   }
+  invalidateEntitlementCache();
 }
 
 export async function platformSetPlanStatus(
@@ -693,6 +714,7 @@ export async function platformSetPlanStatus(
     .update({ status })
     .eq("id", id);
   if (error) throw new Error("We couldn't update the plan.");
+  invalidateEntitlementCache();
 }
 
 export async function platformRefundPayment(paymentId: string): Promise<void> {
@@ -825,4 +847,5 @@ export async function platformSetSchoolPlan(input: {
   });
 
   invalidatePlatformCache();
+  invalidateEntitlementCache(schoolId);
 }

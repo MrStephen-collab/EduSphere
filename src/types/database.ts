@@ -655,7 +655,8 @@ export type SubscriptionStatus =
   | "inactive"
   | "past_due"
   | "canceled"
-  | "trialing";
+  | "trialing"
+  | "expired";
 
 export type SubscriptionPlan = {
   id: string;

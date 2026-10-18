@@ -1,6 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireSchoolAdmin } from "@/services/shared";
+import {
+  assertPlanFeature,
+  assertSeatAvailable,
+  getSeatCapacity,
+} from "@/services/entitlements";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import { invalidateAuthContexts } from "@/lib/auth/auth-context";
 import type { Parent, Student, Teacher } from "@/types/database";
@@ -90,6 +95,7 @@ export async function createTeacher(input: {
 }): Promise<void> {
   invalidatePeopleCounts();
   const { schoolId } = await requireSchoolAdmin();
+  await assertSeatAvailable(schoolId, "teacher", 1);
 
   const admin = createAdminClient();
   const userId = await createOrGetAuthUser({
@@ -161,6 +167,7 @@ export async function createStudent(input: {
 }): Promise<void> {
   invalidatePeopleCounts();
   const { schoolId } = await requireSchoolAdmin();
+  await assertSeatAvailable(schoolId, "student", 1);
 
   const admin = createAdminClient();
   const userId = await createOrGetAuthUser({
@@ -276,6 +283,8 @@ export async function importStudents(rows: ImportRow[]): Promise<ImportSummary> 
 
   const seen = new Set((existing ?? []).map((s) => s.admission_number.toLowerCase()));
 
+  const capacity = await getSeatCapacity(schoolId, "student");
+
   let created = 0;
   let duplicates = 0;
   const errors: string[] = [];
@@ -289,6 +298,13 @@ export async function importStudents(rows: ImportRow[]): Promise<ImportSummary> 
     if (seen.has(admission.toLowerCase())) {
       duplicates += 1;
       continue;
+    }
+
+    if (capacity.limit !== null && capacity.used + created >= capacity.limit) {
+      errors.push(
+        `Stopped at your plan's limit of ${capacity.limit} students — the rest of this file was not imported. Upgrade your plan to import more.`,
+      );
+      break;
     }
 
     const fullName =
@@ -360,6 +376,7 @@ export async function createParent(input: {
 }): Promise<void> {
   invalidatePeopleCounts();
   const { schoolId } = await requireSchoolAdmin();
+  await assertPlanFeature(schoolId, "parent_portal");
 
   const admin = createAdminClient();
   const userId = await createOrGetAuthUser({

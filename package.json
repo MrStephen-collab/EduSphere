@@ -44,7 +44,8 @@
     "verify:data-preferences": "node scripts/verify-data-preferences.mjs",
     "verify:school-alerts": "node scripts/verify-school-alerts.mjs",
     "verify:school-assets": "node scripts/verify-school-assets.mjs",
-    "verify:teacher-topics": "node scripts/verify-teacher-topics.mjs"
+    "verify:teacher-topics": "node scripts/verify-teacher-topics.mjs",
+    "verify:plan-limits": "node scripts/verify-plan-limits.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

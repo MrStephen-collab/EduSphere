@@ -5,6 +5,8 @@ import { Library, Paperclip, PlayCircle } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { listTeacherLessons } from "@/services/learning";
+import { getSchoolLevel } from "@/services/schools";
+import { levelOffersCourses } from "@/lib/education/levels";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +32,9 @@ export default async function TeacherLessonsPage() {
   if (!context.roles.includes("TEACHER")) redirect("/dashboard");
 
   const { schoolId, teacherId } = await requireContentEditor();
+
+  const level = await getSchoolLevel(schoolId);
+  if (!levelOffersCourses(level)) redirect("/teacher");
 
   if (!teacherId) {
     return (

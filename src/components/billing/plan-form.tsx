@@ -11,7 +11,10 @@ import {
   setPlanStatusAction,
   updatePlanAction,
 } from "@/app/platform/actions";
+import { PLAN_FEATURES, type PlanFeatureKey } from "@/lib/entitlements";
 import type { PlanInput } from "@/services/billing";
+
+export type PlanFlags = Partial<Record<PlanFeatureKey, boolean>>;
 
 export type PlanFormValue = {
   name: string;
@@ -21,6 +24,7 @@ export type PlanFormValue = {
   studentLimit: string;
   teacherLimit: string;
   features: string;
+  flags: Record<PlanFeatureKey, boolean>;
 };
 
 export type ClientPlan = {
@@ -32,8 +36,19 @@ export type ClientPlan = {
   studentLimit: number | null;
   teacherLimit: number | null;
   features: string[];
+  flags: PlanFlags;
   status: string;
 };
+
+function allFeaturesOn(): Record<PlanFeatureKey, boolean> {
+  return Object.fromEntries(
+    PLAN_FEATURES.map((feature) => [feature.key, true]),
+  ) as Record<PlanFeatureKey, boolean>;
+}
+
+function enabledFeatureCount(flags: PlanFlags | undefined): number {
+  return PLAN_FEATURES.filter((feature) => flags?.[feature.key] ?? true).length;
+}
 
 function toInput(v: PlanFormValue): PlanInput {
   return {
@@ -47,6 +62,7 @@ function toInput(v: PlanFormValue): PlanInput {
       .split("\n")
       .map((f) => f.trim())
       .filter(Boolean),
+    flags: v.flags,
   };
 }
 
@@ -128,6 +144,38 @@ export function PlanFields({
           placeholder="Unlimited"
         />
       </Label>
+      <div className="grid gap-2 sm:col-span-2">
+        <span className="text-xs font-medium text-muted-foreground">
+          Included features
+        </span>
+        <p className="text-xs text-muted-foreground">
+          Untick anything this plan should not offer. The switch is enforced on
+          the server, so a school on this plan is stopped from using it.
+        </p>
+        <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
+          {PLAN_FEATURES.map((feature) => (
+            <label key={feature.key} className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-primary"
+                checked={value.flags[feature.key] ?? true}
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    flags: { ...value.flags, [feature.key]: e.target.checked },
+                  })
+                }
+              />
+              <span className="grid gap-0.5">
+                <span className="font-medium">{feature.label}</span>
+                <span className="text-xs text-muted-foreground">
+                  {feature.description}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
       <Label className="grid gap-1 text-xs font-medium text-muted-foreground sm:col-span-2">
         Features (one per line)
         <textarea
@@ -150,6 +198,7 @@ export function emptyPlanForm(): PlanFormValue {
     studentLimit: "",
     teacherLimit: "",
     features: "",
+    flags: allFeaturesOn(),
   };
 }
 
@@ -162,6 +211,7 @@ export function planToForm(plan: ClientPlan): PlanFormValue {
     studentLimit: plan.studentLimit != null ? String(plan.studentLimit) : "",
     teacherLimit: plan.teacherLimit != null ? String(plan.teacherLimit) : "",
     features: plan.features.join("\n"),
+    flags: { ...allFeaturesOn(), ...plan.flags },
   };
 }
 
@@ -284,7 +334,9 @@ export function PlanRowEdit({ plan }: { plan: ClientPlan }) {
           {plan.billingInterval === "annual" ? "/year" : "/month"}
           {plan.studentLimit != null && <> · up to {plan.studentLimit} students</>}
           {plan.teacherLimit != null && <> · up to {plan.teacherLimit} teachers</>}
-          {plan.features.length > 0 && <> · {plan.features.length} featured items</>}
+          {enabledFeatureCount(plan.flags) > 0 && (
+            <> · {enabledFeatureCount(plan.flags)} features included</>
+          )}
         </p>
       ) : (
         <div className="grid gap-3">

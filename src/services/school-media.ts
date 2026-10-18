@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSchoolAdmin } from "@/services/shared";
+import { assertPlanFeature } from "@/services/entitlements";
 import { asArray } from "@/lib/embed";
 
 export const eventSchema = z.object({
@@ -79,6 +80,7 @@ export async function getSchoolEvents(schoolId: string): Promise<SchoolEvent[]> 
 
 export async function createEvent(input: z.infer<typeof eventSchema>): Promise<void> {
   const { schoolId, userId } = await requireSchoolAdmin();
+  await assertPlanFeature(schoolId, "school_media");
   const data = eventSchema.parse(input);
   const admin = createAdminClient();
   const { error } = await admin.from("school_events").insert({
@@ -163,6 +165,7 @@ export async function getSchoolGallery(schoolId: string): Promise<GalleryItem[]>
 
 export async function addGalleryItem(input: z.infer<typeof gallerySchema>): Promise<void> {
   const { schoolId } = await requireSchoolAdmin();
+  await assertPlanFeature(schoolId, "school_media");
   const data = gallerySchema.parse(input);
   const admin = createAdminClient();
   const { error } = await admin.from("school_gallery").insert({

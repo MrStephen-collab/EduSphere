@@ -3,8 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BarChart3, ClipboardCheck, ClipboardList, Users, Clock, AlertTriangle } from "lucide-react";
 import { requireContentEditor } from "@/services/shared";
+import { planFeatureEnabled } from "@/services/entitlements";
 import { getTeacherAnalytics } from "@/services/analytics";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { PlanRequiredCard } from "@/components/billing/plan-required";
 import { StatCard } from "@/components/dashboard/stat-card";
 import {
   Card,
@@ -42,6 +44,17 @@ export default async function TeacherAnalyticsPage({
   if (!context.context.user) redirect("/auth/login");
   if (context.role !== "TEACHER" && context.role !== "SCHOOL_ADMIN" && context.role !== "SCHOOL_OWNER") {
     redirect("/dashboard");
+  }
+
+  if (!(await planFeatureEnabled(context.schoolId, "analytics"))) {
+    return (
+      <DashboardShell title="Analytics" badge="Teacher">
+        <PlanRequiredCard
+          feature="Analytics"
+          description="Your school's plan doesn't include analytics dashboards. Ask a school administrator to upgrade the plan."
+        />
+      </DashboardShell>
+    );
   }
 
   const params = await searchParams;

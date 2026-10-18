@@ -1164,6 +1164,16 @@ async function seedSubscriptionPlans() {
           "Practice quizzes",
           "Email support",
         ],
+        flags: {
+          courses_lessons: true,
+          assignments: false,
+          cbt: true,
+          analytics: false,
+          parent_portal: false,
+          announcements: true,
+          live_sessions: false,
+          school_media: false,
+        },
       },
     },
     {

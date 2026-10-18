@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireContentEditor } from "@/services/shared";
+import { assertPlanFeature } from "@/services/entitlements";
 import { requireStudent } from "@/services/learning";
 import {
   sendAssignmentCreatedEmails,
@@ -173,6 +174,7 @@ export async function createAssignment(
 ): Promise<string> {
   invalidateAssignmentDashboards();
   const { schoolId, userId } = await requireContentEditor();
+  await assertPlanFeature(schoolId, "assignments");
   const data = assignmentSchema.parse(input);
   const admin = createAdminClient();
 

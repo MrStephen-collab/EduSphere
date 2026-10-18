@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireContentEditor } from "@/services/shared";
+import { assertPlanFeature } from "@/services/entitlements";
 import { requireStudent } from "@/services/learning";
 import { invalidateCacheByPrefix } from "@/lib/server-cache";
 import { asArray } from "@/lib/embed";
@@ -312,6 +313,7 @@ export async function createExamSeries(
   input: z.infer<typeof examSeriesSchema>,
 ): Promise<string> {
   const { schoolId, userId } = await requireContentEditor();
+  await assertPlanFeature(schoolId, "cbt");
   const data = examSeriesSchema.parse(input);
   const admin = createAdminClient();
 

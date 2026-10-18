@@ -15,9 +15,11 @@ import {
 } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireSchoolAdmin } from "@/services/shared";
+import { planFeatureEnabled } from "@/services/entitlements";
 import { getSchoolAnalytics } from "@/services/analytics";
 import { resolveAnalyticsRange } from "@/lib/analytics-period";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { PlanRequiredCard } from "@/components/billing/plan-required";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { AnalyticsFilters } from "@/components/school/analytics-filters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +57,18 @@ export default async function SchoolAnalyticsPage({
   const context = await getAuthContext();
   if (!context.user) redirect("/auth/login");
   const { schoolId } = await requireSchoolAdmin();
+
+  if (!(await planFeatureEnabled(schoolId, "analytics"))) {
+    return (
+      <DashboardShell title="School Analytics" badge="Admin">
+        <PlanRequiredCard
+          feature="Analytics"
+          description="Your school's plan doesn't include analytics dashboards. Upgrade your plan to see school-wide performance."
+          href="/school/billing"
+        />
+      </DashboardShell>
+    );
+  }
 
   const params = await searchParams;
   const range = resolveAnalyticsRange({

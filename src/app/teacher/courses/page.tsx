@@ -7,6 +7,7 @@ import { requireContentEditor } from "@/services/shared";
 import { listCourses } from "@/services/learning";
 import { getSubjects, getClasses } from "@/services/academics";
 import { getSchoolLevel } from "@/services/schools";
+import { levelOffersCourses } from "@/lib/education/levels";
 import { contentCategoriesForLevel } from "@/lib/content-categories";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import {
@@ -39,11 +40,13 @@ export default async function TeacherCoursesPage() {
 
   const { schoolId, teacherId } = await requireContentEditor();
 
-  const [courses, subjects, classes, level] = await Promise.all([
+  const level = await getSchoolLevel(schoolId);
+  if (!levelOffersCourses(level)) redirect("/teacher");
+
+  const [courses, subjects, classes] = await Promise.all([
     listCourses(schoolId),
     getSubjects(schoolId),
     getClasses(schoolId),
-    getSchoolLevel(schoolId),
   ]);
 
   const mine = courses.filter((c) => c.teacher_id === teacherId);
