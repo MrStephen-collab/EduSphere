@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  ExternalLink,
   Lock,
   Paperclip,
   Video,
@@ -117,7 +116,7 @@ export default async function StudentLessonPage({
                   className="size-full"
                   src={embedUrl}
                   title={lesson.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allow="accelerometer; autoplay; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
               </div>
@@ -127,15 +126,7 @@ export default async function StudentLessonPage({
               <CardContent className="flex items-center gap-3 pt-4">
                 <Video className="size-8 text-muted-foreground" aria-hidden="true" />
                 <p className="text-sm text-muted-foreground">
-                  This video provider isn&apos;t embeddable here.
-                  <a
-                    href={lesson.video_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="ml-1 inline-flex items-center gap-1 text-primary hover:underline"
-                  >
-                    Open video <ExternalLink className="size-3" aria-hidden="true" />
-                  </a>
+                  This video can&apos;t be played here. Ask your teacher if you need access to it.
                 </p>
               </CardContent>
             </Card>
