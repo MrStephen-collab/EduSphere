@@ -81,9 +81,10 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 }
 
 function NavGroup({ group, pathname }: { group: NavSection; pathname: string }) {
-  const [open, setOpen] = useState(
-    () => group.items.some((item) => isActive(item.href, pathname)),
-  );
+  // Collapsed on every load: a refresh starts the sidebar fresh instead of
+  // reopening whichever group held the page you were on. The user extends what
+  // they need, and it stays open until the next refresh.
+  const [open, setOpen] = useState(false);
   const toggle = useCallback(() => setOpen((value) => !value), []);
 
   return (

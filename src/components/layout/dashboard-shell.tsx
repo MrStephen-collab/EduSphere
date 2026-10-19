@@ -87,9 +87,21 @@ const navFor = (
         ],
       };
     }
-    case "student":
+    case "student": {
+      // "Courses" belongs to college and above: at those levels the student
+      // menu says My Courses; nursery, primary and secondary say My Lessons
+      // (same href — the level decides the noun, not the destination).
+      const membership = context.memberships[0];
+      const offersCourses = levelOffersCourses(membership?.school.education_level);
       return {
-        sections: studentNav,
+        sections: studentNav.map((section) => ({
+          ...section,
+          items: section.items.map((item) =>
+            item.href === "/student/courses"
+              ? { ...item, title: offersCourses ? "My Courses" : "My Lessons" }
+              : item,
+          ),
+        })),
         profileHref: "/student/profile",
         bottom: [
           { title: "Home", href: "/student", icon: "home" },
@@ -99,6 +111,7 @@ const navFor = (
           { title: "Profile", href: "/student/profile", icon: "profile" },
         ],
       };
+    }
     case "parent":
       return {
         sections: parentNav,

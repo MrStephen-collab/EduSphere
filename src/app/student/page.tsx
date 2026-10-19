@@ -25,6 +25,8 @@ import { getStudentAssignments, type StudentAssignmentItem } from "@/services/as
 import { getStudentAnnouncements } from "@/services/announcements";
 import { getStudentProgress } from "@/services/progress";
 import { getStudentExamSeries } from "@/services/exam";
+import { getSchoolLevel } from "@/services/schools";
+import { levelOffersCourses } from "@/lib/education/levels";
 import { getServerData } from "@/lib/server-cache";
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -49,7 +51,7 @@ async function getStudentDashboardBundle() {
   const { schoolId, studentId } = await requireStudent();
   return getServerData(`dash:student:${schoolId}:${studentId}`, 20_000, async () => {
     const supabase = await createSupabaseServerClient();
-    const [coursesRes, assignments, continueItem, announcements, progress, courses, examSeries] =
+    const [coursesRes, assignments, continueItem, announcements, progress, courses, examSeries, level] =
       await Promise.all([
         supabase
           .from("courses")
@@ -62,8 +64,12 @@ async function getStudentDashboardBundle() {
         getStudentProgress(schoolId, studentId),
         getStudentCourses(schoolId, studentId),
         getStudentExamSeries(schoolId, studentId),
+        getSchoolLevel(schoolId),
       ]);
     return {
+      // "Courses" is college-and-above wording; nursery through secondary
+      // call the same things lessons.
+      offersCourses: levelOffersCourses(level),
       courseCount: coursesRes?.count ?? 0,
       pendingCount: assignments?.filter((a) => !a.graded).length ?? 0,
       assignments,
@@ -129,7 +135,7 @@ async function StudentDashboardContent() {
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
-          title="My Lessons"
+          title={bundle.offersCourses ? "My Courses" : "My Lessons"}
           value={bundle.courseCount}
           icon={BookOpen}
           href="/student/courses"
@@ -268,7 +274,7 @@ async function StudentDashboardContent() {
       <section className="mt-6" aria-labelledby="my-courses-heading">
         <div className="mb-3 flex items-center justify-between">
           <h2 id="my-courses-heading" className="text-lg font-semibold tracking-tight">
-            My Lessons
+            {bundle.offersCourses ? "My Courses" : "My Lessons"}
           </h2>
           <Link
             href="/student/courses"
@@ -287,7 +293,8 @@ async function StudentDashboardContent() {
                       <div className="min-w-0">
                         <p className="truncate font-medium group-hover:text-primary">{course.title}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {[course.subject, course.className].filter(Boolean).join(" · ") || "Course"}
+                          {[course.subject, course.className].filter(Boolean).join(" · ") ||
+                            (bundle.offersCourses ? "Course" : "Lessons")}
                         </p>
                       </div>
                       <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -306,8 +313,14 @@ async function StudentDashboardContent() {
             <CardContent className="flex items-center gap-3 p-4">
               <BookOpen className="size-10 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div className="min-w-0">
-                <p className="font-medium">No published courses yet</p>
-                <p className="text-sm text-muted-foreground">Courses appear here once your teachers publish them.</p>
+                <p className="font-medium">
+                  {bundle.offersCourses ? "No published courses yet" : "No published lessons yet"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {bundle.offersCourses
+                    ? "Courses appear here once your teachers publish them."
+                    : "Lessons appear here once your teachers publish them."}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -353,14 +366,18 @@ async function StudentDashboardContent() {
       <Card className="animate-card-enter mt-6" style={{ animationDelay: "360ms" }}>
         <CardHeader>
           <CardTitle>Explore</CardTitle>
-          <CardDescription>Courses, tests and results at your fingertips.</CardDescription>
+          <CardDescription>
+            {bundle.offersCourses
+              ? "Courses, tests and results at your fingertips."
+              : "Lessons, tests and results at your fingertips."}
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2">
           <Link href="/student/courses" className="inline-flex">
             <Button variant="outline" className="h-11 w-full justify-between">
               <span className="flex items-center gap-2">
                 <BookOpen className="size-4" aria-hidden="true" />
-                Browse my courses
+                {bundle.offersCourses ? "Browse my courses" : "Browse My Lessons"}
               </span>
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
