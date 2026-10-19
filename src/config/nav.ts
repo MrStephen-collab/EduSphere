@@ -189,7 +189,7 @@ export const studentNav: NavSection[] = [
   {
     label: "Learning",
     items: [
-      { title: "My Courses", href: "/student/courses", icon: "courses" },
+      { title: "My Lessons", href: "/student/courses", icon: "courses" },
       { title: "Assignments", href: "/student/assignments", icon: "assignments" },
       { title: "Exam Series", href: "/student/exam-series", icon: "examinations" },
       { title: "Results", href: "/student/results", icon: "results" },

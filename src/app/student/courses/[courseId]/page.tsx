@@ -58,7 +58,7 @@ export default async function StudentCoursePage({
         <Link href="/student/courses" className="mt-4 inline-flex">
           <Button variant="outline">
             <ArrowLeft className="size-4" aria-hidden="true" />
-            My courses
+            My lessons
           </Button>
         </Link>
       </DashboardShell>
@@ -132,7 +132,7 @@ export default async function StudentCoursePage({
 <Link href="/student/courses" className="inline-flex">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="size-4" aria-hidden="true" />
-            My courses
+            My lessons
           </Button>
         </Link>
       </div>

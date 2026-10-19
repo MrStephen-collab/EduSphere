@@ -129,7 +129,7 @@ async function StudentDashboardContent() {
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
-          title="My Courses"
+          title="My Lessons"
           value={bundle.courseCount}
           icon={BookOpen}
           href="/student/courses"
@@ -268,7 +268,7 @@ async function StudentDashboardContent() {
       <section className="mt-6" aria-labelledby="my-courses-heading">
         <div className="mb-3 flex items-center justify-between">
           <h2 id="my-courses-heading" className="text-lg font-semibold tracking-tight">
-            My Courses
+            My Lessons
           </h2>
           <Link
             href="/student/courses"

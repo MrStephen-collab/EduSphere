@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
 
 export const metadata: Metadata = {
-  title: "My courses",
+  title: "My lessons",
   robots: { index: false, follow: false },
 };
 
@@ -51,13 +51,13 @@ export default async function StudentCoursesPage() {
   ]);
 
   return (
-    <DashboardShell title="My Courses" badge="Student">
+    <DashboardShell title="My Lessons" badge="Student">
       <FeeGateNotice access={access} className="mb-4" />
       {courses.length === 0 ? (
         <EmptyState
           icon={BookOpen}
-          title="No courses yet"
-          description="Your school hasn't published any courses for your class yet. Check back soon!"
+          title="No lessons yet"
+          description="Your school hasn't published any lessons for your class yet. Check back soon!"
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
