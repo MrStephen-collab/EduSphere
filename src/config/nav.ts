@@ -187,14 +187,14 @@ export const studentNav: NavSection[] = [
     ],
   },
   {
-    label: "Learning",
+    label: "Assessment",
     items: [
       { title: "My Lessons", href: "/student/courses", icon: "courses" },
-      { title: "Assignments", href: "/student/assignments", icon: "assignments" },
+      { title: "My Assignments", href: "/student/assignments", icon: "assignments" },
+      { title: "My Results", href: "/student/results", icon: "results" },
+      { title: "My Report Cards", href: "/student/report-cards", icon: "reportCard" },
+      { title: "My Progress", href: "/student/progress", icon: "analytics" },
       { title: "Exam Series", href: "/student/exam-series", icon: "examinations" },
-      { title: "Results", href: "/student/results", icon: "results" },
-      { title: "Report Cards", href: "/student/report-cards", icon: "reportCard" },
-      { title: "Progress", href: "/student/progress", icon: "analytics" },
     ],
   },
   {
