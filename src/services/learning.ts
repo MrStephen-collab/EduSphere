@@ -695,6 +695,8 @@ export type StudentContext = {
   schoolId: string;
   schoolName: string;
   studentId: string;
+  /** Read alongside the student id so callers can filter courses without a second round trip. */
+  classId: string | null;
 };
 
 export async function requireStudent(): Promise<StudentContext> {
@@ -707,7 +709,7 @@ export async function requireStudent(): Promise<StudentContext> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("students")
-    .select("id")
+    .select("id, class_id")
     .eq("school_id", membership.school.id)
     .eq("user_id", context.user.id)
     .maybeSingle();
@@ -717,6 +719,7 @@ export async function requireStudent(): Promise<StudentContext> {
     schoolId: membership.school.id,
     schoolName: membership.school.name,
     studentId: data.id,
+    classId: data.class_id ?? null,
   };
 }
 
@@ -732,18 +735,29 @@ export type StudentCourseSummary = {
   overallPercentage: number;
 };
 
+/**
+ * The student's class decides which courses are visible. Callers that already
+ * hold it (requireStudent reads it alongside the id) pass it in so the class
+ * lookup — a whole Supabase round trip — is skipped; callers without it fall
+ * back to fetching the class here.
+ */
 export async function getStudentCourses(
   schoolId: string,
   studentId: string,
+  classId?: string | null,
 ): Promise<StudentCourseSummary[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { data: student } = await supabase
-    .from("students")
-    .select("class_id")
-    .eq("id", studentId)
-    .eq("school_id", schoolId)
-    .maybeSingle();
+  let resolvedClassId = classId;
+  if (resolvedClassId === undefined) {
+    const { data: student } = await supabase
+      .from("students")
+      .select("class_id")
+      .eq("id", studentId)
+      .eq("school_id", schoolId)
+      .maybeSingle();
+    resolvedClassId = student?.class_id ?? null;
+  }
 
   let query = supabase
     .from("courses")
@@ -755,8 +769,8 @@ export async function getStudentCourses(
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
-  if (student?.class_id) {
-    query = query.or(`class_id.eq.${student.class_id},class_id.is.null`);
+  if (resolvedClassId) {
+    query = query.or(`class_id.eq.${resolvedClassId},class_id.is.null`);
   } else {
     query = query.is("class_id", null);
   }

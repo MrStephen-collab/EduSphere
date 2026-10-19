@@ -48,7 +48,7 @@ export const metadata: Metadata = {
 };
 
 async function getStudentDashboardBundle() {
-  const { schoolId, studentId } = await requireStudent();
+  const { schoolId, studentId, classId } = await requireStudent();
   return getServerData(`dash:student:${schoolId}:${studentId}`, 20_000, async () => {
     const supabase = await createSupabaseServerClient();
     const [coursesRes, assignments, continueItem, announcements, progress, courses, examSeries, level] =
@@ -62,7 +62,7 @@ async function getStudentDashboardBundle() {
         getContinueLearning(schoolId, studentId),
         getStudentAnnouncements(schoolId, studentId),
         getStudentProgress(schoolId, studentId),
-        getStudentCourses(schoolId, studentId),
+        getStudentCourses(schoolId, studentId, classId),
         getStudentExamSeries(schoolId, studentId),
         getSchoolLevel(schoolId),
       ]);

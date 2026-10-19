@@ -44,9 +44,9 @@ export default async function StudentCoursesPage() {
   if (!context.user) redirect("/auth/login");
   if (!context.roles.includes("STUDENT")) redirect("/dashboard");
 
-  const { schoolId, studentId } = await requireStudent();
+  const { schoolId, studentId, classId } = await requireStudent();
   const [courses, access] = await Promise.all([
-    getStudentCourses(schoolId, studentId),
+    getStudentCourses(schoolId, studentId, classId),
     getStudentLearningAccess(schoolId, studentId),
   ]);
 

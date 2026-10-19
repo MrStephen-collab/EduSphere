@@ -179,18 +179,18 @@ export const teacherNav: NavSection[] = [
 
 export const studentNav: NavSection[] = [
   {
-    label: "Overview",
+    label: "Classroom",
     items: [
       { title: "Home", href: "/student", icon: "home" },
       { title: "Timetable", href: "/student/timetable", icon: "calendar" },
+      { title: "My Lessons", href: "/student/courses", icon: "courses" },
+      { title: "My Assignments", href: "/student/assignments", icon: "assignments" },
       { title: "Live sessions", href: "/student/live", icon: "video" },
     ],
   },
   {
     label: "Assessment",
     items: [
-      { title: "My Lessons", href: "/student/courses", icon: "courses" },
-      { title: "My Assignments", href: "/student/assignments", icon: "assignments" },
       { title: "My Results", href: "/student/results", icon: "results" },
       { title: "My Report Cards", href: "/student/report-cards", icon: "reportCard" },
       { title: "My Progress", href: "/student/progress", icon: "analytics" },
