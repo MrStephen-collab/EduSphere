@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   archiveSchoolAction,
   deleteSchoolAction,
@@ -506,7 +506,7 @@ function SchoolEditor({
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <SheetFooter>
+      <DialogFooter>
         <Button disabled={isPending} onClick={save}>
           {isPending ? (
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -518,7 +518,7 @@ function SchoolEditor({
         <Button variant="ghost" onClick={onClose}>
           Close
         </Button>
-      </SheetFooter>
+      </DialogFooter>
     </div>
   );
 }
@@ -693,27 +693,27 @@ export function SchoolsManager({
         </div>
       )}
 
-      <Sheet
+      <Dialog
         open={editing !== null}
         onOpenChange={(open) => {
           if (!open) setEditing(null);
         }}
       >
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           {editing && (
             <>
-              <SheetHeader>
-                <SheetTitle>{editing.name}</SheetTitle>
-                <SheetDescription>
+              <DialogHeader>
+                <DialogTitle>{editing.name}</DialogTitle>
+                <DialogDescription>
                   {editing.slug} · owner{" "}
                   {editing.ownerName ?? editing.ownerEmail ?? "unknown"}
-                </SheetDescription>
-              </SheetHeader>
+                </DialogDescription>
+              </DialogHeader>
               <SchoolEditor school={editing} onClose={() => setEditing(null)} />
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
