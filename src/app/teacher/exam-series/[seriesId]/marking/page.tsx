@@ -31,7 +31,7 @@ export default async function TeacherSeriesMarkingPage({
   const queue = await getSeriesMarkingQueue(schoolId, seriesId);
 
   return (
-    <DashboardShell title="Mark Essays" badge="Teacher">
+    <DashboardShell title="Mark Essays">
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

@@ -37,7 +37,7 @@ export default async function TeacherTimetablePage({
 
   if (!options.classes.length) {
     return (
-      <DashboardShell title="Timetable" badge="Teacher">
+      <DashboardShell title="Timetable">
         <p className="text-sm text-muted-foreground">
           No classes assigned yet — ask your school admin to link you to a class.
         </p>
@@ -51,7 +51,7 @@ export default async function TeacherTimetablePage({
 
   if (!session || !cls) {
     return (
-      <DashboardShell title="Timetable" badge="Teacher">
+      <DashboardShell title="Timetable">
         <p className="text-sm text-muted-foreground">
           A timetable needs at least one academic session and one class assigned
           to you.
@@ -68,7 +68,7 @@ export default async function TeacherTimetablePage({
   });
 
   return (
-    <DashboardShell title="Timetable" badge="Teacher">
+    <DashboardShell title="Timetable">
       <div className="grid gap-4">
         <TimetableFilters
           sessions={options.sessions.map((s) => ({ id: s.id, name: s.name }))}

@@ -479,6 +479,103 @@ export async function createLesson(input: z.infer<typeof lessonSchema>): Promise
   return row.id;
 }
 
+export const subjectLessonSchema = z.object({
+  subjectId: z.string().uuid("Choose a subject"),
+  classId: z.string().uuid("Choose a class"),
+  title: z.string().trim().min(2, "Lesson title is required").max(160),
+  description: z.string().trim().max(1000).optional().nullable(),
+  content: z.string().max(50000).optional().nullable(),
+  // Published by default: a quick-added lesson is meant to reach students now.
+  status: z.enum(["draft", "published"]).optional().default("published"),
+});
+
+/**
+ * Add a lesson straight from a subject and a class — the nursery, primary and
+ * secondary flow, where there is a Lessons menu but no Courses menu.
+ *
+ * A lesson always lives in a course in the data model, so the course here is
+ * plumbing: one per teacher + subject + class, created the first time a lesson
+ * is added and titled "Mathematics · JSS 1" so it reads sensibly wherever a
+ * course title shows up (student portal, search). The teacher never sees a
+ * course editor; higher-education lecturers keep the full Courses flow.
+ */
+export async function createSubjectLesson(
+  input: z.infer<typeof subjectLessonSchema>,
+): Promise<string> {
+  invalidateCacheByPrefix("dash:teacher:");
+  const { schoolId, teacherId, userId } = await requireContentEditor();
+  await assertPlanFeature(schoolId, "courses_lessons");
+  const data = subjectLessonSchema.parse(input);
+  if (!teacherId) {
+    throw new Error("Your account is not linked to a teacher record yet.");
+  }
+  const admin = createAdminClient();
+
+  const { data: existing, error: findError } = await admin
+    .from("courses")
+    .select("id")
+    .eq("school_id", schoolId)
+    .eq("teacher_id", teacherId)
+    .eq("subject_id", data.subjectId)
+    .eq("class_id", data.classId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (findError) throw new Error(findError.message);
+
+  let courseId = existing?.id ?? null;
+  if (!courseId) {
+    const [{ data: subject }, { data: classRow }] = await Promise.all([
+      admin
+        .from("subjects")
+        .select("name")
+        .eq("id", data.subjectId)
+        .eq("school_id", schoolId)
+        .maybeSingle(),
+      admin
+        .from("classes")
+        .select("name")
+        .eq("id", data.classId)
+        .eq("school_id", schoolId)
+        .maybeSingle(),
+    ]);
+    const { data: created, error: createError } = await admin
+      .from("courses")
+      .insert({
+        school_id: schoolId,
+        subject_id: data.subjectId,
+        class_id: data.classId,
+        teacher_id: teacherId,
+        title: `${subject?.name ?? "Subject"} · ${classRow?.name ?? "Class"}`,
+        status: "published",
+      })
+      .select("id")
+      .single();
+    if (createError) {
+      throw new Error("We couldn't set up the course behind this lesson.");
+    }
+    courseId = created.id;
+  }
+
+  const { data: row, error } = await admin
+    .from("lessons")
+    .insert({
+      school_id: schoolId,
+      course_id: courseId,
+      module_id: null,
+      title: data.title,
+      description: data.description ?? null,
+      content: data.content ?? null,
+      status: data.status,
+      created_by: userId,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error("We couldn't create this lesson.");
+  return row.id;
+}
+
 export async function updateLesson(
   id: string,
   input: Partial<z.infer<typeof lessonSchema>> & {

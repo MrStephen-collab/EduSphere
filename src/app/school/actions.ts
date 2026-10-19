@@ -101,9 +101,9 @@ export async function createClassAction(input: {
  * Declares the school's education level.
  *
  * Revalidated beyond this page because the level is read all over the product:
- * it decides whether Courses and Lessons appear in the teacher navigation, which
- * class names the class form suggests, and which content categories a lesson may
- * be tagged with.
+ * it decides whether staff are called Teachers or Lecturers, whether they get
+ * Courses or just a Lessons menu, which class names the class form suggests,
+ * and which content categories a lesson may be tagged with.
  */
 export async function setEducationLevelAction(input: {
   schoolId: string;

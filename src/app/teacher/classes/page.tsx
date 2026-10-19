@@ -32,7 +32,7 @@ export default async function TeacherClassesPage() {
   const totalStudents = classes.reduce((sum, c) => sum + c.students.length, 0);
 
   return (
-    <DashboardShell title="My Classes" badge="Teacher">
+    <DashboardShell title="My Classes">
       {classes.length === 0 ? (
         <EmptyState
           icon={UsersRound}

@@ -54,7 +54,7 @@ export default async function TeacherAssignmentsPage() {
   ]);
 
   return (
-    <DashboardShell title="My Assignments" badge="Teacher">
+    <DashboardShell title="My Assignments">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem)_1fr]">
         <Card className="h-fit">
           <CardHeader>

@@ -26,6 +26,14 @@ export type LevelDefinition = {
   groupNoun: string | null;
   /** Programmes a class can sit in. Only polytechnic has these. */
   programmes: readonly string[];
+  /**
+   * What the portal calls the person teaching into a class.
+   *
+   * Nursery through secondary say "Teacher"; college, polytechnic and
+   * university say "Lecturer". The role itself is TEACHER everywhere — this is
+   * the noun the badge, header and profile show.
+   */
+  staffNoun: string;
   description: string;
 };
 
@@ -37,6 +45,7 @@ export const EDUCATION_LEVELS: readonly LevelDefinition[] = [
     pluralClassNoun: "Classes",
     groupNoun: null,
     programmes: [],
+    staffNoun: "Teacher",
     description: "Early years, usually ages two to five.",
   },
   {
@@ -46,6 +55,7 @@ export const EDUCATION_LEVELS: readonly LevelDefinition[] = [
     pluralClassNoun: "Years",
     groupNoun: null,
     programmes: [],
+    staffNoun: "Teacher",
     description: "Primary school, Year 1 to Year 6.",
   },
   {
@@ -55,6 +65,7 @@ export const EDUCATION_LEVELS: readonly LevelDefinition[] = [
     pluralClassNoun: "Classes",
     groupNoun: null,
     programmes: [],
+    staffNoun: "Teacher",
     description: "Junior and senior secondary, JSS 1 to SS 3.",
   },
   {
@@ -64,6 +75,7 @@ export const EDUCATION_LEVELS: readonly LevelDefinition[] = [
     pluralClassNoun: "Years",
     groupNoun: "Department",
     programmes: [],
+    staffNoun: "Lecturer",
     description: "Post-secondary, courses grouped by department.",
   },
   {
@@ -73,6 +85,7 @@ export const EDUCATION_LEVELS: readonly LevelDefinition[] = [
     pluralClassNoun: "Years",
     groupNoun: "Department",
     programmes: ["OND", "HND"],
+    staffNoun: "Lecturer",
     description: "Polytechnic, OND and HND years inside a department.",
   },
   {
@@ -82,6 +95,7 @@ export const EDUCATION_LEVELS: readonly LevelDefinition[] = [
     pluralClassNoun: "Levels",
     groupNoun: "Faculty",
     programmes: [],
+    staffNoun: "Lecturer",
     description: "University, courses grouped by faculty.",
   },
 ] as const;
@@ -116,6 +130,16 @@ export function levelUsesDepartments(
   return getLevelDefinition(level).groupNoun !== null;
 }
 
+/**
+ * What this level calls the person teaching into a class: "Teacher" from
+ * nursery to secondary, "Lecturer" from college up.
+ */
+export function levelStaffNoun(
+  level: EducationLevel | null | undefined,
+): string {
+  return getLevelDefinition(level).staffNoun;
+}
+
 /** Post-secondary levels: college, polytechnic and university. */
 export const HIGHER_EDUCATION_LEVELS: readonly EducationLevel[] = [
   "college",
@@ -124,12 +148,17 @@ export const HIGHER_EDUCATION_LEVELS: readonly EducationLevel[] = [
 ];
 
 /**
- * True when this level runs courses (course → module → lesson content).
+ * True when this level gets the Courses menu (course → module → lesson).
  *
- * Courses are the higher-school portal: a college, polytechnic or university
- * teaches through its courses and the lessons inside them. Nursery, primary
- * and secondary teach through subjects, classes and assignments instead, so
- * those levels are not offered the course menus.
+ * Courses are the higher-education portal: a college, polytechnic or
+ * university teaches through its courses and the lessons inside them.
+ *
+ * Every level gets lessons — the noun and the menu split by level:
+ * nursery, primary and secondary get a **Lessons** menu where a teacher adds a
+ * lesson straight from a subject and a class (the course is created for them
+ * behind the scenes, one per teacher + subject + class); college, polytechnic
+ * and university get **Courses**, with the Lessons page as the flat list
+ * across them.
  */
 export function levelOffersCourses(
   level: EducationLevel | null | undefined,

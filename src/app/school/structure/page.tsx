@@ -54,8 +54,9 @@ export default async function StructurePage() {
             <CardTitle>Education level</CardTitle>
             <CardDescription>
               What this school teaches. The level decides what classes are called, whether
-              they are grouped by {definition.groupNoun?.toLowerCase() ?? "department"}, and
-              whether teachers get the Courses and Lessons menus.
+              they are grouped by {definition.groupNoun?.toLowerCase() ?? "department"},
+              whether staff are called Teachers or Lecturers, and whether they get
+              Courses or just a Lessons menu.
             </CardDescription>
           </CardHeader>
           <CardContent>

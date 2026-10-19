@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { BookOpen, ClipboardList, FileText, BarChart3, ArrowRight, Plus, ClipboardCheck, Users, CheckCircle2, School } from "lucide-react";
+import { BookOpen, ClipboardList, FileText, BarChart3, ArrowRight, Plus, ClipboardCheck, Users, CheckCircle2, School, Library } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { getTeacherAnnouncements } from "@/services/announcements";
@@ -28,7 +28,7 @@ async function getTeacherDashboardBundle() {
   const { schoolId, teacherId, userId, role } = await requireContentEditor();
   return getServerData(`dash:teacher:${schoolId}:${userId}`, 20_000, async () => {
     const admin = createAdminClient();
-    const [level, coursesRes, assignmentsRes, assignments, classes, announcements] =
+    const [level, coursesRes, lessonsRes, assignmentsRes, assignments, classes, announcements] =
       await Promise.all([
         getSchoolLevel(schoolId),
         teacherId
@@ -39,6 +39,12 @@ async function getTeacherDashboardBundle() {
               .eq("teacher_id", teacherId)
               .is("deleted_at", null)
           : Promise.resolve({ data: [] as { id: string; status: string }[], error: null }),
+        admin
+          .from("lessons")
+          .select("id, status")
+          .eq("school_id", schoolId)
+          .eq("created_by", userId)
+          .is("deleted_at", null),
         admin
           .from("assignments")
           .select("id")
@@ -51,10 +57,14 @@ async function getTeacherDashboardBundle() {
       ]);
 
     const courses = coursesRes.data ?? [];
+    const lessons = lessonsRes.data ?? [];
+    const publishedLessons = lessons.filter((l) => l.status === "published").length;
     return {
       offersCourses: levelOffersCourses(level),
       publishedCount: courses.filter((c) => c.status === "published").length,
       draftCount: courses.length - courses.filter((c) => c.status === "published").length,
+      publishedLessonCount: publishedLessons,
+      lessonDraftCount: lessons.length - publishedLessons,
       assignmentCount: assignmentsRes.data?.length ?? 0,
       assignments,
       classes,
@@ -98,8 +108,10 @@ async function TeacherDashboardContent() {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {bundle.offersCourses && (
+        {bundle.offersCourses ? (
           <StatCard title="Active Courses" value={bundle.publishedCount} icon={BookOpen} href="/teacher/courses" tone="indigo" hint={`${bundle.draftCount} draft`} />
+        ) : (
+          <StatCard title="Active Lessons" value={bundle.publishedLessonCount} icon={Library} href="/teacher/lessons" tone="indigo" hint={`${bundle.lessonDraftCount} draft`} />
         )}
         <StatCard
           title="Pending Submissions"
@@ -207,7 +219,7 @@ async function TeacherDashboardContent() {
           <CardDescription>
             {bundle.offersCourses
               ? "Create and manage your digital courses."
-              : "Set work, mark it, and keep an eye on your classes."}
+              : "Add lessons for your classes, set work, and keep an eye on submissions."}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2">
@@ -227,6 +239,28 @@ async function TeacherDashboardContent() {
                   <span className="flex items-center gap-2">
                     <Plus className="size-4" aria-hidden="true" />
                     Create a new course
+                  </span>
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </Button>
+              </Link>
+            </>
+          )}
+          {!bundle.offersCourses && (
+            <>
+              <Link href="/teacher/lessons" className="inline-flex">
+                <Button variant="outline" className="h-11 w-full justify-between">
+                  <span className="flex items-center gap-2">
+                    <Library className="size-4" aria-hidden="true" />
+                    Go to my lessons
+                  </span>
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </Button>
+              </Link>
+              <Link href="/teacher/lessons" className="inline-flex">
+                <Button className="h-11 w-full justify-between">
+                  <span className="flex items-center gap-2">
+                    <Plus className="size-4" aria-hidden="true" />
+                    Add a new lesson
                   </span>
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </Button>
@@ -274,7 +308,7 @@ export default async function TeacherDashboardPage() {
   const name = context.profile?.full_name?.split(" ")[0] ?? "there";
 
   return (
-    <DashboardShell title="Dashboard" badge="Teacher">
+    <DashboardShell title="Dashboard">
       <WelcomeHeader name={name} subtitle="Here's what needs your attention today." />
       <div className="mt-6">
         <Suspense fallback={<TeacherDashboardSkeleton />}>

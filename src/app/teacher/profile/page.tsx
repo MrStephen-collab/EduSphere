@@ -4,6 +4,7 @@ import { Building2 } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { formatMemberSince } from "@/lib/format";
+import { levelStaffNoun } from "@/lib/education/levels";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileIdentityCard } from "@/components/profile/profile-identity-card";
@@ -21,15 +22,18 @@ export default async function TeacherProfilePage() {
   if (!context.roles.includes("TEACHER")) redirect("/dashboard");
 
   const { schoolName } = await requireContentEditor();
-  const displayName = context.profile?.full_name ?? "Teacher";
+  // "Teacher" up to secondary, "Lecturer" from college up — same noun the
+  // dashboard shell puts on the badge, from the same level on the membership.
+  const staffNoun = levelStaffNoun(context.memberships[0]?.school.education_level);
+  const displayName = context.profile?.full_name ?? staffNoun;
 
   return (
-    <DashboardShell title="My Profile" badge="Teacher">
+    <DashboardShell title="My Profile">
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <ProfileIdentityCard
           name={displayName}
           subtitle={schoolName}
-          roleLabel="Teacher"
+          roleLabel={staffNoun}
           email={context.user.email ?? undefined}
           avatarUrl={context.profile?.avatar_url}
           tone="fuchsia"

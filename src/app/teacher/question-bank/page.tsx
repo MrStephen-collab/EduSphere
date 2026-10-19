@@ -46,7 +46,7 @@ export default async function TeacherQuestionBankPage() {
   const classOptions: OptionDef[] = classes.map((c) => ({ id: c.id, name: c.name }));
 
   return (
-    <DashboardShell title="Question Bank" badge="Teacher">
+    <DashboardShell title="Question Bank">
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">

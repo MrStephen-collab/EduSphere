@@ -23,11 +23,11 @@ function nativeSelectClass() {
 /**
  * What changing the level actually changes, said plainly.
  *
- * A level is not a label here: it decides whether Courses and Lessons appear at
- * all, which class names get suggested, and whether classes and courses are
- * grouped under departments. An admin picking "University" deserves to know all
- * three before they commit to it, because existing classes are never renamed for
- * them.
+ * A level is not a label here: it decides what staff are called (Teacher up to
+ * secondary, Lecturer above), whether they get Courses or only a Lessons menu,
+ * which class names get suggested, and whether classes and courses are grouped
+ * under departments. An admin picking "University" deserves to know all of it
+ * before they commit, because existing classes are never renamed for them.
  */
 function levelConsequences(level: EducationLevel): string[] {
   const definition = EDUCATION_LEVELS.find((entry) => entry.value === level);
@@ -40,8 +40,8 @@ function levelConsequences(level: EducationLevel): string[] {
   ];
   notes.push(
     levelOffersCourses(level)
-      ? "Courses and Lessons will appear in the teacher navigation."
-      : "Courses and Lessons stay hidden for teachers.",
+      ? `${definition?.staffNoun ?? "Lecturer"}s get a Courses menu, with lessons inside each course.`
+      : `${definition?.staffNoun ?? "Teacher"}s get a Lessons menu, added straight from a subject and a class.`,
   );
   notes.push(
     levelUsesDepartments(level)

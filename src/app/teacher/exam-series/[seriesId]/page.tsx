@@ -70,7 +70,7 @@ export default async function TeacherExamSeriesDetailPage({
   ]);
 
   return (
-    <DashboardShell title={series.title} badge="Teacher">
+    <DashboardShell title={series.title}>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem)_1fr]">
         <div className="grid gap-4 h-fit">
           <Card>

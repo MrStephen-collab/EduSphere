@@ -53,7 +53,7 @@ export default async function TeacherCoursesPage() {
   const categories = contentCategoriesForLevel(level);
 
   return (
-    <DashboardShell title="My Courses" badge="Teacher">
+    <DashboardShell title="My Courses">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem)_1fr]">
         <Card className="h-fit">
           <CardHeader>

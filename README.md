@@ -10,9 +10,9 @@ Each school gets its own isolated, branded digital academic environment.
 
 - **Multi-tenant by design** — every school is fully isolated (RLS enforced at the database level).
 - **Role-based access control** — `SUPER_ADMIN`, `SCHOOL_OWNER`, `SCHOOL_ADMIN`, `PRINCIPAL`, `TEACHER`, `STUDENT`, `PARENT`.
-- **Digital learning** — courses → modules → lessons with videos, PDFs, notes and practice. Courses and Lessons are the higher-education surface: a school at `college`, `polytechnic` or `university` level sees them in the teacher navigation and dashboard, while nursery / primary / secondary schools do not (see `src/lib/education/levels.ts`).
+- **Digital learning** — courses → modules → lessons with videos, PDFs, notes and practice, with the menu split by education level: nursery, primary and secondary teachers get a **Lessons** menu (add a lesson straight from a subject and a class; the course is created behind the scenes), while college, polytechnic and university lecturers get **Courses**, with the Lessons page as the flat list across them (see `src/lib/education/levels.ts`).
 - **Content categories** — every course and lesson is tagged with what it is made of: video, slides (PPT), audio, PDF, document, image or link for any school, plus lecture, seminar, lab, project and exam prep for higher education. The tag drives the icon on the card, the label in lists, and which uploader the lesson page opens on.
-- **School structure** — a school declares its education level (nursery through university), which decides what its classes are called, whether they group under departments or faculties, whether a polytechnic class sits in an OND or HND programme, and whether teachers get the Courses and Lessons menus. Managed at `/school/structure`.
+- **School structure** — a school declares its education level (nursery through university), which decides what its classes are called, whether they group under departments or faculties, whether a polytechnic class sits in an OND or HND programme, whether staff are called Teachers or Lecturers, and whether they get Courses or just a Lessons menu. Managed at `/school/structure`.
 - **Assignments** — multimedia submissions, grading and teacher feedback.
 - **Computer-based testing (CBT) engine** — question banks, randomization, timers, auto-marking, results and attempt history.
 - **Exam integrity controls** — browser-level anti-cheating for practice papers: tab-switch and focus-loss detection, an optional focus (fullscreen) mode whose exits are recorded, blocked copy/cut/paste/right-click/print/developer-tools shortcuts, and a device/session snapshot. The trail is stored only by the service role (a student can read it but never edit it), summarised for the teacher beside the marks, and honestly labelled a record — not proof of cheating. Shuffled papers shuffle answer options too.
@@ -357,11 +357,14 @@ to the correct dashboard. This logic lives in
   practice-attempt integrity trails, personal data preferences and
   platform-level access. All currently pass in full — see the `verify:*-rls`
   and `verify:platform-access` commands above.
-- Courses and Lessons belong to the higher-education surface. `levelOffersCourses`
-  in `src/lib/education/levels.ts` is the single source of truth, used by both
-  the teacher navigation and the dashboard, so a secondary school never shows a
-  Courses/Lessons entry point it cannot use. A school with no level set is
-  treated as `secondary` (the safe default).
+- The learning menus follow the education level. `levelOffersCourses` in
+  `src/lib/education/levels.ts` is the single source of truth for the **Courses**
+  menu (college, polytechnic and university — used by both the teacher
+  navigation and the dashboard); every level has a **Lessons** menu, and at the
+  levels without Courses the lesson is added from a subject and a class with the
+  course created for the teacher (one per teacher + subject + class). The level
+  also decides the staff noun — Teacher up to secondary, Lecturer above. A school
+  with no level set is treated as `secondary` (the safe default).
 - The category rule is verified twice, because a dropdown is not a guarantee.
   `src/lib/content-categories.test.ts` covers the level→category list and the
   uploader default, and `npm run verify:content-categories` writes to the
@@ -372,7 +375,8 @@ to the correct dashboard. This logic lives in
 - The education level is set at `/school/structure`, and it is not only a label:
   it decides what classes are called, whether classes and courses are grouped
   under a department or faculty, whether a class can sit in an OND or HND
-  programme, and whether teachers get Courses and Lessons. `setSchoolEducationLevel`,
+  programme, whether staff are called Teachers or Lecturers, and whether they get
+  Courses or just a Lessons menu. `setSchoolEducationLevel`,
   `getDepartments`, `createDepartment` and `deleteDepartment` were written with
   migration `0025` but had no page, component or action, so none of it could be
   reached; `/school/structure` is that missing surface. Changing a level never

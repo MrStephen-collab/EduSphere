@@ -48,7 +48,7 @@ export default async function TeacherSeriesMarkingAttemptPage({
   }
 
   return (
-    <DashboardShell title={`Mark ${attempt.studentName}`} badge="Teacher">
+    <DashboardShell title={`Mark ${attempt.studentName}`}>
       <div className="grid gap-4">
         {(attempt.suspiciousActivity.length > 0 || attempt.deviceSummary) && (
           <Card>

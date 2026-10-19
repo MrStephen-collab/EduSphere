@@ -8,6 +8,7 @@ import {
   getLevelDefinition,
   isEducationLevel,
   levelOffersCourses,
+  levelStaffNoun,
   levelUsesDepartments,
 } from "@/lib/education/levels";
 import type { EducationLevel } from "@/types/database";
@@ -44,6 +45,25 @@ describe("levelOffersCourses", () => {
   it("treats an undeclared level as secondary, so no courses", () => {
     expect(levelOffersCourses(null)).toBe(false);
     expect(levelOffersCourses(undefined)).toBe(false);
+  });
+});
+
+describe("levelStaffNoun", () => {
+  it("calls nursery through secondary staff Teachers", () => {
+    for (const level of ["nursery", "primary", "secondary"] as const) {
+      expect(levelStaffNoun(level)).toBe("Teacher");
+    }
+  });
+
+  it("calls college, polytechnic and university staff Lecturers", () => {
+    for (const level of HIGHER_EDUCATION_LEVELS) {
+      expect(levelStaffNoun(level)).toBe("Lecturer");
+    }
+  });
+
+  it("falls back to Teacher for a missing level (secondary default)", () => {
+    expect(levelStaffNoun(null)).toBe("Teacher");
+    expect(levelStaffNoun(undefined)).toBe("Teacher");
   });
 });
 

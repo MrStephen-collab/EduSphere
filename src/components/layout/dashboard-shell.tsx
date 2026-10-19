@@ -12,7 +12,7 @@ import {
   type NavItem,
   type NavSection,
 } from "@/config/nav";
-import { levelOffersCourses } from "@/lib/education/levels";
+import { levelOffersCourses, levelStaffNoun } from "@/lib/education/levels";
 
 type ShellKind =
   | "platform"
@@ -63,24 +63,25 @@ const navFor = (
     case "teacher": {
       const membership = context.memberships[0];
       const offersCourses = levelOffersCourses(membership?.school.education_level);
-      // Courses and lessons are the higher-school portal. A nursery, primary or
-      // secondary teacher teaches through subjects, classes and assignments, so
-      // those menus are left out rather than shown empty.
-      const courseHrefs = ["/teacher/courses", "/teacher/lessons"];
-      const sections = offersCourses
-        ? teacherNav
-        : teacherNav.map((section) => ({
-            ...section,
-            items: section.items.filter((item) => !courseHrefs.includes(item.href)),
-          }));
+      // Courses are the higher-school portal. Nursery, primary and secondary
+      // teachers keep the Lessons menu (their lessons are added from a subject
+      // and a class, with the course created for them behind the scenes) and
+      // lose only Courses; college, polytechnic and university lecturers get
+      // both, lessons living inside their courses.
+      const sections = teacherNav.map((section) => ({
+        ...section,
+        items: offersCourses
+          ? section.items
+          : section.items.filter((item) => item.href !== "/teacher/courses"),
+      }));
       return {
         sections,
         profileHref: "/teacher/profile",
         bottom: [
           { title: "Home", href: "/teacher", icon: "home" },
-          ...(offersCourses
-            ? [{ title: "Content", href: "/teacher/courses", icon: "courses" as const }]
-            : []),
+          offersCourses
+            ? { title: "Content", href: "/teacher/courses", icon: "courses" as const }
+            : { title: "Lessons", href: "/teacher/lessons", icon: "lessons" as const },
           { title: "Tests", href: "/teacher/exam-series", icon: "examinations" },
           { title: "More", href: "/teacher/question-bank", icon: "questionBank" },
         ],
@@ -122,6 +123,8 @@ const navFor = (
 const ROLE_LABELS: Record<ShellKind, string> = {
   platform: "Platform admin",
   school: "School admin",
+  // The teacher entry is a fallback only: the shell overrides it with the
+  // school level's staff noun ("Teacher" up to secondary, "Lecturer" above).
   teacher: "Teacher",
   student: "Student",
   parent: "Parent",
@@ -167,14 +170,23 @@ export async function DashboardShell({
   ) : undefined;
 
   const nav = navFor(kind, context);
+
+  // Nursery → secondary say "Teacher"; college → university say "Lecturer".
+  // Both are the TEACHER role — this is the noun on the badge, header and
+  // profile. The level lives on the school of the first membership.
+  const staffNoun =
+    kind === "teacher"
+      ? levelStaffNoun(firstMembership?.school.education_level)
+      : null;
+
   return (
     <AppShell
       sections={nav.sections}
       bottomNav={nav.bottom}
       title={title}
-      badge={badge}
+      badge={staffNoun ?? badge}
       schoolName={firstMembership?.school.name}
-      roleLabel={ROLE_LABELS[kind]}
+      roleLabel={staffNoun ?? ROLE_LABELS[kind]}
       userName={context.profile?.full_name ?? undefined}
       userEmail={context.user.email ?? undefined}
       avatarUrl={context.profile?.avatar_url}

@@ -347,7 +347,8 @@ function SchoolEditor({
             ))}
           </select>
           <span className="text-[11px] font-normal text-muted-foreground">
-            Decides whether teachers get the Courses and Lessons menus.
+            Decides whether staff are called Teachers or Lecturers, and whether
+            they get Courses or just a Lessons menu.
           </span>
         </Label>
         <Label className="grid gap-1 text-xs font-medium text-muted-foreground sm:col-span-2">

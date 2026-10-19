@@ -36,7 +36,7 @@ export default async function TeacherLivePage({
   const selected = sessions.find((s) => s.id === sessionParam) ?? sessions[0] ?? null;
 
   return (
-    <DashboardShell title="Live teaching" badge="Teacher">
+    <DashboardShell title="Live teaching">
       <div className="grid gap-4">
         {!options.classes.length ? (
           <p className="text-sm text-muted-foreground">

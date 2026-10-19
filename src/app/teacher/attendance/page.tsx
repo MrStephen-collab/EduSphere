@@ -57,7 +57,7 @@ export default async function TeacherAttendancePage({
 
   if (!options.classes.length) {
     return (
-      <DashboardShell title="Attendance" badge="Teacher">
+      <DashboardShell title="Attendance">
         <p className="text-sm text-muted-foreground">
           No classes assigned yet — ask your school admin to link you to a class.
         </p>
@@ -71,7 +71,7 @@ export default async function TeacherAttendancePage({
   const register = await getClassRegister(editor.schoolId, cls!.id, date, teacherId);
 
   return (
-    <DashboardShell title="Attendance" badge="Teacher">
+    <DashboardShell title="Attendance">
       <div className="grid gap-4">
         <AttendanceFilters
           classes={options.classes}

@@ -48,7 +48,7 @@ export default async function TeacherAnalyticsPage({
 
   if (!(await planFeatureEnabled(context.schoolId, "analytics"))) {
     return (
-      <DashboardShell title="Analytics" badge="Teacher">
+      <DashboardShell title="Analytics">
         <PlanRequiredCard
           feature="Analytics"
           description="Your school's plan doesn't include analytics dashboards. Ask a school administrator to upgrade the plan."
@@ -71,7 +71,7 @@ export default async function TeacherAnalyticsPage({
   const selectedClass = data.classes.find((c) => c.id === selectedClassId) ?? null;
 
   return (
-    <DashboardShell title="Class Analytics" badge="Teacher">
+    <DashboardShell title="Class Analytics">
       <div className="flex flex-wrap items-center gap-1.5">
         <Link
           href="/teacher/analytics"

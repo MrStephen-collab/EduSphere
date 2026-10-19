@@ -10,6 +10,7 @@ import {
   updateModule,
   deleteModule,
   createLesson,
+  createSubjectLesson,
   updateLesson,
   setLessonStatus,
   deleteLesson,
@@ -196,6 +197,30 @@ export async function createLessonAction(input: {
       return id;
     },
     [`/teacher/courses/${input.courseId}`],
+  );
+}
+
+export async function createSubjectLessonAction(input: {
+  subjectId: string;
+  classId: string;
+  title: string;
+  description?: string | null;
+  content?: string | null;
+  status?: ContentStatus;
+}): Promise<ActionState> {
+  return run(
+    async () => {
+      const id = await createSubjectLesson({
+        subjectId: input.subjectId,
+        classId: input.classId,
+        title: input.title,
+        description: input.description,
+        content: input.content,
+        status: input.status === "draft" ? "draft" : "published",
+      });
+      return id;
+    },
+    ["/teacher/lessons", "/teacher"],
   );
 }
 

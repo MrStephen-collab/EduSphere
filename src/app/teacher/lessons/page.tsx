@@ -5,13 +5,14 @@ import { Library, Paperclip, PlayCircle } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireContentEditor } from "@/services/shared";
 import { listTeacherLessons } from "@/services/learning";
-import { getSchoolLevel } from "@/services/schools";
-import { levelOffersCourses } from "@/lib/education/levels";
+import { getSubjects } from "@/services/academics";
+import { getTeacherClassRosters } from "@/services/teacher-classes";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { LessonQuickAdd } from "@/components/teacher/lesson-quick-add";
 
 export const metadata: Metadata = {
   title: "Lessons",
@@ -25,6 +26,10 @@ export const metadata: Metadata = {
  * the same URL. A teacher looking for the lesson they attached a video to used to
  * have to open every course and expand every module; here the video and file
  * counts are on the row, and the row itself opens that lesson's editor.
+ *
+ * Nursery, primary and secondary schools have this menu but no Courses menu:
+ * the Add-a-lesson form takes a subject and a class, and the course behind the
+ * lesson is created for the teacher (see createSubjectLesson).
  */
 export default async function TeacherLessonsPage() {
   const context = await getAuthContext();
@@ -33,12 +38,9 @@ export default async function TeacherLessonsPage() {
 
   const { schoolId, teacherId } = await requireContentEditor();
 
-  const level = await getSchoolLevel(schoolId);
-  if (!levelOffersCourses(level)) redirect("/teacher");
-
   if (!teacherId) {
     return (
-      <DashboardShell title="Lessons" badge="Teacher">
+      <DashboardShell title="Lessons">
         <EmptyState
           icon={Library}
           title="No teacher profile"
@@ -48,18 +50,28 @@ export default async function TeacherLessonsPage() {
     );
   }
 
-  const lessons = await listTeacherLessons(schoolId, teacherId);
+  const [lessons, subjects, rosters] = await Promise.all([
+    listTeacherLessons(schoolId, teacherId),
+    getSubjects(schoolId),
+    getTeacherClassRosters(schoolId, teacherId),
+  ]);
 
   const withVideo = lessons.filter((l) => l.has_video).length;
   const empty = lessons.filter((l) => l.material_count === 0).length;
 
   return (
-    <DashboardShell title="Lessons" badge="Teacher">
+    <DashboardShell title="Lessons">
+      <div className="mb-4">
+        <LessonQuickAdd
+          subjects={subjects.map((s) => ({ id: s.id, name: s.name }))}
+          classes={rosters.map((r) => ({ id: r.classId, name: r.className }))}
+        />
+      </div>
       {lessons.length === 0 ? (
         <EmptyState
           icon={Library}
           title="No lessons yet"
-          description="Lessons appear here once you add them to one of your courses. Each row opens that lesson's editor, where you can attach videos and files."
+          description="Add your first lesson above: pick the subject and class it belongs to, give it a title, and publish. Each row opens that lesson's editor, where you can attach videos and files."
         />
       ) : (
         <div className="grid gap-4">

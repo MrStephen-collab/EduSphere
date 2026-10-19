@@ -70,7 +70,7 @@ export default async function TeacherReportCardsPage({
 
   if (!options.classes.length) {
     return (
-      <DashboardShell title="Report Cards" badge="Teacher">
+      <DashboardShell title="Report Cards">
         <p className="text-sm text-muted-foreground">
           No classes assigned yet — ask your school admin to link you to a class.
         </p>
@@ -84,7 +84,7 @@ export default async function TeacherReportCardsPage({
 
   if (!session || (!annual && !term)) {
     return (
-      <DashboardShell title="Report Cards" badge="Teacher">
+      <DashboardShell title="Report Cards">
         <p className="text-sm text-muted-foreground">
           This session has no terms yet — add a term to generate report cards.
         </p>
@@ -101,7 +101,7 @@ export default async function TeacherReportCardsPage({
   const annualHref = `/teacher/report-cards?class=${cls.id}&session=${session.id}&view=annual`;
 
   return (
-    <DashboardShell title="Report Cards" badge="Teacher">
+    <DashboardShell title="Report Cards">
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <ReportFilters
