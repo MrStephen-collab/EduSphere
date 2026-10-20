@@ -1,11 +1,16 @@
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSchoolAdmin } from "@/services/shared";
-import { ADMISSION_STATUSES, admissionStatusLabel } from "@/lib/admission-labels";
+import {
+  ADMISSION_STATUSES,
+  admissionStatusLabel,
+  admissionSettingsSchema,
+} from "@/lib/admission-labels";
 import { buildApplicationNumber, isValidEntranceScore } from "@/lib/admission";
 import type {
   AdmissionApplication,
   AdmissionEvent,
+  AdmissionSettings,
   AdmissionStatus,
 } from "@/types/database";
 
@@ -116,6 +121,13 @@ export async function submitAdmissionApplication(
   if (!school) {
     throw new Error("This school is not accepting applications right now.");
   }
+
+  // Honour the school's admission link settings. A visitor can POST to this
+  // endpoint regardless of what the public page rendered, so the window and
+  // on/off state are enforced here -- not just hidden in the UI.
+  const linkState = await getAdmissionLinkStateBySlug(data.slug);
+  const refusal = admissionLinkRefusal(linkState);
+  if (refusal) throw new Error(refusal);
 
   // The class must belong to this school. Without this check a visitor could
   // point an application at another school's class id.
@@ -491,4 +503,178 @@ export async function deleteAdmissionApplication(applicationId: string): Promise
     .eq("school_id", schoolId);
 
   if (error) throw new Error("We couldn't delete this application.");
+}
+
+// ---------------------------------------------------------------------------
+// Admission settings
+// ---------------------------------------------------------------------------
+
+/** A school with no settings row: link off, no window, no fee. */
+const DEFAULT_SETTINGS: AdmissionSettings = {
+  school_id: "",
+  enabled: false,
+  opens_at: null,
+  closes_at: null,
+  intake_label: null,
+  intro_message: null,
+  application_fee_amount: null,
+  application_fee_currency: "NGN",
+  fee_note: null,
+  updated_by: null,
+  created_at: "",
+  updated_at: "",
+};
+
+const SETTINGS_COLUMNS =
+  "school_id, enabled, opens_at, closes_at, intake_label, intro_message, application_fee_amount, application_fee_currency, fee_note, updated_by, created_at, updated_at";
+
+/**
+ * The public admissions link's state, resolved for a school.
+ *
+ * `status` is what a visitor should see right now:
+ *   - "disabled":    the link is off (or the school never set one up)
+ *   - "not_open_yet": on, but the window has not started
+ *   - "closed":      on, but the window has ended
+ *   - "open":        applications are being accepted
+ */
+export type AdmissionLinkState = {
+  status: "disabled" | "not_open_yet" | "closed" | "open";
+  opensAt: string | null;
+  closesAt: string | null;
+  intakeLabel: string | null;
+  introMessage: string | null;
+  fee: { amount: number; currency: string; note: string | null } | null;
+};
+
+function toLinkState(settings: AdmissionSettings, now = new Date()): AdmissionLinkState {
+  const fee =
+    settings.application_fee_amount === null
+      ? null
+      : {
+          amount: Number(settings.application_fee_amount),
+          currency: settings.application_fee_currency,
+          note: settings.fee_note,
+        };
+
+  const shared = {
+    opensAt: settings.opens_at,
+    closesAt: settings.closes_at,
+    intakeLabel: settings.intake_label,
+    introMessage: settings.intro_message,
+    fee,
+  };
+
+  if (!settings.enabled) return { status: "disabled", ...shared };
+
+  const nowMs = now.getTime();
+  if (settings.opens_at && nowMs < new Date(settings.opens_at).getTime()) {
+    return { status: "not_open_yet", ...shared };
+  }
+  if (settings.closes_at && nowMs > new Date(settings.closes_at).getTime()) {
+    return { status: "closed", ...shared };
+  }
+  return { status: "open", ...shared };
+}
+
+/**
+ * Reads the school's admission settings for an admin-facing page. Falls back
+ * to the "link off" defaults when the school has no row, so the settings form
+ * is always populated rather than erroring.
+ */
+export async function getAdmissionSettings(): Promise<AdmissionSettings> {
+  const { schoolId } = await requireSchoolAdmin();
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("admission_settings")
+    .select(SETTINGS_COLUMNS)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  return (data as AdmissionSettings | null) ?? { ...DEFAULT_SETTINGS, school_id: schoolId };
+}
+
+/**
+ * Resolves the public link state by school slug. This is the read the public
+ * admissions page makes, and it cannot go through `requireSchoolAdmin` because
+ * the caller is a signed-out visitor -- so it is scoped by the slug the page
+ * already resolved to a live school.
+ */
+export async function getAdmissionLinkStateBySlug(slug: string): Promise<AdmissionLinkState> {
+  const admin = createAdminClient();
+  const { data: school } = await admin
+    .from("schools")
+    .select("id")
+    .eq("slug", slug)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (!school) return toLinkState({ ...DEFAULT_SETTINGS, school_id: "" });
+
+  const { data } = await admin
+    .from("admission_settings")
+    .select(SETTINGS_COLUMNS)
+    .eq("school_id", school.id)
+    .maybeSingle();
+
+  return toLinkState((data as AdmissionSettings | null) ?? { ...DEFAULT_SETTINGS, school_id: school.id });
+}
+
+/**
+ * Creates or updates the school's admission settings. Upserts on `school_id`
+ * because there is exactly one row per school and the first save is an insert.
+ *
+ * Writes through the service role: there is no INSERT/UPDATE policy on the
+ * table (see 0034), so a leaked anon key cannot open a school's admission
+ * window or change its fee. The gate is `requireSchoolAdmin` above it.
+ */
+export async function updateAdmissionSettings(
+  input: z.input<typeof admissionSettingsSchema>,
+): Promise<void> {
+  const data = admissionSettingsSchema.parse(input);
+  const { schoolId, userId } = await requireSchoolAdmin();
+  const admin = createAdminClient();
+
+  const { error } = await admin.from("admission_settings").upsert(
+    {
+      school_id: schoolId,
+      enabled: data.enabled,
+      opens_at: data.opensAt,
+      closes_at: data.closesAt,
+      intake_label: emptyToNull(data.intakeLabel ?? null),
+      intro_message: emptyToNull(data.introMessage ?? null),
+      // A blank fee is "no fee", not "zero fee" -- zero would print "Free" as
+      // "₦0" and read as a real amount.
+      application_fee_amount: data.applicationFeeAmount ?? null,
+      application_fee_currency: data.applicationFeeCurrency,
+      fee_note: emptyToNull(data.feeNote ?? null),
+      updated_by: userId,
+    },
+    { onConflict: "school_id" },
+  );
+
+  if (error) throw new Error("We couldn't save the admission settings.");
+}
+
+/**
+ * Whether a public application should be accepted for a school right now.
+ *
+ * Returns a human-readable refusal when it is not, and `null` when it is. The
+ * refusal is what the public form shows a visitor who lands on a link that is
+ * off, not open yet, or already closed.
+ */
+export function admissionLinkRefusal(state: AdmissionLinkState): string | null {
+  if (state.status === "open") return null;
+  if (state.status === "disabled") {
+    return "This school is not accepting applications right now.";
+  }
+  if (state.status === "not_open_yet") {
+    const when = state.opensAt
+      ? ` on ${new Date(state.opensAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`
+      : "";
+    return `Applications for this intake open${when}. Please check back then.`;
+  }
+  const when = state.closesAt
+    ? ` on ${new Date(state.closesAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`
+    : "";
+  return `The application window for this intake closed${when}. Please contact the school directly.`;
 }

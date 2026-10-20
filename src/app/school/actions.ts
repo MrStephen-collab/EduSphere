@@ -66,7 +66,9 @@ import {
   deleteAdmissionApplication,
   recordEntranceScore,
   setAdmissionStatus,
+  updateAdmissionSettings,
 } from "@/services/admissions";
+import { admissionSettingsSchema } from "@/lib/admission-labels";
 import type { z } from "zod";
 import type { EducationLevel } from "@/types/database";
 
@@ -437,6 +439,27 @@ export async function deleteAdmissionApplicationAction(
     async () => deleteAdmissionApplication(applicationId),
     "/school/admissions",
   );
+}
+
+/**
+ * Saves the public admission link's on/off state, window and application fee.
+ *
+ * Revalidated beyond the settings page: the admissions inbox shows the link
+ * status and funnel, and the public admissions page renders the fee and the
+ * open/closed state a visitor sees.
+ */
+export async function updateAdmissionSettingsAction(
+  input: z.input<typeof admissionSettingsSchema>,
+): Promise<ActionState> {
+  try {
+    await updateAdmissionSettings(input);
+    revalidatePath("/school/admissions/settings");
+    revalidatePath("/school/admissions");
+    revalidatePath("/schools/[slug]/admissions", "page");
+    return { ok: true, message: "Admission settings saved." };
+  } catch (e) {
+    return { ok: false, error: message(e) };
+  }
 }
 
 // ---------------------------------------------------------------------------

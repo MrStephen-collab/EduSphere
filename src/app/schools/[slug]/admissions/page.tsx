@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ClipboardCheck, FileUser, MessageSquareText, UserPlus } from "lucide-react";
+import {
+  ArrowRight,
+  ClipboardCheck,
+  Clock,
+  FileUser,
+  MessageSquareText,
+  UserPlus,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdmissionApplicationForm } from "@/components/site/admission-application-form";
 import { getSchoolSite } from "@/services/school-site";
+import { getAdmissionLinkStateBySlug } from "@/services/admissions";
+import { formatNaira } from "@/lib/fee-labels";
 
 export async function generateMetadata({
   params,
@@ -39,6 +48,14 @@ const steps = [
   },
 ];
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export default async function AdmissionsPage({
   params,
 }: {
@@ -48,12 +65,40 @@ export default async function AdmissionsPage({
   const site = await getSchoolSite(slug);
   if (!site) notFound();
 
+  // Whether the school is accepting applications right now, and what it has
+  // said about the fee and the intake. Fetched separately from the site page
+  // because it changes whenever an admin flips the link or the window passes.
+  const link = await getAdmissionLinkStateBySlug(slug);
+  const accepting = link.status === "open";
+
+  const windowText = (() => {
+    if (link.opensAt && link.closesAt) {
+      return `Applications are open from ${formatDate(link.opensAt)} to ${formatDate(link.closesAt)}.`;
+    }
+    if (link.closesAt) return `Applications close on ${formatDate(link.closesAt)}.`;
+    if (link.opensAt) return `Applications open on ${formatDate(link.opensAt)}.`;
+    return null;
+  })();
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 lg:py-16">
       <h1 className="text-3xl font-bold">Admissions</h1>
       <p className="mt-2 max-w-2xl text-muted-foreground">
-        How to join {site.name} for the upcoming term.
+        {link.intakeLabel
+          ? `${link.intakeLabel} at ${site.name}.`
+          : `How to join ${site.name} for the upcoming term.`}
       </p>
+      {link.introMessage ? (
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          {link.introMessage}
+        </p>
+      ) : null}
+      {windowText ? (
+        <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Clock className="size-4 shrink-0" aria-hidden="true" />
+          {windowText}
+        </p>
+      ) : null}
 
       <ol className="mt-10 grid gap-4 md:grid-cols-2">
         {steps.map((step, index) => (
@@ -79,29 +124,66 @@ export default async function AdmissionsPage({
         ))}
       </ol>
 
-      <section className="mt-10 rounded-xl border bg-muted/40 p-6 text-center sm:p-8">
-        <h2 className="text-xl font-semibold">Ready to begin?</h2>
-        <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-          Apply online below and the school will receive your application immediately.
-          Current students and parents sign in on EduSphere.
-        </p>
-        <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <Button render={<a href="#apply" />}>
-            Start an application
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Button>
-          <Button
-            variant="outline"
-            render={<Link href={`/schools/${site.slug}/contact`} />}
-          >
-            Contact the school
-          </Button>
-        </div>
-      </section>
+      {accepting ? (
+        <>
+          <section className="mt-10 rounded-xl border bg-muted/40 p-6 text-center sm:p-8">
+            <h2 className="text-xl font-semibold">Ready to begin?</h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+              Apply online below and the school will receive your application
+              immediately. Current students and parents sign in on EduSphere.
+            </p>
+            {link.fee ? (
+              <p className="mx-auto mt-3 max-w-xl text-sm">
+                Application fee:{" "}
+                <span className="font-semibold">
+                  {formatNaira(link.fee.amount, link.fee.currency)}
+                </span>
+                {link.fee.note ? (
+                  <span className="text-muted-foreground"> — {link.fee.note}</span>
+                ) : null}
+              </p>
+            ) : null}
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              <Button render={<a href="#apply" />}>
+                Start an application
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="outline"
+                render={<Link href={`/schools/${site.slug}/contact`} />}
+              >
+                Contact the school
+              </Button>
+            </div>
+          </section>
 
-      <section id="apply" className="mt-10 scroll-mt-20">
-        <AdmissionApplicationForm slug={site.slug} classes={site.classes} />
-      </section>
+          <section id="apply" className="mt-10 scroll-mt-20">
+            <AdmissionApplicationForm slug={site.slug} classes={site.classes} />
+          </section>
+        </>
+      ) : (
+        <section className="mt-10 rounded-xl border bg-muted/40 p-6 text-center sm:p-8">
+          <h2 className="flex items-center justify-center gap-2 text-xl font-semibold">
+            <Clock className="size-5" aria-hidden="true" />
+            {link.status === "closed"
+              ? "Applications are closed"
+              : "Applications are not open yet"}
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+            {link.status === "closed"
+              ? windowText ?? "The application window for this intake has closed."
+              : windowText ?? "Please check back soon, or contact the school to register your interest."}
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <Button
+              variant="outline"
+              render={<Link href={`/schools/${site.slug}/contact`} />}
+            >
+              Contact the school
+            </Button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

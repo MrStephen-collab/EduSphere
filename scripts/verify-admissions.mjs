@@ -160,9 +160,26 @@ const run = async () => {
     return data;
   };
 
+  // Opens (or closes) a school's public admissions link. A school with no
+  // settings row has its link off, so the happy path below has to open it the
+  // way an admin would.
+  const setLink = async (schoolId, patch) => {
+    const { error } = await admin
+      .from("admission_settings")
+      .upsert({ school_id: schoolId, ...patch }, { onConflict: "school_id" });
+    if (error) throw new Error(`admission_settings: ${error.message}`);
+  };
+
   try {
     const schoolA = await makeSchool("a");
     const schoolB = await makeSchool("b");
+    await setLink(schoolA.id, {
+      enabled: true,
+      application_fee_amount: 2500,
+      application_fee_currency: "NGN",
+      fee_note: "Non-refundable",
+      intake_label: "Admission Verify Intake",
+    });
 
     const { data: classA, error: classAErr } = await admin
       .from("classes")
@@ -199,6 +216,89 @@ const run = async () => {
       publicPage.includes("Probe Class A"),
       "a school's classes are not offered on its public form",
     );
+    check(
+      "the public page shows the configured application fee and intake label",
+      publicPage.includes("₦2,500") && publicPage.includes("Non-refundable") &&
+        publicPage.includes("Admission Verify Intake"),
+      "the fee or intake label configured by the school is not shown",
+    );
+
+    // --- the link's on/off state and window are enforced ---------------------
+    console.log("\nThe admission link governs whether applications are accepted");
+    const beforeOff = await postPublic(schoolA.slug, {
+      applicantFirstName: "Too",
+      applicantLastName: "Early",
+      guardianName: "Too Early",
+      guardianEmail: "too.early@example.test",
+    });
+    check(
+      "an application is accepted while the link is open",
+      beforeOff.status === 201 && beforeOff.json?.ok === true,
+      `status ${beforeOff.status} ${JSON.stringify(beforeOff.json)}`,
+    );
+    await setLink(schoolA.id, { enabled: false });
+    const whileOff = await postPublic(schoolA.slug, {
+      applicantFirstName: "Too",
+      applicantLastName: "Early",
+      guardianName: "Too Early",
+      guardianEmail: "too.early@example.test",
+    });
+    check(
+      "an application is refused while the link is off",
+      whileOff.status === 400 && whileOff.json?.ok !== true &&
+        /not accepting/i.test(whileOff.json?.error ?? ""),
+      `status ${whileOff.status} ${JSON.stringify(whileOff.json)}`,
+    );
+
+    // Open a window that has not started yet: the link is on, but too early.
+    const opensAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    await setLink(schoolA.id, { enabled: true, opens_at: opensAt });
+    const beforeWindow = await postPublic(schoolA.slug, {
+      applicantFirstName: "Too",
+      applicantLastName: "Early",
+      guardianName: "Too Early",
+      guardianEmail: "too.early@example.test",
+    });
+    check(
+      "an application is refused before the window opens",
+      beforeWindow.status === 400 && /open/i.test(beforeWindow.json?.error ?? ""),
+      `status ${beforeWindow.status} ${JSON.stringify(beforeWindow.json)}`,
+    );
+
+    const closedAt = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    await setLink(schoolA.id, { enabled: true, opens_at: null, closes_at: closedAt });
+    const afterWindow = await postPublic(schoolA.slug, {
+      applicantFirstName: "Too",
+      applicantLastName: "Late",
+      guardianName: "Too Late",
+      guardianEmail: "too.late@example.test",
+    });
+    check(
+      "an application is refused after the window closes",
+      afterWindow.status === 400 && /closed/i.test(afterWindow.json?.error ?? ""),
+      `status ${afterWindow.status} ${JSON.stringify(afterWindow.json)}`,
+    );
+
+    const closedPage = await fetch(
+      `${BASE}/schools/${schoolA.slug}/admissions`,
+    ).then((r) => r.text());
+    check(
+      "a closed link hides the application form from the public page",
+      !closedPage.includes('id="applicantFirstName"') &&
+        closedPage.includes("closed"),
+      "the form is still shown while the link is closed",
+    );
+
+    // Restore the open link so the happy path below runs against a live form.
+    await setLink(schoolA.id, {
+      enabled: true,
+      opens_at: null,
+      closes_at: null,
+      application_fee_amount: 2500,
+      application_fee_currency: "NGN",
+      fee_note: "Non-refundable",
+      intake_label: "Admission Verify Intake",
+    });
 
     // --- a visitor can apply -----------------------------------------------
     const submitted = await postPublic(schoolA.slug, {
@@ -353,6 +453,43 @@ const run = async () => {
       .select("id")
       .eq("id", stored.id);
     check("a student CANNOT read applications", countRows(studentRead) === 0, "student leak");
+
+    const settingsTeacher = await asTeacherA
+      .from("admission_settings")
+      .select("school_id")
+      .eq("school_id", schoolA.id);
+    check(
+      "a teacher CANNOT read the school's admission settings",
+      countRows(settingsTeacher) === 0,
+      "settings were visible to a non-admin",
+    );
+    const settingsOther = await asAdminB
+      .from("admission_settings")
+      .select("school_id")
+      .eq("school_id", schoolA.id);
+    check(
+      "another school's admin CANNOT read these admission settings",
+      countRows(settingsOther) === 0,
+      "settings leaked across schools",
+    );
+    const anonSettings = await anon
+      .from("admission_settings")
+      .select("school_id")
+      .eq("school_id", schoolA.id);
+    check(
+      "a leaked anon key cannot read admission settings",
+      countRows(anonSettings) === 0,
+      "the anon role could read the settings",
+    );
+    const anonSettingsWrite = await anon
+      .from("admission_settings")
+      .update({ enabled: true })
+      .eq("school_id", schoolA.id);
+    check(
+      "a leaked anon key cannot open a school's admission link",
+      !!anonSettingsWrite.error,
+      "the anon role was allowed to update the settings",
+    );
 
     const asAdminB_events = await asAdminB
       .from("admission_events")

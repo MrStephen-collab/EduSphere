@@ -25,7 +25,7 @@ Each school gets its own isolated, branded digital academic environment.
 - **Fees & payments** — schools invoice per child, one-off or by whole class for a term. A parent pays the outstanding balance through Paystack; the webhook only *queues* the payment, and a bursar approves it from `/school/fees` before any money is credited. Bulk term billing is idempotent (a deterministic `billing_key`), approval clamps to the amount owed and is guarded against two bursars approving at once, and the school sees live invoiced / collected / outstanding / overdue totals. A parent can never mark themselves paid.
 - **Global search** — Ctrl/Cmd+K command bar across the whole app: schools, classes, teachers, students, subjects, courses, lessons, assignments, exam series and announcements, with role-aware results.
 - **Public school websites** — every school gets a branded public homepage at `/schools/[slug]` (about, academics, admissions, news, events, gallery, contact) rendered from real database data with its own theming. A school **logo** can be uploaded during onboarding or later in settings and appears on the public site, admission letters and report cards; uploads go straight to a public `school-assets` bucket (PNG/JPG/WebP, 2 MB) with a one-time signed URL, so the bytes never pass through the app server.
-- **Online admission** — a school's public admissions page is a working application form, not a leaflet: a signed-out visitor (no account needed) submits the child's and guardian's details against a class, gets an `ADM-XXXXXXXX` reference, and the application lands in the school's `/school/admissions` inbox. The school works it through `submitted → under_review → entrance → offered → enrolled` (or `rejected` / `withdrawn`), records the entrance score and any notes on a per-application timeline, and prints an offer letter once a place is offered. The public form is the product's only anonymous write and runs entirely through trusted server code — the database has no `anon` insert policy.
+- **Online admission** — a school's public admissions page is a working application form, not a leaflet: a signed-out visitor (no account needed) submits the child's and guardian's details against a class, gets an `ADM-XXXXXXXX` reference, and the application lands in the school's `/school/admissions` inbox. The school works it through `submitted → under_review → entrance → offered → enrolled` (or `rejected` / `withdrawn`), records the entrance score and any notes on a per-application timeline, and prints an offer letter once a place is offered. The public form is the product's only anonymous write and runs entirely through trusted server code — the database has no `anon` insert policy. Whether the link is on at all is a per-school setting (`/school/admissions/settings`): the switch, an optional opening and closing window, the intake label and intro paragraph above the form, and the application fee shown to applicants. Off is the default — a school that is not recruiting shows no form — and the window is enforced in the submission path too, so a posted application is refused with the same sentence a visitor sees.
 - **Email notifications** — provider-agnostic transactional emails (Welcome, password reset, assignment created/graded, exam result, school announcements, subscription confirmation) with an exam-reminder template ready for a scheduler. Defaults to console logging until an API key is added.
 - **Attendance** — teachers take a per-class daily register (present / late / absent / excused); report cards and the class results sheet aggregate days present plus attendance rate.
 - **Subscriptions & payments** — DB-driven pricing plans (Starter / Professional / Premium) with a Paystack integration: schools start a checkout from `/school/billing`, pay on Paystack, and Paystack webhooks (`/api/webhooks/paystack`) instantly activate or switch the school's subscription. A super-admin plan manager (`/platform/subscriptions`) creates, edits and toggles plans and refunds payments. The marketing site reads plans live from the database — no hard-coded prices.
@@ -176,6 +176,7 @@ Open [http://localhost:3000](http://localhost:3000).
     - `supabase/migrations/0031_user_data_preferences.sql`
      - `supabase/migrations/0032_school_assets.sql`
      - `supabase/migrations/0033_plan_entitlements.sql`
+    - `supabase/migrations/0034_admission_settings.sql`
 3. With `npm run dev` running, execute the demo-user seeder once:
 
 ```bash
@@ -242,7 +243,7 @@ npm run verify:mux-playback   # signed vs unsigned playback enforcement
 npm run verify:video-upload   # Mux direct upload → ready → signed playback (needs a server)
 npm run verify:video-refresh  # a stranded upload can still be pulled to ready
 npm run verify:video-indicator # video lessons show a play affordance, not a file icon
-npm run verify:admissions      # public admissions form + isolatable application workflow (needs a server)
+npm run verify:admissions      # public admissions form: link on/off + window gate, isolatable application workflow (needs a server)
 npm run verify:subject-rls     # teachers can manage their own school's subjects, and no further
 npm run verify:exam-security   # the practice-attempt integrity trail: stored, readable, un-editable by students
 npm run verify:data-preferences # data-mode preferences are personal: own-write, no cross-user reads, school default only its admin can set
@@ -293,6 +294,7 @@ npx supabase db push --include-all
 /school/billing         School subscription + payment history
 /school/fees            Issue invoices, bulk term billing, approve payments
 /school/admissions      Review applications from the public admissions form
+/school/admissions/settings  Admission link on/off, window, intake and fee
 /school/admissions/[id]/letter  Printable offer of admission
 /teacher                Teacher dashboard
 /student                Student dashboard

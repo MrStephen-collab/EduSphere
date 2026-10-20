@@ -1400,6 +1400,37 @@ async function seedDemoFees(studentId) {
   console.log(`Seeded ${term.length} fee invoices for the demo student.`);
 }
 
+// The public admissions link is off until a school switches it on (migration
+// 0034), which left a freshly seeded school with a form that looked broken.
+// The demo school starts with the link open so the public page, the inbox
+// funnel and the settings page all show something real.
+async function seedAdmissionSettings() {
+  const { error } = await supabase.from("admission_settings").upsert(
+    {
+      school_id: SCHOOL_ID,
+      enabled: true,
+      intake_label: "2026/2027 Academic Session",
+      intro_message:
+        "Applications are open for the coming academic session. Complete the form below and the school will get back to you.",
+      application_fee_amount: 2500,
+      application_fee_currency: "NGN",
+      fee_note: "Non-refundable, payable at the school bursary.",
+    },
+    { onConflict: "school_id" },
+  );
+
+  if (error) {
+    if (error.code === "42P01" || /does not exist/i.test(error.message)) {
+      console.warn("admission_settings table missing — run migration 0034 first.");
+    } else {
+      console.error("Failed to seed admission settings:", error.message);
+    }
+    return;
+  }
+
+  console.log("Seeded the demo school's admission link settings.");
+}
+
 async function main() {
   for (const u of users) {
     const {
@@ -1453,6 +1484,7 @@ async function main() {
   await seedSubscriptionPlans();
   await seedDemoSubscription();
   await seedDemoFees(studentId);
+  await seedAdmissionSettings();
 
   console.log("Seed complete. Demo password:", PASSWORD);
   console.log(`Student record: ${studentId ?? "not created"}`);

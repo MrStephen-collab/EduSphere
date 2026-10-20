@@ -848,6 +848,27 @@ export type AdmissionApplication = {
   updated_at: string;
 };
 
+/**
+ * The public admissions link for a school: whether it is on, when the window
+ * opens and closes, and the application fee shown to applicants. One row per
+ * school; a school that has never configured admissions simply has no row
+ * (treated as "link off"). See 0034_admission_settings.sql.
+ */
+export type AdmissionSettings = {
+  school_id: string;
+  enabled: boolean;
+  opens_at: string | null;
+  closes_at: string | null;
+  intake_label: string | null;
+  intro_message: string | null;
+  application_fee_amount: number | null;
+  application_fee_currency: string;
+  fee_note: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AdmissionEvent = {
   id: string;
   application_id: string;
@@ -1082,6 +1103,11 @@ export type Database = {
         Row: AdmissionEvent;
         Insert: Partial<AdmissionEvent>;
         Update: Partial<AdmissionEvent>;
+      };
+      admission_settings: {
+        Row: AdmissionSettings;
+        Insert: Partial<AdmissionSettings>;
+        Update: Partial<AdmissionSettings>;
       };
       live_sessions: {
         Row: LiveSession;
