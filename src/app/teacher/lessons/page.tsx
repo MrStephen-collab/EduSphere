@@ -81,7 +81,7 @@ export default async function TeacherLessonsPage() {
             {empty > 0 ? ` · ${empty} with no materials` : ""}
           </p>
 
-          <ul className="grid gap-2">
+          <ul className="grid grid-cols-1 gap-2">
             {lessons.map((lesson) => (
               <li key={lesson.id}>
                 <Card>

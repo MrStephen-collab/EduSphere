@@ -28,8 +28,11 @@ export default async function StudentResultsPage() {
         data={data}
         footer={
           <Link href="/student/exam-series" className="inline-flex">
-            <Button variant="outline" className="w-full justify-between">
-              <span className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="h-auto w-full justify-between whitespace-normal py-2 text-left"
+            >
+              <span className="flex min-w-0 items-center gap-2">
                 <BookOpenCheck className="size-4" aria-hidden="true" />
                 Improve your average — practise more series
               </span>

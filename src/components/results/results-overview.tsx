@@ -101,7 +101,7 @@ export function ResultsOverview({
           />
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Performance by subject</CardTitle>
@@ -109,7 +109,7 @@ export function ResultsOverview({
                 Combines practice scores and assignment grades.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-3">
+            <CardContent className="grid grid-cols-1 gap-3">
               {data.subjectPerformance.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No scored work yet — your subject breakdown appears after your first practice or graded assignment.
@@ -135,7 +135,7 @@ export function ResultsOverview({
               <CardTitle>Practice series</CardTitle>
               <CardDescription>Best score per exam series.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-2">
+            <CardContent className="grid grid-cols-1 gap-2">
               {data.perSeries.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No exam series practiced yet.
@@ -166,7 +166,7 @@ export function ResultsOverview({
               <CardTitle>Graded assignments</CardTitle>
               <CardDescription>Scored work returned by teachers.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-2">
+            <CardContent className="grid grid-cols-1 gap-2">
               {data.gradedAssignments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No graded assignments yet.
@@ -197,7 +197,7 @@ export function ResultsOverview({
               <CardTitle>Exam results</CardTitle>
               <CardDescription>Formal results published by the school.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-2">
+            <CardContent className="grid grid-cols-1 gap-2">
               {data.results.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No formal exam results published yet.
