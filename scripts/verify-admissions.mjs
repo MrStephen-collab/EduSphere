@@ -481,14 +481,29 @@ const run = async () => {
       countRows(anonSettings) === 0,
       "the anon role could read the settings",
     );
+    // A denied UPDATE is reported by PostgREST as a 200 with zero rows (see
+    // the applications note below), so asserting on an error would pass for
+    // the wrong reason. Instead write something distinctive and prove it never
+    // landed: anon claims to rename the intake and flip the link, and the
+    // service role still reads the row back exactly as the school set it.
     const anonSettingsWrite = await anon
       .from("admission_settings")
-      .update({ enabled: true })
-      .eq("school_id", schoolA.id);
+      .update({ intake_label: "ANON TOOK OVER THE INTAKE" })
+      .eq("school_id", schoolA.id)
+      .select("school_id");
+    const settingsAfter = await admin
+      .from("admission_settings")
+      .select("intake_label, enabled")
+      .eq("school_id", schoolA.id)
+      .maybeSingle();
     check(
       "a leaked anon key cannot open a school's admission link",
-      !!anonSettingsWrite.error,
-      "the anon role was allowed to update the settings",
+      !anonSettingsWrite.error &&
+        countRows(anonSettingsWrite) === 0 &&
+        settingsAfter.data?.intake_label === "Admission Verify Intake" &&
+        settingsAfter.data?.enabled === true,
+      `write ${anonSettingsWrite.error?.message ?? "landed"}; row reads back as ` +
+        JSON.stringify(settingsAfter.data),
     );
 
     const asAdminB_events = await asAdminB
