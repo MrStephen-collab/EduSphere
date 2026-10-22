@@ -171,7 +171,7 @@ async function StudentDashboardContent() {
 
       <AnnouncementBanner announcements={bundle.announcements} className="mt-5" />
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+      <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card className="animate-card-enter" style={{ animationDelay: "220ms" }}>
           <CardHeader>
             <CardTitle>Continue Learning</CardTitle>
@@ -179,7 +179,7 @@ async function StudentDashboardContent() {
           </CardHeader>
           <CardContent>
             {bundle.continueItem ? (
-              <div className="grid gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <div className="flex items-center gap-3 rounded-lg border p-4">
                   {bundle.continueItem.hasVideo ? (
                     <PlayCircle className="size-10 shrink-0 text-primary" aria-hidden="true" />
@@ -201,9 +201,9 @@ async function StudentDashboardContent() {
                   href={`/student/courses/${bundle.continueItem.courseId}/lessons/${bundle.continueItem.lessonId}`}
                   className="inline-flex"
                 >
-                  <Button className="h-11 w-full justify-between">
-                    <span>{bundle.continueItem.progress === 100 ? "Review lesson" : `Continue ${bundle.continueItem.courseTitle}`}</span>
-                    <ArrowRight className="size-4" aria-hidden="true" />
+                  <Button className="h-auto min-h-11 w-full justify-between whitespace-normal py-2 text-left">
+                    <span className="min-w-0">{bundle.continueItem.progress === 100 ? "Review lesson" : `Continue ${bundle.continueItem.courseTitle}`}</span>
+                    <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
                   </Button>
                 </Link>
               </div>
@@ -226,9 +226,9 @@ async function StudentDashboardContent() {
           </CardHeader>
           <CardContent>
             {upcoming.length > 0 ? (
-              <ul className="grid gap-2">
+              <ul className="grid grid-cols-1 gap-2">
                 {upcoming.map((a) => (
-                  <li key={a.id}>
+                  <li key={a.id} className="min-w-0">
                     <Link
                       href={`/student/assignments/${a.id}`}
                       className="flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/60"
@@ -284,12 +284,12 @@ async function StudentDashboardContent() {
           </Link>
         </div>
         {myCourses.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {myCourses.map((course) => (
-              <Link key={course.id} href={`/student/courses/${course.id}`} className="group">
+              <Link key={course.id} href={`/student/courses/${course.id}`} className="group min-w-0">
                 <Card className="h-full transition-shadow hover:shadow-card">
-                  <CardContent className="grid gap-3 p-4">
-                    <div className="flex items-start justify-between gap-2">
+                  <CardContent className="grid grid-cols-1 gap-3 p-4">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate font-medium group-hover:text-primary">{course.title}</p>
                         <p className="truncate text-xs text-muted-foreground">
@@ -340,11 +340,11 @@ async function StudentDashboardContent() {
               View all
             </Link>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {practiceExams.map((series) => (
-              <Link key={series.id} href={`/student/exam-series/${series.id}`} className="group">
+              <Link key={series.id} href={`/student/exam-series/${series.id}`} className="group min-w-0">
                 <Card className="h-full transition-shadow hover:shadow-card">
-                  <CardContent className="grid gap-2 p-4">
+                  <CardContent className="grid grid-cols-1 gap-2 p-4">
                     <p className="truncate font-medium group-hover:text-primary">{series.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {series.questionCount} questions
@@ -372,7 +372,7 @@ async function StudentDashboardContent() {
               : "Lessons, tests and results at your fingertips."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-2 sm:grid-cols-2">
+        <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Link href="/student/courses" className="inline-flex">
             <Button variant="outline" className="h-11 w-full justify-between">
               <span className="flex items-center gap-2">
