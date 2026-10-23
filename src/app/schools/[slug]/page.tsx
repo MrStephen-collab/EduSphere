@@ -119,17 +119,17 @@ export default async function SchoolHomePage({
 
   return (
     <div>
-      <section
-        className="py-16 text-white lg:py-24"
-        style={{
-          background:
-            `linear-gradient(135deg, ${site.colors.primary}, ${site.colors.secondary})`,
-        }}
-      >
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="flex size-14 items-center justify-center rounded-xl bg-white/15">
-            <GraduationCap className="size-8" aria-hidden="true" />
-          </div>
+        <section
+          className="py-16 text-white lg:py-24"
+          style={{
+            background:
+              `linear-gradient(135deg, ${site.colors.primary}, ${site.colors.secondary}, ${site.colors.accent}40)`,
+          }}
+        >
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="flex size-14 items-center justify-center rounded-xl bg-white/15 shadow-lg backdrop-blur">
+              <GraduationCap className="size-8" aria-hidden="true" />
+            </div>
           <h1 className="mt-6 max-w-2xl text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">
             {heroTitle}
           </h1>
@@ -165,10 +165,10 @@ export default async function SchoolHomePage({
 
       <div className="mx-auto max-w-6xl space-y-12 px-4 py-12 lg:py-16">
         <section aria-labelledby="school-features-heading">
-          <h2 id="school-features-heading" className="mb-4 text-xl font-semibold">Why choose {site.name}</h2>
+          <h2 id="school-features-heading" className="mb-6 text-2xl font-bold tracking-tight">Why choose {site.name}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {cfg.features.map((f) => (
-              <Card key={f.title}>
+            {cfg.features.map((f, i) => (
+              <Card key={f.title} className="group animate-card-enter transition-all hover:-translate-y-1 hover:shadow-lg" style={{ animationDelay: `${i * 80}ms` }}>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
                     {level === "nursery" || level === "primary" ? <School className="size-4" /> : level === "university" ? <GraduationCap className="size-4" /> : <BookOpen className="size-4" />}
@@ -260,14 +260,14 @@ export default async function SchoolHomePage({
         )}
 
         <section aria-labelledby="school-academics-heading">
-          <h2 id="school-academics-heading" className="mb-4 text-xl font-semibold">
+          <h2 id="school-academics-heading" className="mb-6 text-2xl font-bold tracking-tight">
             {cfg.curriculumTitle}
           </h2>
           <div className="flex flex-wrap gap-2">
             {site.subjects.map((subject) => (
               <span
                 key={subject.id}
-                className="rounded-full border bg-muted px-3 py-1 text-sm"
+                className="rounded-full border bg-muted px-4 py-1.5 text-sm transition-all hover:bg-primary hover:text-primary-foreground"
               >
                 {subject.name}
               </span>
@@ -280,13 +280,13 @@ export default async function SchoolHomePage({
           </div>
         </section>
 
-        <section className="rounded-xl border bg-muted/40 p-6 text-center sm:p-8">
-          <h2 className="text-xl font-semibold">Ready to join {site.name}?</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+        <section className="rounded-2xl border bg-gradient-to-br from-muted/60 to-muted/20 p-6 text-center shadow-sm sm:p-10">
+          <h2 className="text-2xl font-bold tracking-tight">Ready to join {site.name}?</h2>
+          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
             {level === "nursery" || level === "primary" ? "Learn how to apply and enrol your child at" : "Learn how to apply, sit assessments and enrol at"} {site.name}.
           </p>
-          <div className="mt-5 flex flex-wrap justify-center gap-3">
-            <Button render={<Link href={`/schools/${site.slug}/admissions`} />}>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Button size="lg" render={<Link href={`/schools/${site.slug}/admissions`} />} className="shadow-md">
               Start the admissions journey
             </Button>
             <Button
