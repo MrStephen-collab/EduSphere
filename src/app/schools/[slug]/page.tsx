@@ -18,6 +18,9 @@ export default async function SchoolHomePage({
   const { slug } = await params;
   const site = await getSchoolSite(slug);
   if (!site) notFound();
+  const level = site.educationLevel ?? "secondary";
+  const heroTitle = level === "nursery" ? `Welcome to ${site.name} — where little minds grow` : level === "primary" ? `Nurturing confident learners at ${site.name}` : level === "college" || level === "polytechnic" || level === "university" ? `${site.name} — Skill, knowledge and opportunity` : `Welcome to ${site.name}`;
+  const ctaLabel = level === "nursery" || level === "primary" ? "Admissions" : "Apply now";
 
   const [news, events] = await Promise.all([
     getSiteNews(site.id),
@@ -40,7 +43,7 @@ export default async function SchoolHomePage({
             <GraduationCap className="size-8" aria-hidden="true" />
           </div>
           <h1 className="mt-6 max-w-2xl text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">
-            Welcome to {site.name}
+            {heroTitle}
           </h1>
           {site.motto && (
             <p className="mt-3 max-w-2xl text-lg text-white/85">{site.motto}</p>
@@ -56,7 +59,7 @@ export default async function SchoolHomePage({
               className="bg-white text-foreground hover:bg-white/90"
               render={<Link href={`/schools/${site.slug}/admissions`} />}
             >
-              Admissions
+              {ctaLabel}
             </Button>
             <Button
               size="lg"
@@ -151,7 +154,7 @@ export default async function SchoolHomePage({
 
         <section aria-labelledby="school-academics-heading">
           <h2 id="school-academics-heading" className="mb-4 text-xl font-semibold">
-            Our curriculum
+            {level === "nursery" ? "Early learning areas" : level === "primary" ? "Subjects we teach" : level === "college" || level === "polytechnic" || level === "university" ? "Programmes & courses" : "Our curriculum"}
           </h2>
           <div className="flex flex-wrap gap-2">
             {site.subjects.map((subject) => (
@@ -173,7 +176,7 @@ export default async function SchoolHomePage({
         <section className="rounded-xl border bg-muted/40 p-6 text-center sm:p-8">
           <h2 className="text-xl font-semibold">Ready to join {site.name}?</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            Learn how to apply, sit the entrance assessment and enrol at {site.name}.
+            {level === "nursery" || level === "primary" ? "Learn how to apply and enrol your child at" : "Learn how to apply, sit assessments and enrol at"} {site.name}.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Button render={<Link href={`/schools/${site.slug}/admissions`} />}>
