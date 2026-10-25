@@ -74,9 +74,9 @@ function Check({ value, target }: { value?: string | null; target: string }) {
 }
 
 export function TraditionalReportCard({ data }: { data: TraditionalReportData }) {
-  const subjects = data.subjects.length > 0 ? data.subjects : DEFAULT_SUBJECTS.map((name) => ({ name }));
-  const affective = data.affective.length > 0 ? data.affective : AFFECTIVE.map((name) => ({ name }));
-  const psychomotor = data.psychomotor.length > 0 ? data.psychomotor : PSYCHOMOTOR.map((name) => ({ name }));
+  const subjects = data.subjects.length > 0 ? data.subjects : DEFAULT_SUBJECTS.map((name) => ({ name } as TraditionalReportData["subjects"][0]));
+  const affective = data.affective.length > 0 ? data.affective : AFFECTIVE.map((name) => ({ name } as TraditionalReportData["affective"][0]));
+  const psychomotor = data.psychomotor.length > 0 ? data.psychomotor : PSYCHOMOTOR.map((name) => ({ name } as TraditionalReportData["psychomotor"][0]));
 
   return (
     <div className="mx-auto w-[210mm] bg-white text-black print:w-full print:max-w-none" style={{ fontFamily: "Times New Roman, serif" }}>

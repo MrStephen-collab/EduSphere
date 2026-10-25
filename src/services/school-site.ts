@@ -113,7 +113,7 @@ export const getSchoolSite = cache(
           address: school.address,
           city: school.city,
           state: school.state,
-          educationLevel: (school as any).education_level ?? null,
+          educationLevel: (school as { education_level?: string | null }).education_level ?? null,
           colors: {
             primary: brandingRes.data?.primary_color ?? "#2563eb",
             secondary: brandingRes.data?.secondary_color ?? "#334155",
