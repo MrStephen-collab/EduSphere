@@ -25,8 +25,8 @@ export function TraditionalReportCardEntry() {
   const [term, setTerm] = useState("THIRD TERM");
   const [sex, setSex] = useState("FEMALE");
   const [rows, setRows] = useState(SUBJECTS.map((name) => ({ name, test1: "", test2: "", test3: "", exam: "", overall: "", lastTerm: "", cumulative: "", classAvg: "", position: "", grade: "", remark: "" })));
-  const [aff, setAff] = useState(AFFECTIVE.map((name) => ({ name, value: "" })));
-  const [psy, setPsy] = useState(PSYCHOMOTOR.map((name) => ({ name, value: "" })));
+  const [aff, setAff] = useState<Array<{ name: string; value: "A" | "B" | "C" | "D" | "E" | null }>>(AFFECTIVE.map((name) => ({ name, value: null })));
+  const [psy, setPsy] = useState<Array<{ name: string; value: "A" | "B" | "C" | "D" | "E" | null }>>(PSYCHOMOTOR.map((name) => ({ name, value: null })));
   const [ctComment, setCtComment] = useState("A hardworking and well-behaved pupil.");
   const [ctName, setCtName] = useState("Miss A. Johnson");
   const [ctDate, setCtDate] = useState("12/07/2025");
@@ -128,7 +128,7 @@ export function TraditionalReportCardEntry() {
                     {aff.map((a, i) => (
                       <tr key={i} className="border-b">
                         <td className="p-1">{a.name}</td>
-                        {["A","B","C","D","E"].map((v) => <td key={v} className="text-center"><input type="radio" name={`aff-${i}`} checked={a.value === v} onChange={() => setAff(aff.map((x,idx) => idx===i ? {...x,value:v} : x))} /></td>)}
+                        {(["A","B","C","D","E"] as const).map((v) => <td key={v} className="text-center"><input type="radio" name={`aff-${i}`} checked={a.value === v} onChange={() => setAff(aff.map((x,idx) => idx===i ? {...x,value:v} : x))} /></td>)}
                       </tr>
                     ))}
                   </tbody>
@@ -144,7 +144,7 @@ export function TraditionalReportCardEntry() {
                     {psy.map((p, i) => (
                       <tr key={i} className="border-b">
                         <td className="p-1">{p.name}</td>
-                        {["A","B","C","D","E"].map((v) => <td key={v} className="text-center"><input type="radio" name={`psy-${i}`} checked={p.value === v} onChange={() => setPsy(psy.map((x,idx) => idx===i ? {...x,value:v} : x))} /></td>)}
+                        {(["A","B","C","D","E"] as const).map((v) => <td key={v} className="text-center"><input type="radio" name={`psy-${i}`} checked={p.value === v} onChange={() => setPsy(psy.map((x,idx) => idx===i ? {...x,value:v} : x))} /></td>)}
                       </tr>
                     ))}
                   </tbody>
