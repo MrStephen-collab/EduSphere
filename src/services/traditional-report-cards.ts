@@ -157,9 +157,8 @@ async function loadSchoolLevel(
  *
  * `teacher_subjects` is the school-wide list; the timetable is where a subject
  * actually gets tied to a class. A school may have filled in either (or both),
- * so the union is what a teacher can reasonably score. Filtering the timetable
- * by class keeps a subject teacher from editing a subject they only teach in
- * another class.
+ * so the union is what a teacher can reasonably score. Class access is checked
+ * separately, so this never widens the set of classes they can open.
  */
 async function teacherSubjectNames(
   supabase: SupabaseClient,
