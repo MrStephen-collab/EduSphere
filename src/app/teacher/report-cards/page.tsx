@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ScrollText } from "lucide-react";
+import { FileText, ScrollText } from "lucide-react";
 import { requireContentEditor } from "@/services/shared";
 import { getClassReport, getReportOptions } from "@/services/report-cards";
 import type { ReportOptions } from "@/services/report-cards";
@@ -121,11 +121,20 @@ export default async function TeacherReportCardsPage({
             classId={cls.id}
             view={annual ? "annual" : "term"}
           />
-          <div className="flex items-center gap-2 print:hidden">
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
             <Link href={annual ? termHref : annualHref} className="inline-flex">
               <Button variant="outline">
                 <ScrollText className="size-4" aria-hidden="true" />
                 {annual ? "Term view" : "Annual view"}
+              </Button>
+            </Link>
+            <Link
+              href={`/teacher/report-cards/entry?class=${cls.id}&term=${term?.id ?? ""}`}
+              className="inline-flex"
+            >
+              <Button variant="outline">
+                <FileText className="size-4" aria-hidden="true" />
+                Traditional card
               </Button>
             </Link>
             {report && <PrintButton label="Print sheet" />}

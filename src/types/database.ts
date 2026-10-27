@@ -1,3 +1,9 @@
+import type {
+  TraditionalComments,
+  TraditionalSubjectRow,
+  TraditionalTraitRow,
+} from "@/lib/traditional-report";
+
 export type Json =
   | string
   | number
@@ -881,6 +887,41 @@ export type AdmissionEvent = {
   created_at: string;
 };
 
+/**
+ * A manually authored traditional report card. One row per student per term.
+ * The snapshot columns freeze what was printed; the jsonb columns hold the
+ * entered subject rows, ratings and comments (see
+ * src/lib/traditional-report.ts). Migration 0035.
+ */
+export type TraditionalReportCardRow = {
+  id: string;
+  school_id: string;
+  student_id: string;
+  class_id: string | null;
+  term_id: string;
+  student_name: string;
+  admission_number: string | null;
+  class_name: string | null;
+  sex: string | null;
+  house: string | null;
+  session_name: string | null;
+  term_name: string | null;
+  no_on_roll: number | null;
+  position: number | null;
+  total_in_class: number | null;
+  days_opened: number | null;
+  days_present: number | null;
+  days_absent: number | null;
+  subjects: TraditionalSubjectRow[];
+  affective: TraditionalTraitRow[];
+  psychomotor: TraditionalTraitRow[];
+  comments: TraditionalComments;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -1108,6 +1149,11 @@ export type Database = {
         Row: AdmissionSettings;
         Insert: Partial<AdmissionSettings>;
         Update: Partial<AdmissionSettings>;
+      };
+      traditional_report_cards: {
+        Row: TraditionalReportCardRow;
+        Insert: Partial<TraditionalReportCardRow>;
+        Update: Partial<TraditionalReportCardRow>;
       };
       live_sessions: {
         Row: LiveSession;

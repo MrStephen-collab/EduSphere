@@ -114,6 +114,7 @@ export const schoolNav: NavSection[] = [
       { title: "Timetable", href: "/school/timetable", icon: "calendar" },
       { title: "Live sessions", href: "/school/live", icon: "video" },
       { title: "Results", href: "/school/results", icon: "results" },
+      { title: "Report cards", href: "/school/report-cards", icon: "reportCard" },
       { title: "Analytics", href: "/school/analytics", icon: "analytics" },
     ],
   },

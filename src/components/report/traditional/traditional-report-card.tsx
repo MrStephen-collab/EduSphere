@@ -1,82 +1,17 @@
 "use client";
 
-import React from "react";
+import { type TraditionalReportData } from "@/lib/traditional-report";
 
-export type TraditionalReportData = {
-  school: {
-    name: string;
-    address?: string | null;
-    phone?: string | null;
-    logoUrl?: string | null;
-    motto?: string | null;
-  };
-  student: {
-    fullName: string;
-    admissionNo: string;
-    className: string;
-    sex?: string | null;
-    house?: string | null;
-    session: string;
-    term: string;
-    photoUrl?: string | null;
-    noOnRoll?: number | null;
-    position?: number | null;
-    totalInClass?: number | null;
-    daysOpened?: number | null;
-    daysPresent?: number | null;
-    daysAbsent?: number | null;
-  };
-  subjects: Array<{
-    name: string;
-    test1?: number | null;
-    test2?: number | null;
-    test3?: number | null;
-    totalTests?: number | null;
-    exam?: number | null;
-    overall?: number | null;
-    lastTerm?: number | null;
-    cumulative?: number | null;
-    classAvg?: number | null;
-    position?: number | null;
-    grade?: string | null;
-    remark?: string | null;
-    teacherSignature?: string | null;
-  }>;
-  affective: Array<{ name: string; value?: "A" | "B" | "C" | "D" | "E" | null }>;
-  psychomotor: Array<{ name: string; value?: "A" | "B" | "C" | "D" | "E" | null }>;
-  comments: {
-    classTeacher?: string | null;
-    classTeacherName?: string | null;
-    classTeacherDate?: string | null;
-    principal?: string | null;
-    principalName?: string | null;
-    principalDate?: string | null;
-    nextTermBegins?: string | null;
-  };
-  stampUrl?: string | null;
-};
-
-const DEFAULT_SUBJECTS = [
-  "English Language", "Dictation", "Mathematics", "Basic Science & Technology",
-  "Pre-Vocational Studies", "Business Studies", "Religion & National Values 1",
-  "Religion & National Values 2", "Creative & Cultural Art", "Civic Education",
-  "Animal Husbandry", "Computer Studies", "Chemistry", "Geography",
-  "Further Mathematics", "Biology", "Physics", "Agricultural Science",
-  "Economics", "History", "Government", "Christian Religious Studies",
-  "Music (GNS)", "Yoruba"
-];
-
-const AFFECTIVE = ["Punctuality", "Attentiveness", "Honesty", "Leadership", "Helping Others", "Emotional Stability", "Health", "Attitude to School Work"];
-const PSYCHOMOTOR = ["Verbal Fluency", "Musical Skills", "Sports", "Drawing & Painting", "Handling Tools", "Hand Work", "Versatility"];
+export type { TraditionalReportData };
 
 function Check({ value, target }: { value?: string | null; target: string }) {
   return <span className="inline-block w-4 text-center">{value === target ? "✓" : ""}</span>;
 }
 
 export function TraditionalReportCard({ data }: { data: TraditionalReportData }) {
-  const subjects = data.subjects.length > 0 ? data.subjects : DEFAULT_SUBJECTS.map((name) => ({ name } as TraditionalReportData["subjects"][0]));
-  const affective = data.affective.length > 0 ? data.affective : AFFECTIVE.map((name) => ({ name } as TraditionalReportData["affective"][0]));
-  const psychomotor = data.psychomotor.length > 0 ? data.psychomotor : PSYCHOMOTOR.map((name) => ({ name } as TraditionalReportData["psychomotor"][0]));
+  const subjects = data.subjects;
+  const affective = data.affective;
+  const psychomotor = data.psychomotor;
 
   return (
     <div className="mx-auto w-[210mm] bg-white text-black print:w-full print:max-w-none" style={{ fontFamily: "Times New Roman, serif" }}>
@@ -149,7 +84,7 @@ export function TraditionalReportCard({ data }: { data: TraditionalReportData })
                 <td className="border border-black p-0.5 text-center">{s.test1 ?? ""}</td>
                 <td className="border border-black p-0.5 text-center">{s.test2 ?? ""}</td>
                 <td className="border border-black p-0.5 text-center">{s.test3 ?? ""}</td>
-                <td className="border border-black p-0.5 text-center">{s.totalTests ?? s.overall != null ? "" : ""}</td>
+                <td className="border border-black p-0.5 text-center">{s.totalTests ?? ""}</td>
                 <td className="border border-black p-0.5 text-center">{s.exam ?? ""}</td>
                 <td className="border border-black p-0.5 text-center font-semibold">{s.overall ?? ""}</td>
                 <td className="border border-black p-0.5 text-center">{s.lastTerm ?? ""}</td>
@@ -236,7 +171,12 @@ export function TraditionalReportCard({ data }: { data: TraditionalReportData })
       <section className="mt-2 flex items-end justify-between text-[8px]">
         <div className="flex items-center gap-2"><span className="font-bold">NEXT TERM BEGINS:</span><span className="border-b border-black inline-block w-40">{data.comments.nextTermBegins || ""}</span></div>
         <div className="text-center">
-          <div className="h-12 w-24 border border-dashed border-black">{data.stampUrl ? <img src={data.stampUrl} alt="Stamp" className="h-12 w-24 object-contain" /> : null}</div>
+          <div className="h-12 w-24 border border-dashed border-black">
+            {data.stampUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={data.stampUrl} alt="Stamp" className="h-12 w-24 object-contain" />
+            ) : null}
+          </div>
           <div className="mt-0.5 font-semibold">SCHOOL STAMP</div>
         </div>
       </section>
