@@ -5,13 +5,10 @@ import {
   CheckCircle2,
   UsersRound,
   GraduationCap,
-  BookOpenCheck,
   BookOpen,
   BookMarked,
   ClipboardList,
   FileText,
-  AlertTriangle,
-  Trophy,
 } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireSchoolAdmin } from "@/services/shared";
@@ -22,7 +19,8 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { PlanRequiredCard } from "@/components/billing/plan-required";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { AnalyticsFilters } from "@/components/school/analytics-filters";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "School analytics",
@@ -126,14 +124,12 @@ export default async function SchoolAnalyticsPage({
           <StatCard icon={FileText} title="Examinations" value={data.examinationCount} tone="fuchsia" index={8} />
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <CollapsibleSection
+          title="Class averages"
+          description="Average score for every class in this period."
+          defaultOpen
+        >
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-1.5 text-base">
-                <GraduationCap className="size-4" aria-hidden="true" />
-                Class averages
-              </CardTitle>
-            </CardHeader>
             <CardContent>
               {data.classAverages.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No published results yet.</p>
@@ -146,14 +142,13 @@ export default async function SchoolAnalyticsPage({
               )}
             </CardContent>
           </Card>
+        </CollapsibleSection>
 
+        <CollapsibleSection
+          title="Subject averages"
+          description="Average score for every subject in this period."
+        >
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-1.5 text-base">
-                <BookOpenCheck className="size-4" aria-hidden="true" />
-                Subject averages
-              </CardTitle>
-            </CardHeader>
             <CardContent>
               {data.subjectAverages.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No subject results yet.</p>
@@ -166,16 +161,13 @@ export default async function SchoolAnalyticsPage({
               )}
             </CardContent>
           </Card>
-        </div>
+        </CollapsibleSection>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <CollapsibleSection
+          title="Weak topics"
+          description="Where students are losing the most marks."
+        >
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-1.5 text-base text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="size-4" aria-hidden="true" />
-                Weak topics
-              </CardTitle>
-            </CardHeader>
             <CardContent>
               {data.weakTopics.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
@@ -191,14 +183,13 @@ export default async function SchoolAnalyticsPage({
               )}
             </CardContent>
           </Card>
+        </CollapsibleSection>
 
+        <CollapsibleSection
+          title="Top students"
+          description="Highest averages in this period."
+        >
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-1.5 text-base">
-                <Trophy className="size-4" aria-hidden="true" />
-                Top students
-              </CardTitle>
-            </CardHeader>
             <CardContent>
               {data.topStudents.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No student results yet.</p>
@@ -224,24 +215,23 @@ export default async function SchoolAnalyticsPage({
               )}
             </CardContent>
           </Card>
-        </div>
+        </CollapsibleSection>
 
         {data.strongTopics.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-1.5 text-base">
-                <TrendingUp className="size-4" aria-hidden="true" />
-                Strongest topics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <CollapsibleSection
+            title="Strongest topics"
+            description="Where students are performing best."
+          >
+            <Card>
+              <CardContent>
               <div className="grid gap-3 sm:grid-cols-2">
                 {data.strongTopics.map((t) => (
                   <Bar key={t.topic} label={t.topic} value={t.average} sub={`${t.answers} answer${t.answers === 1 ? "" : "s"}`} color="bg-emerald-500" />
                 ))}
               </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </CollapsibleSection>
         )}
       </div>
     </DashboardShell>

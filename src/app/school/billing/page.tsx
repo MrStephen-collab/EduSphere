@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CheckoutButton } from "@/components/billing/checkout-button";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "Billing",
@@ -140,13 +141,12 @@ export default async function SchoolBillingPage({
           </div>
         )}
 
+        <CollapsibleSection
+          title="Current plan"
+          description="Your school's subscription and billing period."
+          defaultOpen
+        >
         <Card>
-          <CardHeader>
-            <CardTitle>Current plan</CardTitle>
-            <CardDescription>
-              Your school&apos;s subscription and billing period.
-            </CardDescription>
-          </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             {billing.subscription ? (
               <>
@@ -202,9 +202,12 @@ export default async function SchoolBillingPage({
             </div>
           </CardContent>
         </Card>
+        </CollapsibleSection>
 
-        <section>
-          <h2 className="mb-2 text-lg font-semibold">Plans</h2>
+        <CollapsibleSection
+          title="Plans"
+          description="Pick the plan that fits your school."
+        >
           <div className="grid gap-4 md:grid-cols-3">
             {plans.map((plan) => {
               const isCurrent = plan.id === currentPlanId;
@@ -248,13 +251,13 @@ export default async function SchoolBillingPage({
               </p>
             )}
           </div>
-        </section>
+        </CollapsibleSection>
 
+        <CollapsibleSection
+          title="Billing history"
+          description="Payments made by your school."
+        >
         <Card>
-          <CardHeader>
-            <CardTitle>Billing history</CardTitle>
-            <CardDescription>Payments made by your school.</CardDescription>
-          </CardHeader>
           <CardContent>
             {billing.payments.length === 0 ? (
               <p className="text-sm text-muted-foreground">No payments yet.</p>
@@ -292,6 +295,7 @@ export default async function SchoolBillingPage({
             )}
           </CardContent>
         </Card>
+        </CollapsibleSection>
       </div>
     </DashboardShell>
   );

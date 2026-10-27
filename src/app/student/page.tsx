@@ -41,6 +41,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "Student dashboard",
@@ -171,7 +172,13 @@ async function StudentDashboardContent() {
 
       <AnnouncementBanner announcements={bundle.announcements} className="mt-5" />
 
-      <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <CollapsibleSection
+        className="mt-5"
+        title="This week"
+        description="Continue where you left off and catch what's due."
+        defaultOpen
+      >
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card className="animate-card-enter" style={{ animationDelay: "220ms" }}>
           <CardHeader>
             <CardTitle>Continue Learning</CardTitle>
@@ -270,19 +277,20 @@ async function StudentDashboardContent() {
           </CardContent>
         </Card>
       </div>
+      </CollapsibleSection>
 
-      <section className="mt-6" aria-labelledby="my-courses-heading">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 id="my-courses-heading" className="text-lg font-semibold tracking-tight">
-            {bundle.offersCourses ? "My Courses" : "My Lessons"}
-          </h2>
+      <CollapsibleSection
+        className="mt-6"
+        title={bundle.offersCourses ? "My Courses" : "My Lessons"}
+        action={
           <Link
             href="/student/courses"
             className="text-sm font-medium text-primary underline-offset-4 hover:underline"
           >
             View all
           </Link>
-        </div>
+        }
+      >
         {myCourses.length > 0 ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {myCourses.map((course) => (
@@ -325,21 +333,21 @@ async function StudentDashboardContent() {
             </CardContent>
           </Card>
         )}
-      </section>
+      </CollapsibleSection>
 
       {practiceExams.length > 0 && (
-        <section className="mt-6" aria-labelledby="practice-heading">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 id="practice-heading" className="text-lg font-semibold tracking-tight">
-              Practice &amp; mock exams
-            </h2>
+        <CollapsibleSection
+          className="mt-6"
+          title="Practice & mock exams"
+          action={
             <Link
               href="/student/exam-series"
               className="text-sm font-medium text-primary underline-offset-4 hover:underline"
             >
               View all
             </Link>
-          </div>
+          }
+        >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {practiceExams.map((series) => (
               <Link key={series.id} href={`/student/exam-series/${series.id}`} className="group min-w-0">
@@ -360,19 +368,19 @@ async function StudentDashboardContent() {
               </Link>
             ))}
           </div>
-        </section>
+        </CollapsibleSection>
       )}
 
-      <Card className="animate-card-enter mt-6" style={{ animationDelay: "360ms" }}>
-        <CardHeader>
-          <CardTitle>Explore</CardTitle>
-          <CardDescription>
-            {bundle.offersCourses
-              ? "Courses, tests and results at your fingertips."
-              : "Lessons, tests and results at your fingertips."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <CollapsibleSection
+        className="mt-6"
+        title="Explore"
+        description={
+          bundle.offersCourses
+            ? "Courses, tests and results at your fingertips."
+            : "Lessons, tests and results at your fingertips."
+        }
+      >
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Link href="/student/courses" className="inline-flex">
             <Button variant="outline" className="h-11 w-full justify-between">
               <span className="flex items-center gap-2">
@@ -418,8 +426,8 @@ async function StudentDashboardContent() {
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           </Link>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleSection>
     </>
   );
 }

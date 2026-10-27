@@ -22,6 +22,7 @@ import { formatNaira } from "@/lib/fee-labels";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Button } from "@/components/ui/button";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { AdmissionsInbox } from "@/components/school/admissions-inbox";
 import { ADMISSION_STATUSES, admissionStatusLabel } from "@/lib/admission-labels";
 import type { AdmissionEvent, AdmissionStatus } from "@/types/database";
@@ -209,13 +210,13 @@ export default async function SchoolAdmissionsPage({
         />
       </div>
 
-      <section className="mt-5 rounded-xl border bg-card p-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-semibold">Admission progress</h2>
-          <p className="text-sm text-muted-foreground">
-            {enrolledPct}% of applications end in enrolment
-          </p>
-        </div>
+      <CollapsibleSection
+        className="mt-5"
+        title="Admission progress"
+        description={`${enrolledPct}% of applications end in enrolment`}
+        contentClassName="rounded-xl border bg-card p-5"
+        defaultOpen
+      >
         {funnelBase === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">
             No applications yet. Once families start applying, this shows how
@@ -259,9 +260,14 @@ export default async function SchoolAdmissionsPage({
             {counts.withdrawn ?? 0} withdrawn
           </p>
         ) : null}
-      </section>
+      </CollapsibleSection>
 
-      <div className="mt-5">
+      <CollapsibleSection
+        className="mt-5"
+        title="Applications"
+        description="Every application and its activity trail."
+      >
+        <div>
         {activeStatus ? (
           <p className="mb-3 text-xs text-muted-foreground">
             Showing {admissionStatusLabel(activeStatus)} applications ·{" "}
@@ -272,7 +278,8 @@ export default async function SchoolAdmissionsPage({
         ) : null}
 
         <AdmissionsInbox applications={applications} events={events} />
-      </div>
+        </div>
+      </CollapsibleSection>
 
       {applications.length === 0 && (
         <p className="mt-4 text-xs text-muted-foreground">

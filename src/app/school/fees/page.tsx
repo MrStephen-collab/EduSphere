@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CheckCircle2, Inbox, Receipt, Wallet } from "lucide-react";
+import { Inbox, Receipt } from "lucide-react";
 import { requireSchoolAdmin } from "@/services/shared";
 import { getClasses, getSchoolTerms } from "@/services/academics";
 import { getStudents } from "@/services/people";
@@ -17,10 +17,8 @@ import { LearningAccessGateForm } from "@/components/school/learning-access-gate
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "Fees",
@@ -96,17 +94,12 @@ export default async function SchoolFeesPage() {
           />
         </div>
 
+        <CollapsibleSection
+          title="Payments to review"
+          description="A payment only settles an invoice once you approve it here. Money arriving is not the same as money accepted."
+          defaultOpen
+        >
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CheckCircle2 className="size-4" aria-hidden="true" />
-              Payments to review
-            </CardTitle>
-            <CardDescription>
-              A payment only settles an invoice once you approve it here. Money
-              arriving is not the same as money accepted.
-            </CardDescription>
-          </CardHeader>
           <CardContent className="grid gap-3">
             {reviewQueue.length === 0 ? (
               <EmptyState
@@ -128,64 +121,50 @@ export default async function SchoolFeesPage() {
             )}
           </CardContent>
         </Card>
+        </CollapsibleSection>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <CollapsibleSection
+          title="Bill a class or term"
+          description="Issues the same charge to every student you pick. Running it again will not double-bill."
+        >
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Receipt className="size-4" aria-hidden="true" />
-                Bill a class or term
-              </CardTitle>
-              <CardDescription>
-                Issues the same charge to every student you pick. Running it
-                again will not double-bill.
-              </CardDescription>
-            </CardHeader>
             <CardContent>
               <FeeGenerateForm classes={classOptions} terms={termOptions} />
             </CardContent>
           </Card>
+        </CollapsibleSection>
 
+        <CollapsibleSection
+          title="Bill a single child"
+          description="For one-off charges like a resit, an excursion or a replacement uniform."
+        >
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Wallet className="size-4" aria-hidden="true" />
-                Bill a single child
-              </CardTitle>
-              <CardDescription>
-                For one-off charges like a resit, an excursion or a replacement
-                uniform.
-              </CardDescription>
-            </CardHeader>
             <CardContent>
               <FeeIssueForm students={studentOptions} terms={termOptions} />
             </CardContent>
           </Card>
-        </div>
+        </CollapsibleSection>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Fee gate</CardTitle>
-            <CardDescription>
-              Hold course materials from students whose fees are behind.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <LearningAccessGateForm
-              schoolId={schoolId}
-              thresholdPct={learningThreshold}
-            />
-          </CardContent>
-        </Card>
+        <CollapsibleSection
+          title="Fee gate"
+          description="Hold course materials from students whose fees are behind."
+        >
+          <Card>
+            <CardContent>
+              <LearningAccessGateForm
+                schoolId={schoolId}
+                thresholdPct={learningThreshold}
+              />
+            </CardContent>
+          </Card>
+        </CollapsibleSection>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Invoices</CardTitle>
-            <CardDescription>
-              The most recent {invoices.length} invoice{invoices.length === 1 ? "" : "s"}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
+        <CollapsibleSection
+          title="Invoices"
+          description={`The most recent ${invoices.length} invoice${invoices.length === 1 ? "" : "s"}.`}
+        >
+          <Card>
+            <CardContent className="overflow-x-auto">
             {invoices.length === 0 ? (
               <EmptyState
                 icon={Receipt}
@@ -264,7 +243,8 @@ export default async function SchoolFeesPage() {
               </table>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </CollapsibleSection>
       </div>
     </DashboardShell>
   );

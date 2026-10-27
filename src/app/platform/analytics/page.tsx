@@ -15,11 +15,9 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { getPlatformAnalytics } from "@/services/platform";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "Platform analytics",
@@ -75,12 +73,13 @@ export default async function PlatformAnalyticsPage() {
         />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <CollapsibleSection
+        className="mt-6"
+        title="Plans in use"
+        description="Active subscriptions by plan."
+        defaultOpen
+      >
         <Card>
-          <CardHeader>
-            <CardTitle>Plans in use</CardTitle>
-            <CardDescription>Active subscriptions by plan.</CardDescription>
-          </CardHeader>
           <CardContent className="grid gap-3">
             {data.planDistribution.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -104,12 +103,14 @@ export default async function PlatformAnalyticsPage() {
             )}
           </CardContent>
         </Card>
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        className="mt-6"
+        title="Recent schools"
+        description="Latest schools to join the platform."
+      >
         <Card>
-          <CardHeader>
-            <CardTitle>Recent schools</CardTitle>
-            <CardDescription>Latest schools to join the platform.</CardDescription>
-          </CardHeader>
           <CardContent className="grid gap-1.5">
             {data.recentSchools.length === 0 ? (
               <p className="text-sm text-muted-foreground">No schools have registered yet.</p>
@@ -135,7 +136,7 @@ export default async function PlatformAnalyticsPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </CollapsibleSection>
     </DashboardShell>
   );
 }

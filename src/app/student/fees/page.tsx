@@ -19,9 +19,10 @@ import {
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { FeeGateNotice } from "@/components/learning/fee-gate-notice";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "My fees",
@@ -96,10 +97,12 @@ export default async function StudentFeesPage() {
             </div>
 
             {outstandingRows.length > 0 && (
+              <CollapsibleSection
+                title="Awaiting payment"
+                description={`${outstandingRows.length} invoice${outstandingRows.length === 1 ? "" : "s"} still open`}
+                defaultOpen
+              >
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Awaiting payment</CardTitle>
-                </CardHeader>
                 <CardContent className="grid gap-2">
                   {outstandingRows.map((row) => {
                     const invoice = row.invoice;
@@ -197,13 +200,15 @@ export default async function StudentFeesPage() {
                   })}
                 </CardContent>
               </Card>
+              </CollapsibleSection>
             )}
 
             {settledRows.length > 0 && (
+              <CollapsibleSection
+                title="Settled & closed"
+                description={`${settledRows.length} invoice${settledRows.length === 1 ? "" : "s"} paid in full`}
+              >
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Settled &amp; closed</CardTitle>
-                </CardHeader>
                 <CardContent className="grid gap-2">
                   {settledRows.map((row) => (
                     <div
@@ -235,6 +240,7 @@ export default async function StudentFeesPage() {
                   ))}
                 </CardContent>
               </Card>
+              </CollapsibleSection>
             )}
           </>
         )}

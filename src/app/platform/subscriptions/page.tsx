@@ -12,12 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { PlanForm, PlanRowEdit, type ClientPlan } from "@/components/billing/plan-form";
 import { RefundPaymentButton } from "@/components/billing/refund-button";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "Subscriptions",
@@ -62,14 +60,13 @@ export default async function PlatformSubscriptionsPage() {
         />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <CollapsibleSection
+        className="mt-6"
+        title="Plans"
+        description="Pricing displayed across the site and at checkout."
+        defaultOpen
+      >
         <Card>
-          <CardHeader>
-            <CardTitle>Plans</CardTitle>
-            <CardDescription>
-              Pricing displayed across the site and at checkout.
-            </CardDescription>
-          </CardHeader>
           <CardContent className="grid gap-3">
             <PlanForm />
             {(overview.plans as ClientPlan[]).map((plan) => (
@@ -82,14 +79,15 @@ export default async function PlatformSubscriptionsPage() {
             )}
           </CardContent>
         </Card>
+      </CollapsibleSection>
 
-        <div className="grid gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>School subscriptions</CardTitle>
-              <CardDescription>Latest subscription activity.</CardDescription>
-            </CardHeader>
-            <CardContent>
+      <CollapsibleSection
+        className="mt-6"
+        title="School subscriptions"
+        description="Latest subscription activity."
+      >
+        <Card>
+          <CardContent>
               {overview.subscriptions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No subscriptions yet.</p>
               ) : (
@@ -115,14 +113,16 @@ export default async function PlatformSubscriptionsPage() {
                 </div>
               )}
             </CardContent>
-          </Card>
+        </Card>
+      </CollapsibleSection>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Payments</CardTitle>
-              <CardDescription>Latest payments across schools.</CardDescription>
-            </CardHeader>
-            <CardContent>
+      <CollapsibleSection
+        className="mt-6"
+        title="Payments"
+        description="Latest payments across schools."
+      >
+        <Card>
+          <CardContent>
               {overview.payments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No payments yet.</p>
               ) : (
@@ -158,8 +158,7 @@ export default async function PlatformSubscriptionsPage() {
               )}
             </CardContent>
           </Card>
-        </div>
-      </div>
+      </CollapsibleSection>
     </DashboardShell>
   );
 }

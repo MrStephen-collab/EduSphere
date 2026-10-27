@@ -20,6 +20,7 @@ import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "Parent dashboard",
@@ -95,16 +96,20 @@ async function ParentDashboardContent() {
 
       <AnnouncementBanner announcements={announcements} className="mt-5" />
 
-      {kids.length === 0 ? (
-        <div className="mt-6">
+      <CollapsibleSection
+        className="mt-5"
+        title="My children"
+        description="Results, assignments and report cards for each child."
+        defaultOpen
+      >
+        {kids.length === 0 ? (
           <EmptyState
             icon={UsersRound}
             title="No children linked yet"
             description="Children linked to your account will appear here, giving you access to their results, assignments and progress. Ask your school to link your account."
           />
-        </div>
-      ) : (
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map(({ child, data }) => (
             <Card key={child.studentId}>
               <CardContent className="grid gap-3 pt-4">
@@ -160,8 +165,9 @@ async function ParentDashboardContent() {
               </CardContent>
             </Card>
           </Link>
-        </div>
-      )}
+          </div>
+        )}
+      </CollapsibleSection>
     </>
   );
 }

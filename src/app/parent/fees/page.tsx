@@ -7,7 +7,6 @@ import {
   Receipt,
   ScrollText,
   TriangleAlert,
-  Wallet,
 } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireParent } from "@/services/parent";
@@ -22,8 +21,9 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PayFeeButton } from "@/components/parent/pay-fee-button";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "Fees & payments",
@@ -177,14 +177,13 @@ export default async function ParentFeesPage({
             </div>
 
             {payable.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Wallet className="size-4" aria-hidden="true" />
-                    Awaiting payment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-3">
+              <CollapsibleSection
+                title="Awaiting payment"
+                description={`${payable.length} invoice${payable.length === 1 ? "" : "s"} still open`}
+                defaultOpen
+              >
+                <Card>
+                  <CardContent className="grid gap-3">
                   {payable.map(({ invoice, outstanding, payments }) => {
                     const overdue = isOverdue({
                       status: invoice.status,
@@ -301,16 +300,18 @@ export default async function ParentFeesPage({
                       </div>
                     );
                   })}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </CollapsibleSection>
             )}
 
             {settled.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Settled &amp; closed</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-2">
+              <CollapsibleSection
+                title="Settled & closed"
+                description={`${settled.length} invoice${settled.length === 1 ? "" : "s"} paid in full`}
+              >
+                <Card>
+                  <CardContent className="grid gap-2">
                   {settled.map((row) => (
                     <div
                       key={row.invoice.id}
@@ -350,6 +351,7 @@ export default async function ParentFeesPage({
                   ))}
                 </CardContent>
               </Card>
+              </CollapsibleSection>
             )}
           </>
         )}

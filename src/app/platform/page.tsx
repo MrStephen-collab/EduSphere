@@ -8,11 +8,9 @@ import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { getPlatformAnalytics } from "@/services/platform";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "Platform dashboard",
@@ -66,12 +64,13 @@ async function PlatformDashboardContent() {
         />
       </div>
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+      <CollapsibleSection
+        className="mt-5"
+        title="Recent schools"
+        description="Schools that recently joined the platform"
+        defaultOpen
+      >
         <Card className="animate-card-enter" style={{ animationDelay: "240ms" }}>
-          <CardHeader>
-            <CardTitle>Recent schools</CardTitle>
-            <CardDescription>Schools that recently joined the platform</CardDescription>
-          </CardHeader>
           <CardContent className="grid gap-1.5">
             {data.recentSchools.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -93,11 +92,14 @@ async function PlatformDashboardContent() {
             )}
           </CardContent>
         </Card>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        className="mt-5"
+        title="Plan distribution"
+        description="Active subscriptions by plan"
+      >
         <Card className="animate-card-enter" style={{ animationDelay: "320ms" }}>
-          <CardHeader>
-            <CardTitle>Plan distribution</CardTitle>
-            <CardDescription>Active subscriptions by plan</CardDescription>
-          </CardHeader>
           <CardContent className="grid gap-2">
             {data.planDistribution.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -113,7 +115,7 @@ async function PlatformDashboardContent() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </CollapsibleSection>
     </>
   );
 }

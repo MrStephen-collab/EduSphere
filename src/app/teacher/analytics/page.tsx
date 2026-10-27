@@ -11,11 +11,9 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { cn } from "cn";
 
 export const metadata: Metadata = {
@@ -107,16 +105,17 @@ export default async function TeacherAnalyticsPage({
         <StatCard title="Practice Attempts" value={data.practiceAttempts} icon={BarChart3} href="/teacher/exam-series" tone="rose" index={3} hint={data.practiceAverage != null ? `Average ${data.practiceAverage}%` : "No attempts yet"} />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <CollapsibleSection
+        className="mt-6"
+        title="Topics to revisit"
+        description={
+          selectedClass
+            ? `Weakest and strongest topics in ${selectedClass.name}.`
+            : "Weakest and strongest topics across your classes."
+        }
+        defaultOpen
+      >
         <Card>
-          <CardHeader>
-            <CardTitle>Topics to revisit</CardTitle>
-            <CardDescription>
-              {selectedClass
-                ? `Weakest and strongest topics in ${selectedClass.name}.`
-                : "Weakest and strongest topics across your classes."}
-            </CardDescription>
-          </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <p className="flex items-center gap-1.5 text-sm font-medium">
@@ -169,12 +168,14 @@ export default async function TeacherAnalyticsPage({
             </div>
           </CardContent>
         </Card>
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        className="mt-4"
+        title="Class performance"
+        description="Engagement and grades per class."
+      >
         <Card>
-          <CardHeader>
-            <CardTitle>Class performance</CardTitle>
-            <CardDescription>Engagement and grades per class.</CardDescription>
-          </CardHeader>
           <CardContent className="grid gap-2">
             {data.classStats.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -213,13 +214,14 @@ export default async function TeacherAnalyticsPage({
             )}
           </CardContent>
         </Card>
-      </div>
+      </CollapsibleSection>
 
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle>Grading workload</CardTitle>
-          <CardDescription>Submissions awaiting your feedback.</CardDescription>
-        </CardHeader>
+      <CollapsibleSection
+        className="mt-4"
+        title="Grading workload"
+        description="Submissions awaiting your feedback."
+      >
+        <Card>
           <CardContent className="grid gap-2">
             {data.workload.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -251,13 +253,15 @@ export default async function TeacherAnalyticsPage({
             )}
           </CardContent>
         </Card>
+      </CollapsibleSection>
 
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle>Recent practice activity</CardTitle>
-          <CardDescription>Latest exam series attempts by your students.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-2">
+      <CollapsibleSection
+        className="mt-4"
+        title="Recent practice activity"
+        description="Latest exam series attempts by your students."
+      >
+        <Card>
+          <CardContent className="grid gap-2">
           {data.recentAttempts.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No practice attempts yet — share your exam series with students to get started.
@@ -290,6 +294,7 @@ export default async function TeacherAnalyticsPage({
           )}
         </CardContent>
       </Card>
+      </CollapsibleSection>
     </DashboardShell>
   );
 }

@@ -19,7 +19,8 @@ import { WelcomeHeader } from "@/components/dashboard/welcome-header";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import { ImportantAlerts } from "@/components/dashboard/important-alerts";
 import { getSchoolAlerts } from "@/services/school-alerts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "School dashboard",
@@ -128,14 +129,13 @@ async function SchoolDashboardContent({
         </div>
       )}
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+      <CollapsibleSection
+        className="mt-5"
+        title="Setup progress"
+        description={`${setupDone} of ${setupSteps.length} steps complete`}
+        defaultOpen
+      >
         <Card className="animate-card-enter" style={{ animationDelay: "200ms" }}>
-          <CardHeader>
-            <CardTitle>Setup progress</CardTitle>
-            <CardDescription>
-              {setupDone} of {setupSteps.length} steps complete
-            </CardDescription>
-          </CardHeader>
           <CardContent>
             <ul className="grid gap-1.5">
               {setupSteps.map((step) => (
@@ -159,14 +159,16 @@ async function SchoolDashboardContent({
             </ul>
           </CardContent>
         </Card>
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        className="mt-5"
+        title="Quick actions"
+        description="Common things you do every day"
+      >
         <Card className="animate-card-enter" style={{ animationDelay: "280ms" }}>
-          <CardHeader>
-            <CardTitle>Quick actions</CardTitle>
-            <CardDescription>Common things you do every day</CardDescription>
-          </CardHeader>
           <CardContent>
-            <div className="grid gap-1.5">
+            <div className="grid gap-1.5 sm:grid-cols-2">
               {QUICK_ACTIONS.map((action) => (
                 <Link
                   key={action.href}
@@ -183,7 +185,7 @@ async function SchoolDashboardContent({
             </div>
           </CardContent>
         </Card>
-      </div>
+      </CollapsibleSection>
     </>
   );
 }

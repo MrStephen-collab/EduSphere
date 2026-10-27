@@ -19,10 +19,8 @@ import { ResultsFilters } from "@/components/school/results-filters";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "Results",
@@ -91,21 +89,25 @@ export default async function SchoolResultsPage({
         <StatCard title="Highest" value={highest ?? "—"} icon={Trophy} href="/school/analytics" tone="amber" index={3} hint={lowest != null ? `Lowest ${lowest}%` : "No results yet"} />
       </div>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Narrow results by class, subject or examination.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResultsFilters classes={classes} subjects={subjects} examinations={examinations} />
-        </CardContent>
-      </Card>
-
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <CollapsibleSection
+        className="mt-6"
+        title="Filters"
+        description="Narrow results by class, subject or examination."
+        defaultOpen
+      >
         <Card>
-          <CardHeader>
-            <CardTitle>By class</CardTitle>
-          </CardHeader>
+          <CardContent>
+            <ResultsFilters classes={classes} subjects={subjects} examinations={examinations} />
+          </CardContent>
+        </Card>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        className="mt-6"
+        title="By class"
+        description="Average score and pass rate for each class."
+      >
+        <Card>
           <CardContent>
             {byClass.length ? (
               <SummaryTable rows={byClass} />
@@ -114,10 +116,14 @@ export default async function SchoolResultsPage({
             )}
           </CardContent>
         </Card>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        className="mt-6"
+        title="By subject"
+        description="Average score and pass rate for each subject."
+      >
         <Card>
-          <CardHeader>
-            <CardTitle>By subject</CardTitle>
-          </CardHeader>
           <CardContent>
             {bySubject.length ? (
               <SummaryTable rows={bySubject} />
@@ -126,14 +132,15 @@ export default async function SchoolResultsPage({
             )}
           </CardContent>
         </Card>
-      </div>
+      </CollapsibleSection>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Latest results</CardTitle>
-          <CardDescription>Showing up to {total} of the most recent published results{params.class_id || params.subject_id || params.examination_id ? " — filters applied" : ""}.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <CollapsibleSection
+        className="mt-6"
+        title="Latest results"
+        description={`Showing up to ${total} of the most recent published results${params.class_id || params.subject_id || params.examination_id ? " — filters applied" : ""}.`}
+      >
+        <Card>
+          <CardContent>
           {rows.length === 0 ? (
             <EmptyState
               icon={TrendingDown}
@@ -194,6 +201,7 @@ export default async function SchoolResultsPage({
           )}
         </CardContent>
       </Card>
+      </CollapsibleSection>
     </DashboardShell>
   );
 }

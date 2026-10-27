@@ -18,6 +18,7 @@ import { WelcomeHeader } from "@/components/dashboard/welcome-header";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const metadata: Metadata = {
   title: "Teacher dashboard",
@@ -128,7 +129,13 @@ async function TeacherDashboardContent() {
 
       <AnnouncementBanner announcements={bundle.announcements} className="mt-5" />
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+      <CollapsibleSection
+        className="mt-5"
+        title="Your day"
+        description="Submissions waiting for feedback and the classes you teach."
+        defaultOpen
+      >
+      <div className="grid gap-3 lg:grid-cols-2">
         <Card className="animate-card-enter" style={{ animationDelay: "220ms" }}>
           <CardHeader>
             <CardTitle>Needs grading</CardTitle>
@@ -212,16 +219,18 @@ async function TeacherDashboardContent() {
           </CardContent>
         </Card>
       </div>
+      </CollapsibleSection>
 
-      <Card className="animate-card-enter mt-5" style={{ animationDelay: "380ms" }}>
-        <CardHeader>
-          <CardTitle>Teaching</CardTitle>
-          <CardDescription>
-            {bundle.offersCourses
-              ? "Create and manage your digital courses."
-              : "Add lessons for your classes, set work, and keep an eye on submissions."}
-          </CardDescription>
-        </CardHeader>
+      <CollapsibleSection
+        className="mt-5"
+        title="Teaching"
+        description={
+          bundle.offersCourses
+            ? "Create and manage your digital courses."
+            : "Add lessons for your classes, set work, and keep an eye on submissions."
+        }
+      >
+      <Card className="animate-card-enter" style={{ animationDelay: "380ms" }}>
         <CardContent className="grid gap-2 sm:grid-cols-2">
           {bundle.offersCourses && (
             <>
@@ -296,6 +305,7 @@ async function TeacherDashboardContent() {
           </Link>
         </CardContent>
       </Card>
+      </CollapsibleSection>
     </>
   );
 }
