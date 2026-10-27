@@ -5,6 +5,7 @@ import { FileText } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireStudent } from "@/services/learning";
 import { getReportOptions, getStudentReport } from "@/services/report-cards";
+import { getSavedTraditionalReportCard } from "@/services/traditional-report-cards";
 import type { ReportOptions } from "@/services/report-cards";
 import type { Term } from "@/types/database";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -12,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ReportFilters } from "@/components/report/report-filters";
 import { ReportCardPaper } from "@/components/report/report-card-paper";
+import { TraditionalReportCard } from "@/components/report/traditional/traditional-report-card";
 import { PrintButton } from "@/components/report/print-button";
 
 export const metadata: Metadata = {
@@ -79,7 +81,17 @@ export default async function StudentReportCardsPage({
     );
   }
 
-  const report = await getStudentReport(schoolId, studentId, { kind: "term", term });
+  // The school's own report sheet is the source of truth when one has been
+  // saved for this term: it holds the scores teachers actually entered. The
+  // analytics card is only a fallback for terms with no saved sheet.
+  const savedCard = await getSavedTraditionalReportCard(
+    schoolId,
+    studentId,
+    term.id,
+  );
+  const report = savedCard
+    ? null
+    : await getStudentReport(schoolId, studentId, { kind: "term", term });
 
   const annualHref = `/student/report-cards/annual?session=${session.id}`;
 
@@ -109,11 +121,15 @@ export default async function StudentReportCardsPage({
                 Annual view
               </Button>
             </Link>
-            {report && <PrintButton />}
+            {(report || savedCard) && <PrintButton />}
           </div>
         </div>
 
-        {report ? (
+        {savedCard ? (
+          <div className="overflow-auto rounded-lg border bg-gray-100 p-4">
+            <TraditionalReportCard data={savedCard} />
+          </div>
+        ) : report ? (
           <ReportCardPaper report={report} />
         ) : (
           <Card>

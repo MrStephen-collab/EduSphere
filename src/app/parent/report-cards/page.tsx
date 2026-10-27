@@ -5,6 +5,7 @@ import { BarChart3, FileText, UsersRound } from "lucide-react";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { getParentChildren, requireParent, resolveChild } from "@/services/parent";
 import { getReportOptions, getStudentReport } from "@/services/report-cards";
+import { getSavedTraditionalReportCard } from "@/services/traditional-report-cards";
 import type { ReportOptions } from "@/services/report-cards";
 import type { Term } from "@/types/database";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -13,6 +14,7 @@ import { EmptyState } from "@/components/dashboard/empty-state";
 import { ChildPicker } from "@/components/parent/child-picker";
 import { ReportFilters } from "@/components/report/report-filters";
 import { ReportCardPaper } from "@/components/report/report-card-paper";
+import { TraditionalReportCard } from "@/components/report/traditional/traditional-report-card";
 import { PrintButton } from "@/components/report/print-button";
 
 export const metadata: Metadata = {
@@ -91,7 +93,14 @@ export default async function ParentReportCardsPage({
   const scope = annual
     ? { kind: "session" as const, session }
     : { kind: "term" as const, term: term! };
-  const report = await getStudentReport(schoolId, child.studentId, scope);
+
+  // Term view shows the school's saved report sheet when one exists; the
+  // annual view stays computed because it spans every term. See the student
+  // report card page for the same rule.
+  const savedCard = annual
+    ? null
+    : await getSavedTraditionalReportCard(schoolId, child.studentId, term!.id);
+  const report = savedCard ? null : await getStudentReport(schoolId, child.studentId, scope);
 
   const termHref = `/parent/report-cards?child=${child.studentId}&session=${session.id}&view=term`;
   const annualHref = `/parent/report-cards?child=${child.studentId}&session=${session.id}&view=annual`;
@@ -134,17 +143,23 @@ export default async function ParentReportCardsPage({
                 )}
               </Button>
             </Link>
-            {report && <PrintButton />}
+            {(report || savedCard) && <PrintButton />}
           </div>
         </div>
 
-        {report ? (
+        {savedCard || report ? (
           <div className="grid gap-4">
             <p className="text-sm text-muted-foreground">
               {child.displayName} · {child.className ?? "No class"}
               {child.streamName ? ` · ${child.streamName}` : ""}
             </p>
-            <ReportCardPaper report={report} />
+            {savedCard ? (
+              <div className="overflow-auto rounded-lg border bg-gray-100 p-4">
+                <TraditionalReportCard data={savedCard} />
+              </div>
+            ) : report ? (
+              <ReportCardPaper report={report} />
+            ) : null}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">

@@ -10,6 +10,7 @@ import { saveTraditionalReportCardAction } from "@/app/teacher/report-card-actio
 import {
   emptySubject,
   recalculateSubject,
+  subjectKey,
   toNumberOrNull,
   type TraditionalGrade,
   type TraditionalReportData,
@@ -20,8 +21,10 @@ import type {
   TraditionalReportRecord,
 } from "@/services/traditional-report-cards";
 
-const inputClass = "rounded-md border px-2 py-1 text-sm";
-const scoreInputClass = "w-12 rounded border px-1 text-xs";
+const inputClass =
+  "rounded-md border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground";
+const scoreInputClass =
+  "w-12 rounded border px-1 text-xs disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground";
 
 type NumericStudentField =
   | "noOnRoll"
@@ -49,9 +52,11 @@ function formatStamp(iso: string): string {
 function GradePicker({
   value,
   onChange,
+  disabled = false,
 }: {
   value?: TraditionalGrade | null;
   onChange: (value: TraditionalGrade | null) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-center gap-1">
@@ -63,12 +68,13 @@ function GradePicker({
             type="button"
             aria-label={`${grade}${active ? " (selected)" : ""}`}
             aria-pressed={active}
+            disabled={disabled}
             onClick={() => onChange(active ? null : grade)}
             className={`h-6 w-6 rounded border text-xs font-medium transition-colors ${
               active
                 ? "border-primary bg-primary text-primary-foreground"
                 : "bg-background hover:bg-muted"
-            }`}
+            } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
           >
             {grade}
           </button>
@@ -95,6 +101,13 @@ export function TraditionalReportCardEntry({
   const [savedAt, setSavedAt] = useState<string | null>(record.savedAt);
   const [error, setError] = useState<string | null>(null);
   const storageReady = record.storageReady;
+  const { canEditMeta, editableSubjects } = record.permissions;
+  const unrestricted = editableSubjects === null;
+  const editableSubjectNames = editableSubjects ?? [];
+  const ownsSubject = (name: string) =>
+    unrestricted ||
+    editableSubjectNames.some((subject) => subjectKey(subject) === subjectKey(name));
+  const canSaveAnything = unrestricted || editableSubjectNames.length > 0;
 
   const markDirty = () => {
     setDirty(true);
@@ -244,8 +257,14 @@ export function TraditionalReportCardEntry({
           </Button>
           <Button
             onClick={save}
-            disabled={isPending || !storageReady}
-            title={storageReady ? undefined : "Apply migration 0035 to enable saving"}
+            disabled={isPending || !storageReady || !canSaveAnything}
+            title={
+              !storageReady
+                ? "Apply migration 0035 to enable saving"
+                : !canSaveAnything
+                  ? "You are not assigned to a subject in this class"
+                  : undefined
+            }
           >
             {isPending ? (
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -263,6 +282,25 @@ export function TraditionalReportCardEntry({
           <code className="font-mono">supabase/migrations/0035_traditional_report_cards.sql</code>{" "}
           (with <code className="font-mono">supabase db push</code> or the SQL editor) and reload —
           saving is disabled until then.
+        </div>
+      )}
+
+      {!unrestricted && editableSubjectNames.length === 0 && (
+        <div className="rounded-md border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900 print:hidden">
+          You aren&apos;t assigned to a subject in this class yet, so there are
+          no scores you can enter. Ask a school admin to add you to a subject.
+        </div>
+      )}
+
+      {!unrestricted && editableSubjectNames.length > 0 && (
+        <div className="rounded-md border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900 print:hidden">
+          {canEditMeta
+            ? "You can record scores for your own subjects"
+            : "You can record test and exam scores for"}{" "}
+          ({editableSubjectNames.join(", ")}).{" "}
+          {canEditMeta
+            ? "The other subjects are read-only; their subject teachers update them."
+            : "Student information, ratings and comments are managed by the class teacher."}
         </div>
       )}
 
@@ -295,8 +333,9 @@ export function TraditionalReportCardEntry({
               <CardTitle>Student information</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                Full name
+              <fieldset disabled={!canEditMeta} className="contents">
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Full name
                 <input
                   className={inputClass}
                   value={form.student.fullName}
@@ -411,16 +450,19 @@ export function TraditionalReportCardEntry({
                   onChange={(e) => setStudentNumber("daysAbsent", e.target.value)}
                 />
               </label>
+              </fieldset>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2">
               <CardTitle>Academic performance</CardTitle>
-              <Button variant="outline" size="sm" onClick={addSubject}>
-                <Plus className="size-3.5" aria-hidden="true" />
-                Add subject
-              </Button>
+              {unrestricted && (
+                <Button variant="outline" size="sm" onClick={addSubject}>
+                  <Plus className="size-3.5" aria-hidden="true" />
+                  Add subject
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="overflow-x-auto">
               <table className="w-full min-w-[1050px] text-xs">
@@ -439,102 +481,190 @@ export function TraditionalReportCardEntry({
                     <th className="p-1 font-medium">Pos.</th>
                     <th className="p-1 font-medium">Grade</th>
                     <th className="p-1 font-medium">Remark</th>
-                    <th className="p-1" />
+                    {unrestricted && <th className="p-1" />}
                   </tr>
                 </thead>
                 <tbody>
-                  {form.subjects.map((subject, index) => (
-                    <tr key={index} className="border-b align-top">
-                      <td className="p-1">
-                        <input
-                          className="w-40 rounded border px-1 py-1 text-xs"
-                          value={subject.name}
-                          onChange={(e) =>
-                            updateSubject(index, { name: e.target.value })
-                          }
-                          placeholder="Subject"
-                        />
-                      </td>
-                      {(["test1", "test2", "test3"] as const).map((key) => (
-                        <td key={key} className="p-1">
-                          <input
-                            className={scoreInputClass}
-                            value={subject[key] ?? ""}
-                            onChange={(e) =>
-                              setSubjectNumber(index, key, e.target.value)
-                            }
-                          />
+                  {form.subjects.map((subject, index) => {
+                    const editable = ownsSubject(subject.name);
+                    const canEditDetails = editable && canEditMeta;
+                    return (
+                      <tr
+                        key={index}
+                        className={`border-b align-top ${
+                          editable ? "" : "bg-muted/30"
+                        }`}
+                      >
+                        <td className="p-1">
+                          {unrestricted ? (
+                            <input
+                              className="w-40 rounded border px-1 py-1 text-xs"
+                              value={subject.name}
+                              onChange={(e) =>
+                                updateSubject(index, { name: e.target.value })
+                              }
+                              placeholder="Subject"
+                            />
+                          ) : (
+                            <span
+                              className={
+                                editable ? "" : "text-muted-foreground"
+                              }
+                            >
+                              {subject.name}
+                            </span>
+                          )}
                         </td>
-                      ))}
-                      <td className="p-1 text-muted-foreground">
-                        {subject.totalTests ?? "—"}
-                      </td>
-                      <td className="p-1">
-                        <input
-                          className={scoreInputClass}
-                          value={subject.exam ?? ""}
-                          onChange={(e) =>
-                            setSubjectNumber(index, "exam", e.target.value)
-                          }
-                        />
-                      </td>
-                      <td className="p-1">
-                        <input
-                          className={scoreInputClass}
-                          value={subject.overall ?? ""}
-                          onChange={(e) =>
-                            setSubjectNumber(index, "overall", e.target.value)
-                          }
-                        />
-                      </td>
-                      {(
-                        ["lastTerm", "cumulative", "classAvg", "position"] as const
-                      ).map((key) => (
-                        <td key={key} className="p-1">
-                          <input
-                            className={scoreInputClass}
-                            value={subject[key] ?? ""}
-                            onChange={(e) =>
-                              setSubjectNumber(index, key, e.target.value)
-                            }
-                          />
+                        {(["test1", "test2", "test3"] as const).map((key) => (
+                          <td key={key} className="p-1">
+                            {editable ? (
+                              <input
+                                className={scoreInputClass}
+                                value={subject[key] ?? ""}
+                                onChange={(e) =>
+                                  setSubjectNumber(index, key, e.target.value)
+                                }
+                              />
+                            ) : (
+                              <span className="text-muted-foreground">
+                                {subject[key] ?? ""}
+                              </span>
+                            )}
+                          </td>
+                        ))}
+                        <td className="p-1 text-muted-foreground">
+                          {subject.totalTests ?? "—"}
                         </td>
-                      ))}
-                      <td className="p-1">
-                        <input
-                          className="w-12 rounded border px-1 py-1 text-xs"
-                          value={subject.grade ?? ""}
-                          onChange={(e) =>
-                            updateSubject(index, { grade: e.target.value })
-                          }
-                        />
-                      </td>
-                      <td className="p-1">
-                        <input
-                          className="w-36 rounded border px-1 py-1 text-xs"
-                          value={subject.remark ?? ""}
-                          onChange={(e) =>
-                            updateSubject(index, { remark: e.target.value })
-                          }
-                        />
-                      </td>
-                      <td className="p-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Remove ${subject.name || "subject"}`}
-                          onClick={() => removeSubject(index)}
-                        >
-                          <Trash2 className="size-3.5" aria-hidden="true" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="p-1">
+                          {editable ? (
+                            <input
+                              className={scoreInputClass}
+                              value={subject.exam ?? ""}
+                              onChange={(e) =>
+                                setSubjectNumber(index, "exam", e.target.value)
+                              }
+                            />
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {subject.exam ?? ""}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-1">
+                          {canEditDetails ? (
+                            <input
+                              className={scoreInputClass}
+                              value={subject.overall ?? ""}
+                              onChange={(e) =>
+                                setSubjectNumber(
+                                  index,
+                                  "overall",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          ) : (
+                            <span
+                              className={
+                                editable ? "" : "text-muted-foreground"
+                              }
+                            >
+                              {subject.overall ?? ""}
+                            </span>
+                          )}
+                        </td>
+                        {(
+                          [
+                            "lastTerm",
+                            "cumulative",
+                            "classAvg",
+                            "position",
+                          ] as const
+                        ).map((key) => (
+                          <td key={key} className="p-1">
+                            {canEditDetails ? (
+                              <input
+                                className={scoreInputClass}
+                                value={subject[key] ?? ""}
+                                onChange={(e) =>
+                                  setSubjectNumber(index, key, e.target.value)
+                                }
+                              />
+                            ) : (
+                              <span
+                                className={
+                                  editable ? "" : "text-muted-foreground"
+                                }
+                              >
+                                {subject[key] ?? ""}
+                              </span>
+                            )}
+                          </td>
+                        ))}
+                        <td className="p-1">
+                          {canEditDetails ? (
+                            <input
+                              className="w-12 rounded border px-1 py-1 text-xs"
+                              value={subject.grade ?? ""}
+                              onChange={(e) =>
+                                updateSubject(index, { grade: e.target.value })
+                              }
+                            />
+                          ) : (
+                            <span
+                              className={
+                                editable ? "" : "text-muted-foreground"
+                              }
+                            >
+                              {subject.grade ?? ""}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-1">
+                          {canEditDetails ? (
+                            <input
+                              className="w-36 rounded border px-1 py-1 text-xs"
+                              value={subject.remark ?? ""}
+                              onChange={(e) =>
+                                updateSubject(index, { remark: e.target.value })
+                              }
+                            />
+                          ) : (
+                            <span
+                              className={
+                                editable ? "" : "text-muted-foreground"
+                              }
+                            >
+                              {subject.remark ?? ""}
+                            </span>
+                          )}
+                        </td>
+                        {unrestricted && (
+                          <td className="p-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Remove ${subject.name || "subject"}`}
+                              onClick={() => removeSubject(index)}
+                            >
+                              <Trash2 className="size-3.5" aria-hidden="true" />
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {form.subjects.length === 0 && (
                 <p className="p-2 text-sm text-muted-foreground">
                   No subjects yet — use “Add subject” to start a row.
+                </p>
+              )}
+              {!unrestricted && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Rows for other subjects are read-only. Saving keeps their
+                  scores exactly as the other subject teachers entered them.
                 </p>
               )}
               <p className="mt-2 text-xs text-muted-foreground">
@@ -565,6 +695,7 @@ export function TraditionalReportCardEntry({
                         <td className="p-1">
                           <GradePicker
                             value={trait.value}
+                            disabled={!canEditMeta}
                             onChange={(value) =>
                               setTrait("affective", index, value)
                             }
@@ -596,6 +727,7 @@ export function TraditionalReportCardEntry({
                         <td className="p-1">
                           <GradePicker
                             value={trait.value}
+                            disabled={!canEditMeta}
                             onChange={(value) =>
                               setTrait("psychomotor", index, value)
                             }
@@ -614,14 +746,15 @@ export function TraditionalReportCardEntry({
               <CardTitle>Comments &amp; approvals</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
-              <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                Class teacher&apos;s comment
-                <textarea
-                  className="min-h-16 rounded-md border p-2 text-sm"
-                  value={form.comments.classTeacher ?? ""}
-                  onChange={(e) => setComment("classTeacher", e.target.value)}
-                />
-              </label>
+              <fieldset disabled={!canEditMeta} className="contents">
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Class teacher&apos;s comment
+                  <textarea
+                    className="min-h-16 rounded-md border p-2 text-sm disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                    value={form.comments.classTeacher ?? ""}
+                    onChange={(e) => setComment("classTeacher", e.target.value)}
+                  />
+                </label>
               <div className="grid gap-2 sm:grid-cols-3">
                 <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                   Class teacher name
@@ -654,14 +787,14 @@ export function TraditionalReportCardEntry({
                   />
                 </label>
               </div>
-              <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                Principal&apos;s comment
-                <textarea
-                  className="min-h-16 rounded-md border p-2 text-sm"
-                  value={form.comments.principal ?? ""}
-                  onChange={(e) => setComment("principal", e.target.value)}
-                />
-              </label>
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Principal&apos;s comment
+                  <textarea
+                    className="min-h-16 rounded-md border p-2 text-sm disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                    value={form.comments.principal ?? ""}
+                    onChange={(e) => setComment("principal", e.target.value)}
+                  />
+                </label>
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                   Principal name
@@ -684,11 +817,15 @@ export function TraditionalReportCardEntry({
                   />
                 </label>
               </div>
+              </fieldset>
             </CardContent>
           </Card>
 
           <div className="flex flex-wrap items-center gap-3 print:hidden">
-            <Button onClick={save} disabled={isPending || !storageReady}>
+            <Button
+              onClick={save}
+              disabled={isPending || !storageReady || !canSaveAnything}
+            >
               {isPending ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
               ) : (

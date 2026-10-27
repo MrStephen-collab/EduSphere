@@ -24,6 +24,8 @@ export async function saveTraditionalReportCardAction(
     revalidatePath("/teacher/report-cards/entry");
     revalidatePath("/teacher/report-cards");
     revalidatePath("/school/report-cards");
+    revalidatePath("/student/report-cards");
+    revalidatePath("/parent/report-cards");
     return { ok: true, id, savedAt: new Date().toISOString() };
   } catch (error) {
     return { ok: false, error: message(error) };

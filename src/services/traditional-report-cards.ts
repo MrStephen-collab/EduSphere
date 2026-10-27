@@ -1,21 +1,30 @@
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rowExists } from "@/lib/supabase/queries";
 import { requireContentEditor } from "@/services/shared";
 import { asArray } from "@/lib/embed";
+import { isEducationLevel } from "@/lib/education/levels";
 import {
   blankComments,
+  classTeacherEditsEverySubject,
   defaultAffective,
   defaultPsychomotor,
   emptySubject,
+  mergeSubjectsForEditor,
+  subjectKey,
   TRADITIONAL_DEFAULT_SUBJECTS,
   type TraditionalComments,
   type TraditionalReportData,
   type TraditionalSubjectRow,
   type TraditionalTraitRow,
 } from "@/lib/traditional-report";
-import type { Term, TraditionalReportCardRow } from "@/types/database";
+import type {
+  EducationLevel,
+  Term,
+  TraditionalReportCardRow,
+} from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -66,6 +75,24 @@ export type TraditionalReportRecord = {
   savedAt: string | null;
   /** False when migration 0035 has not been applied to this database. */
   storageReady: boolean;
+  /** What this caller may change on the card. */
+  permissions: TraditionalEntryPermissions;
+};
+
+/**
+ * Who may edit which part of a card.
+ *
+ * A primary/nursery class teacher teaches the whole class, so every subject is
+ * open to them. In secondary (and the higher levels) a teacher is a subject
+ * teacher: they may score their own subjects only, and the class teacher keeps
+ * the student information, ratings and comments. School managers edit
+ * everything.
+ */
+export type TraditionalEntryPermissions = {
+  canEditMeta: boolean;
+  /** Subject names this caller may score; null means every subject. */
+  editableSubjects: string[] | null;
+  level: EducationLevel | null;
 };
 
 export type TraditionalReportSummary = {
@@ -111,6 +138,107 @@ function isMissingTable(error: { code?: string; message?: string } | null): bool
   );
 }
 
+async function loadSchoolLevel(
+  supabase: SupabaseClient,
+  schoolId: string,
+): Promise<EducationLevel | null> {
+  const { data } = await supabase
+    .from("schools")
+    .select("education_level")
+    .eq("id", schoolId)
+    .maybeSingle();
+  const level = (data as { education_level: string | null } | null)
+    ?.education_level;
+  return isEducationLevel(level) ? level : null;
+}
+
+/**
+ * The subjects a teacher is attached to.
+ *
+ * `teacher_subjects` is the school-wide list; the timetable is where a subject
+ * actually gets tied to a class. A school may have filled in either (or both),
+ * so the union is what a teacher can reasonably score. Filtering the timetable
+ * by class keeps a subject teacher from editing a subject they only teach in
+ * another class.
+ */
+async function teacherSubjectNames(
+  supabase: SupabaseClient,
+  schoolId: string,
+  teacherId: string,
+  classId: string,
+): Promise<string[]> {
+  const [{ data: assigned }, { data: timetable }] = await Promise.all([
+    supabase
+      .from("teacher_subjects")
+      .select("subjects(name)")
+      .eq("school_id", schoolId)
+      .eq("teacher_id", teacherId),
+    supabase
+      .from("timetable_entries")
+      .select("subjects(name)")
+      .eq("school_id", schoolId)
+      .eq("teacher_id", teacherId)
+      .eq("class_id", classId),
+  ]);
+
+  const names = new Set<string>();
+  const rows = [
+    ...((assigned ?? []) as { subjects: { name: string } | { name: string }[] | null }[]),
+    ...((timetable ?? []) as { subjects: { name: string } | { name: string }[] | null }[]),
+  ];
+  for (const row of rows) {
+    for (const subject of asArray(row.subjects)) names.add(subject.name);
+  }
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Resolve a teacher's rights on one class, or null when they have no link to
+ * it. A teacher reaches a class as its class teacher (`teacher_classes`) or by
+ * teaching a subject in it (`timetable_entries`).
+ */
+async function resolveEntryPermissions(
+  supabase: SupabaseClient,
+  schoolId: string,
+  teacherId: string | null,
+  classId: string | null,
+): Promise<TraditionalEntryPermissions | null> {
+  const level = await loadSchoolLevel(supabase, schoolId);
+
+  // School managers edit every class and every subject.
+  if (!teacherId) {
+    return { canEditMeta: true, editableSubjects: null, level };
+  }
+  if (!classId) return null;
+
+  const [isClassTeacher, hasTimetable] = await Promise.all([
+    rowExists(supabase, "teacher_classes", {
+      school_id: schoolId,
+      teacher_id: teacherId,
+      class_id: classId,
+    }),
+    rowExists(supabase, "timetable_entries", {
+      school_id: schoolId,
+      teacher_id: teacherId,
+      class_id: classId,
+    }),
+  ]);
+  if (!isClassTeacher && !hasTimetable) return null;
+
+  const teachesEverySubject = classTeacherEditsEverySubject(
+    level,
+    isClassTeacher,
+  );
+
+  return {
+    canEditMeta: isClassTeacher,
+    editableSubjects: teachesEverySubject
+      ? null
+      : await teacherSubjectNames(supabase, schoolId, teacherId, classId),
+    level,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Entry context (classes / terms / subjects / school identity)
 // ---------------------------------------------------------------------------
@@ -121,43 +249,66 @@ export async function getTraditionalEntryContext(
 ): Promise<TraditionalEntryContext> {
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: school }, { data: classes }, { data: sessions }, { data: subjects }, { data: links }] =
-    await Promise.all([
-      supabase
-        .from("schools")
-        .select("name, address, phone, logo_url, motto")
-        .eq("id", schoolId)
-        .maybeSingle(),
-      supabase
-        .from("classes")
-        .select("id, name")
-        .eq("school_id", schoolId)
-        .order("order", { ascending: true })
-        .order("name", { ascending: true }),
-      supabase
-        .from("academic_sessions")
-        .select(
-          "id, name, is_current, created_at, terms(id, name, is_current, starts_at, ends_at, created_at)",
-        )
-        .eq("school_id", schoolId)
-        .order("is_current", { ascending: false })
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("subjects")
-        .select("name")
-        .eq("school_id", schoolId)
-        .order("name", { ascending: true }),
-      teacherId
-        ? supabase
-            .from("teacher_classes")
-            .select("class_id")
-            .eq("school_id", schoolId)
-            .eq("teacher_id", teacherId)
-        : Promise.resolve({ data: null }),
-    ]);
+  const [
+    { data: school },
+    { data: classes },
+    { data: sessions },
+    { data: subjects },
+    { data: classLinks },
+    { data: timetableLinks },
+  ] = await Promise.all([
+    supabase
+      .from("schools")
+      .select("name, address, phone, logo_url, motto")
+      .eq("id", schoolId)
+      .maybeSingle(),
+    supabase
+      .from("classes")
+      .select("id, name")
+      .eq("school_id", schoolId)
+      .order("order", { ascending: true })
+      .order("name", { ascending: true }),
+    supabase
+      .from("academic_sessions")
+      .select(
+        "id, name, is_current, created_at, terms(id, name, is_current, starts_at, ends_at, created_at)",
+      )
+      .eq("school_id", schoolId)
+      .order("is_current", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("subjects")
+      .select("name")
+      .eq("school_id", schoolId)
+      .order("name", { ascending: true }),
+    teacherId
+      ? supabase
+          .from("teacher_classes")
+          .select("class_id")
+          .eq("school_id", schoolId)
+          .eq("teacher_id", teacherId)
+      : Promise.resolve({ data: null }),
+    teacherId
+      ? supabase
+          .from("timetable_entries")
+          .select("class_id")
+          .eq("school_id", schoolId)
+          .eq("teacher_id", teacherId)
+      : Promise.resolve({ data: null }),
+  ]);
 
+  // A subject teacher may never appear in teacher_classes; the timetable is
+  // where their class link lives. Offer both sets so secondary staff can reach
+  // the classes they actually teach.
   const linkedClassIds = teacherId
-    ? new Set(((links ?? []) as { class_id: string }[]).map((l) => l.class_id))
+    ? new Set([
+        ...((classLinks ?? []) as { class_id: string }[]).map(
+          (l) => l.class_id,
+        ),
+        ...((timetableLinks ?? []) as { class_id: string }[]).map(
+          (l) => l.class_id,
+        ),
+      ])
     : null;
 
   const classRows = ((classes ?? []) as TraditionalEntryClass[]).filter(
@@ -249,12 +400,19 @@ export async function getTraditionalStudents(
   if (!cls) return [];
 
   if (teacherId) {
-    const linked = await rowExists(supabase, "teacher_classes", {
-      school_id: schoolId,
-      teacher_id: teacherId,
-      class_id: classId,
-    });
-    if (!linked) return [];
+    const [isClassTeacher, hasTimetable] = await Promise.all([
+      rowExists(supabase, "teacher_classes", {
+        school_id: schoolId,
+        teacher_id: teacherId,
+        class_id: classId,
+      }),
+      rowExists(supabase, "timetable_entries", {
+        school_id: schoolId,
+        teacher_id: teacherId,
+        class_id: classId,
+      }),
+    ]);
+    if (!isClassTeacher && !hasTimetable) return [];
   }
 
   const { data: students } = await supabase
@@ -326,6 +484,11 @@ export async function getTraditionalReportCard(
   teacherId: string | null = null,
 ): Promise<TraditionalReportRecord | null> {
   const supabase = await createSupabaseServerClient();
+  // The saved card is read through the service role after the class-access
+  // check below. That keeps secondary subject teachers working on databases
+  // that have not yet applied migration 0036, while direct client reads are
+  // still governed by the table's SELECT policies.
+  const admin = createAdminClient();
 
   const { data: studentData } = await supabase
     .from("students")
@@ -336,14 +499,13 @@ export async function getTraditionalReportCard(
   if (!studentData) return null;
   const student = studentData as StudentRow;
 
-  if (teacherId && student.class_id) {
-    const linked = await rowExists(supabase, "teacher_classes", {
-      school_id: schoolId,
-      teacher_id: teacherId,
-      class_id: student.class_id,
-    });
-    if (!linked) return null;
-  }
+  const permissions = await resolveEntryPermissions(
+    supabase,
+    schoolId,
+    teacherId,
+    student.class_id,
+  );
+  if (!permissions) return null;
 
   const { data: termData } = await supabase
     .from("terms")
@@ -377,7 +539,7 @@ export async function getTraditionalReportCard(
         .select("name")
         .eq("school_id", schoolId)
         .order("name", { ascending: true }),
-      supabase
+      admin
         .from("traditional_report_cards")
         .select("*")
         .eq("school_id", schoolId)
@@ -408,6 +570,25 @@ export async function getTraditionalReportCard(
       ? ((subjects ?? []) as { name: string }[]).map((s) => emptySubject(s.name))
       : [...TRADITIONAL_DEFAULT_SUBJECTS].map((name) => emptySubject(name));
 
+  // A subject teacher may open a card the class teacher has already started.
+  // Make sure every subject they own has a row, even when the saved card was
+  // authored before they were assigned to it.
+  const baseSubjects = saved ? (saved.subjects ?? []) : defaultSubjects;
+  const formSubjects: TraditionalSubjectRow[] =
+    permissions.editableSubjects === null
+      ? baseSubjects
+      : [
+          ...baseSubjects,
+          ...permissions.editableSubjects
+            .filter(
+              (name) =>
+                !baseSubjects.some(
+                  (row) => subjectKey(row.name) === subjectKey(name),
+                ),
+            )
+            .map((name) => emptySubject(name)),
+        ];
+
   const data: TraditionalReportData = {
     school: {
       name: school?.name ?? "School",
@@ -431,7 +612,7 @@ export async function getTraditionalReportCard(
       daysPresent: saved?.days_present ?? attendance.daysPresent,
       daysAbsent: saved?.days_absent ?? attendance.daysAbsent,
     },
-    subjects: saved ? (saved.subjects ?? []) : defaultSubjects,
+    subjects: formSubjects,
     affective: saved ? (saved.affective ?? []) : defaultAffective(),
     psychomotor: saved ? (saved.psychomotor ?? []) : defaultPsychomotor(),
     comments: saved?.comments ?? blankComments(),
@@ -445,6 +626,76 @@ export async function getTraditionalReportCard(
     saved: Boolean(saved) && storageReady,
     savedAt: saved?.updated_at ?? null,
     storageReady,
+    permissions,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Saved card for the portal (student / parent)
+// ---------------------------------------------------------------------------
+
+/**
+ * The saved traditional card for a student and term, or null when none exists.
+ *
+ * This runs on the caller's own session rather than the service role, so the
+ * SELECT policies on `traditional_report_cards` decide visibility: a student
+ * sees their own card, a parent sees their child's. Pages use the analytics
+ * report card only when this returns null.
+ */
+export async function getSavedTraditionalReportCard(
+  schoolId: string,
+  studentId: string,
+  termId: string,
+): Promise<TraditionalReportData | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const [{ data: savedData, error: savedError }, { data: school }] =
+    await Promise.all([
+      supabase
+        .from("traditional_report_cards")
+        .select("*")
+        .eq("school_id", schoolId)
+        .eq("student_id", studentId)
+        .eq("term_id", termId)
+        .maybeSingle(),
+      supabase
+        .from("schools")
+        .select("name, address, phone, logo_url, motto")
+        .eq("id", schoolId)
+        .maybeSingle(),
+    ]);
+
+  if (savedError || !savedData) return null;
+  const saved = savedData as SavedRow;
+
+  return {
+    school: {
+      name: school?.name ?? "School",
+      address: school?.address ?? null,
+      phone: school?.phone ?? null,
+      logoUrl: school?.logo_url ?? null,
+      motto: school?.motto ?? null,
+    },
+    student: {
+      fullName: saved.student_name,
+      admissionNo: saved.admission_number ?? "",
+      className: saved.class_name ?? "",
+      sex: saved.sex,
+      house: saved.house,
+      session: saved.session_name ?? "",
+      term: saved.term_name ?? "",
+      noOnRoll: saved.no_on_roll,
+      position: saved.position,
+      totalInClass: saved.total_in_class,
+      daysOpened: saved.days_opened,
+      daysPresent: saved.days_present,
+      daysAbsent: saved.days_absent,
+    },
+    subjects: saved.subjects ?? [],
+    affective: saved.affective ?? [],
+    psychomotor: saved.psychomotor ?? [],
+    comments: saved.comments ?? blankComments(),
+    stampUrl: null,
   };
 }
 
@@ -461,12 +712,19 @@ export async function listTraditionalReportCards(
   const supabase = await createSupabaseServerClient();
 
   if (teacherId) {
-    const linked = await rowExists(supabase, "teacher_classes", {
-      school_id: schoolId,
-      teacher_id: teacherId,
-      class_id: classId,
-    });
-    if (!linked) return [];
+    const [isClassTeacher, hasTimetable] = await Promise.all([
+      rowExists(supabase, "teacher_classes", {
+        school_id: schoolId,
+        teacher_id: teacherId,
+        class_id: classId,
+      }),
+      rowExists(supabase, "timetable_entries", {
+        school_id: schoolId,
+        teacher_id: teacherId,
+        class_id: classId,
+      }),
+    ]);
+    if (!isClassTeacher && !hasTimetable) return [];
   }
 
   const [{ data: students }, { data: cards, error }] = await Promise.all([
@@ -580,6 +838,13 @@ export async function saveTraditionalReportCard(input: SaveTraditionalReportInpu
   if (role !== "TEACHER" && role !== "SCHOOL_ADMIN" && role !== "SCHOOL_OWNER") {
     throw new Error("Only school staff can save report cards.");
   }
+  // A teacher role without a teacher record must never fall through to the
+  // manager branch below, which would grant every subject.
+  if (role === "TEACHER" && !teacherId) {
+    throw new Error(
+      "Your teacher profile isn't linked to this school yet — ask a school admin to add you.",
+    );
+  }
 
   const result = saveSchema.safeParse(input);
   if (!result.success) {
@@ -622,75 +887,23 @@ export async function saveTraditionalReportCard(input: SaveTraditionalReportInpu
     className = (cls as { name?: string } | null)?.name ?? null;
   }
 
-  if (role === "TEACHER") {
-    if (!student.class_id) {
-      throw new Error("This student isn't enrolled in a class yet.");
-    }
-    const linked = await rowExists(admin, "teacher_classes", {
-      school_id: schoolId,
-      teacher_id: teacherId ?? "",
-      class_id: student.class_id,
-    });
-    if (!linked) throw new Error("This class isn't assigned to you.");
+  const permissions = await resolveEntryPermissions(
+    admin,
+    schoolId,
+    role === "TEACHER" ? teacherId : null,
+    student.class_id,
+  );
+  if (!permissions) {
+    throw new Error(
+      student.class_id
+        ? "This class isn't assigned to you."
+        : "This student isn't enrolled in a class yet.",
+    );
   }
 
-  const data = parsed.data;
-  const sessionName = asArray(term.academic_sessions)[0]?.name ?? null;
-  const streamName = asArray(student.streams)[0]?.name ?? null;
-
-  const comments: TraditionalComments = {
-    classTeacher: data.comments.classTeacher ?? "",
-    classTeacherName: data.comments.classTeacherName ?? "",
-    classTeacherDate: data.comments.classTeacherDate ?? "",
-    principal: data.comments.principal ?? "",
-    principalName: data.comments.principalName ?? "",
-    principalDate: data.comments.principalDate ?? "",
-    nextTermBegins: data.comments.nextTermBegins ?? "",
-  };
-
-  const subjects: TraditionalSubjectRow[] = data.subjects.map((s) => ({
-    ...s,
-    name: s.name.trim(),
-  }));
-  const affective: TraditionalTraitRow[] = data.affective.map((t) => ({
-    name: t.name,
-    value: t.value ?? null,
-  }));
-  const psychomotor: TraditionalTraitRow[] = data.psychomotor.map((t) => ({
-    name: t.name,
-    value: t.value ?? null,
-  }));
-
-  const row = {
-    school_id: schoolId,
-    student_id: student.id,
-    class_id: student.class_id,
-    term_id: term.id,
-    student_name: data.student.fullName.trim() || student.display_name || "Student",
-    admission_number: cleanText(data.student.admissionNo) ?? student.admission_number,
-    class_name: cleanText(data.student.className) ?? className,
-    sex:
-      cleanText(data.student.sex) ??
-      (student.gender ? student.gender.toUpperCase() : null),
-    house: cleanText(data.student.house) ?? streamName,
-    session_name: cleanText(data.student.session) ?? sessionName,
-    term_name: cleanText(data.student.term) ?? term.name,
-    no_on_roll: data.student.noOnRoll ?? null,
-    position: data.student.position ?? null,
-    total_in_class: data.student.totalInClass ?? null,
-    days_opened: data.student.daysOpened ?? null,
-    days_present: data.student.daysPresent ?? null,
-    days_absent: data.student.daysAbsent ?? null,
-    subjects,
-    affective,
-    psychomotor,
-    comments,
-    updated_by: userId,
-  };
-
-  const { data: existing, error: findError } = await admin
+  const { data: existingData, error: findError } = await admin
     .from("traditional_report_cards")
-    .select("id")
+    .select("*")
     .eq("student_id", student.id)
     .eq("term_id", term.id)
     .maybeSingle();
@@ -701,8 +914,106 @@ export async function saveTraditionalReportCard(input: SaveTraditionalReportInpu
     );
   }
   if (findError) throw new Error("We couldn't check for an existing report card.");
+  const existing = (existingData as SavedRow | null) ?? null;
 
-  const existingId = (existing as { id?: string } | null)?.id;
+  const data = parsed.data;
+  const sessionName = asArray(term.academic_sessions)[0]?.name ?? null;
+  const streamName = asArray(student.streams)[0]?.name ?? null;
+  const canEditMeta = permissions.canEditMeta;
+
+  const submittedComments: TraditionalComments = {
+    classTeacher: data.comments.classTeacher ?? "",
+    classTeacherName: data.comments.classTeacherName ?? "",
+    classTeacherDate: data.comments.classTeacherDate ?? "",
+    principal: data.comments.principal ?? "",
+    principalName: data.comments.principalName ?? "",
+    principalDate: data.comments.principalDate ?? "",
+    nextTermBegins: data.comments.nextTermBegins ?? "",
+  };
+
+  const submittedSubjects: TraditionalSubjectRow[] = data.subjects.map((s) => ({
+    ...s,
+    name: s.name.trim(),
+  }));
+  const submittedAffective: TraditionalTraitRow[] = data.affective.map((t) => ({
+    name: t.name,
+    value: t.value ?? null,
+  }));
+  const submittedPsychomotor: TraditionalTraitRow[] = data.psychomotor.map(
+    (t) => ({
+      name: t.name,
+      value: t.value ?? null,
+    }),
+  );
+
+  // A subject teacher's form posts every row, including the ones they can only
+  // read. Merge against what is on file so those rows keep their existing
+  // scores instead of being replaced by the read-only copy.
+  const subjects = mergeSubjectsForEditor(
+    existing?.subjects ?? [],
+    submittedSubjects,
+    permissions.editableSubjects,
+  );
+
+  const row = {
+    school_id: schoolId,
+    student_id: student.id,
+    class_id: student.class_id,
+    term_id: term.id,
+    student_name: canEditMeta
+      ? data.student.fullName.trim() || student.display_name || "Student"
+      : existing?.student_name ?? student.display_name ?? "Student",
+    admission_number: canEditMeta
+      ? cleanText(data.student.admissionNo) ?? student.admission_number
+      : existing?.admission_number ?? student.admission_number,
+    class_name: canEditMeta
+      ? cleanText(data.student.className) ?? className
+      : existing?.class_name ?? className,
+    sex: canEditMeta
+      ? cleanText(data.student.sex) ??
+        (student.gender ? student.gender.toUpperCase() : null)
+      : existing?.sex ?? (student.gender ? student.gender.toUpperCase() : null),
+    house: canEditMeta
+      ? cleanText(data.student.house) ?? streamName
+      : existing?.house ?? streamName,
+    session_name: canEditMeta
+      ? cleanText(data.student.session) ?? sessionName
+      : existing?.session_name ?? sessionName,
+    term_name: canEditMeta
+      ? cleanText(data.student.term) ?? term.name
+      : existing?.term_name ?? term.name,
+    no_on_roll: canEditMeta
+      ? data.student.noOnRoll ?? null
+      : existing?.no_on_roll ?? null,
+    position: canEditMeta
+      ? data.student.position ?? null
+      : existing?.position ?? null,
+    total_in_class: canEditMeta
+      ? data.student.totalInClass ?? null
+      : existing?.total_in_class ?? null,
+    days_opened: canEditMeta
+      ? data.student.daysOpened ?? null
+      : existing?.days_opened ?? null,
+    days_present: canEditMeta
+      ? data.student.daysPresent ?? null
+      : existing?.days_present ?? null,
+    days_absent: canEditMeta
+      ? data.student.daysAbsent ?? null
+      : existing?.days_absent ?? null,
+    subjects,
+    affective: canEditMeta
+      ? submittedAffective
+      : existing?.affective ?? defaultAffective(),
+    psychomotor: canEditMeta
+      ? submittedPsychomotor
+      : existing?.psychomotor ?? defaultPsychomotor(),
+    comments: canEditMeta
+      ? submittedComments
+      : existing?.comments ?? blankComments(),
+    updated_by: userId,
+  };
+
+  const existingId = existing?.id;
 
   if (existingId) {
     const { data: updated, error } = await admin
