@@ -277,6 +277,50 @@ export async function getStudentFees(): Promise<{
   return loadFeeSummary(schoolId, studentId);
 }
 
+/** The balance figures behind a single student's fee account. */
+export type StudentBalance = {
+  invoiced: number;
+  paid: number;
+  outstanding: number;
+  /** Currency of the student's invoices; Naira when none have been raised yet. */
+  currency: string;
+};
+
+/**
+ * One student's own fee balance, read on their behalf: what was invoiced
+ * against them, what was paid, and what is still owed.
+ *
+ * This is the figure a dashboard card shows. It deliberately skips the invoice
+ * list and the payment joins — the student is owed one number, and the fee math
+ * (`computeInvoiceTotals`) keeps the three figures reconciling: billed minus
+ * paid is exactly outstanding, with waived and void invoices left out.
+ */
+export async function getStudentBalance(
+  schoolId: string,
+  studentId: string,
+): Promise<StudentBalance> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("fee_invoices")
+    .select("amount, amount_paid, status, currency")
+    .eq("school_id", schoolId)
+    .eq("student_id", studentId);
+
+  if (error) throw new Error(error.message);
+  const invoices = (data ?? []) as {
+    amount: number;
+    amount_paid: number;
+    status: FeeInvoiceStatus;
+    currency: string;
+  }[];
+
+  const totals = computeInvoiceTotals(invoices);
+  return {
+    ...totals,
+    currency: invoices.find((invoice) => invoice.currency)?.currency ?? "NGN",
+  };
+}
+
 async function loadPaymentsForInvoices(
   invoiceIds: string[],
 ): Promise<Map<string, FeePayment[]>> {

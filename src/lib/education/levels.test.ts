@@ -8,7 +8,9 @@ import {
   getLevelDefinition,
   isEducationLevel,
   levelOffersCourses,
+  levelRegistrationNoun,
   levelStaffNoun,
+  levelTermNoun,
   levelUsesDepartments,
 } from "@/lib/education/levels";
 import type { EducationLevel } from "@/types/database";
@@ -74,6 +76,44 @@ describe("levelUsesDepartments", () => {
     expect(levelUsesDepartments("university")).toBe(true);
     expect(levelUsesDepartments("primary")).toBe(false);
     expect(levelUsesDepartments("secondary")).toBe(false);
+  });
+});
+
+describe("levelRegistrationNoun", () => {
+  it("calls secondary-school students Admissions", () => {
+    for (const level of ["nursery", "primary", "secondary"] as const) {
+      expect(levelRegistrationNoun(level)).toBe("Admission no.");
+    }
+  });
+
+  it("calls college and above students Registrations", () => {
+    for (const level of HIGHER_EDUCATION_LEVELS) {
+      expect(levelRegistrationNoun(level)).toBe("Registration no.");
+    }
+  });
+
+  it("falls back to the secondary-school noun for a missing level", () => {
+    expect(levelRegistrationNoun(null)).toBe("Admission no.");
+    expect(levelRegistrationNoun(undefined)).toBe("Admission no.");
+  });
+});
+
+describe("levelTermNoun", () => {
+  it("calls nursery through secondary terms Term", () => {
+    for (const level of ["nursery", "primary", "secondary"] as const) {
+      expect(levelTermNoun(level)).toBe("Term");
+    }
+  });
+
+  it("calls college and above semesters Semester", () => {
+    for (const level of HIGHER_EDUCATION_LEVELS) {
+      expect(levelTermNoun(level)).toBe("Semester");
+    }
+  });
+
+  it("falls back to the term noun for a missing level", () => {
+    expect(levelTermNoun(null)).toBe("Term");
+    expect(levelTermNoun(undefined)).toBe("Term");
   });
 });
 

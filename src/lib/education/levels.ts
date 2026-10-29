@@ -140,6 +140,27 @@ export function levelStaffNoun(
   return getLevelDefinition(level).staffNoun;
 }
 
+/**
+ * What this level calls a student's registration number: "Admission no." from
+ * nursery up to secondary, "Registration no." from college and above.
+ */
+export function levelRegistrationNoun(
+  level: EducationLevel | null | undefined,
+): string {
+  return levelOffersCourses(level) ? "Registration no." : "Admission no.";
+}
+
+/**
+ * What this level calls a term: "Term" from nursery up to secondary, "Semester"
+ * from college and above. Secondary schools write terms; higher education
+ * writes semesters, and the two are not interchangeable on a report card.
+ */
+export function levelTermNoun(
+  level: EducationLevel | null | undefined,
+): string {
+  return levelOffersCourses(level) ? "Semester" : "Term";
+}
+
 /** Post-secondary levels: college, polytechnic and university. */
 export const HIGHER_EDUCATION_LEVELS: readonly EducationLevel[] = [
   "college",

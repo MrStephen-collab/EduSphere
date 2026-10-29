@@ -25,12 +25,15 @@ import { getStudentAssignments, type StudentAssignmentItem } from "@/services/as
 import { getStudentAnnouncements } from "@/services/announcements";
 import { getStudentProgress } from "@/services/progress";
 import { getStudentExamSeries } from "@/services/exam";
-import { getSchoolLevel } from "@/services/schools";
+import { getSchoolLevel, getCurrentAcademicPeriod } from "@/services/schools";
+import { getStudentBalance } from "@/services/fees";
+import { getStudentProfile } from "@/services/profile";
 import { levelOffersCourses } from "@/lib/education/levels";
 import { getServerData } from "@/lib/server-cache";
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { WelcomeHeader } from "@/components/dashboard/welcome-header";
+import { StudentOverviewCard } from "@/components/dashboard/student-overview-card";
 import { ProgressBar } from "@/components/dashboard/progress-bar";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import {
@@ -52,7 +55,7 @@ async function getStudentDashboardBundle() {
   const { schoolId, studentId, classId } = await requireStudent();
   return getServerData(`dash:student:${schoolId}:${studentId}`, 20_000, async () => {
     const supabase = await createSupabaseServerClient();
-    const [coursesRes, assignments, continueItem, announcements, progress, courses, examSeries, level] =
+    const [coursesRes, assignments, continueItem, announcements, progress, courses, examSeries, level, profile, balance, period] =
       await Promise.all([
         supabase
           .from("courses")
@@ -66,6 +69,9 @@ async function getStudentDashboardBundle() {
         getStudentCourses(schoolId, studentId, classId),
         getStudentExamSeries(schoolId, studentId),
         getSchoolLevel(schoolId),
+        getStudentProfile(schoolId, studentId),
+        getStudentBalance(schoolId, studentId),
+        getCurrentAcademicPeriod(schoolId),
       ]);
     return {
       // "Courses" is college-and-above wording; nursery through secondary
@@ -79,6 +85,10 @@ async function getStudentDashboardBundle() {
       progress,
       courses,
       examSeries,
+      level,
+      profile,
+      balance,
+      period,
     };
   });
 }
@@ -169,6 +179,20 @@ async function StudentDashboardContent() {
           hint="Consecutive active days"
         />
       </div>
+
+      {bundle.profile && bundle.period && bundle.balance ? (
+        <StudentOverviewCard
+          displayName={bundle.profile.displayName}
+          admissionNumber={bundle.profile.admissionNumber}
+          className={bundle.profile.className}
+          streamName={bundle.profile.streamName}
+          level={bundle.level}
+          sessionName={bundle.period.session?.name ?? null}
+          termName={bundle.period.term?.name ?? null}
+          outstanding={bundle.balance.outstanding}
+          currency={bundle.balance.currency}
+        />
+      ) : null}
 
       <AnnouncementBanner announcements={bundle.announcements} className="mt-5" />
 

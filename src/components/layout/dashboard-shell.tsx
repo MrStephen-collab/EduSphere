@@ -104,7 +104,7 @@ const navFor = (
         })),
         profileHref: "/student/profile",
         bottom: [
-          { title: "Home", href: "/student", icon: "home" },
+          { title: "Dashboard", href: "/student", icon: "home" },
           { title: "Learn", href: "/student/courses", icon: "courses" },
           { title: "Tests", href: "/student/exam-series", icon: "examinations" },
           { title: "Results", href: "/student/results", icon: "results" },

@@ -48,6 +48,47 @@ export async function getSchoolLevel(
   return isEducationLevel(level) ? level : null;
 }
 
+export type AcademicPeriod = {
+  session: { id: string; name: string } | null;
+  term: { id: string; name: string } | null;
+};
+
+/**
+ * The academic session and term that are current for a school.
+ *
+ * Read on the calling session's client (students included), so it answers for
+ * the school rather than for the school admin who writes the current term.
+ * Nulls are returned rather than thrown: a school that has not opened an
+ * academic year yet simply has no period to show, and the dashboard card should
+ * render the blanks instead of erroring.
+ */
+export async function getCurrentAcademicPeriod(
+  schoolId: string,
+): Promise<AcademicPeriod> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("academic_sessions")
+    .select("id, name, is_current, terms(id, name, is_current)")
+    .eq("school_id", schoolId)
+    .order("is_current", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw new Error(error.message);
+  const session = (data as { id: string; name: string; is_current: boolean; terms: unknown[] | null }[] | null)?.[0];
+
+  if (!session) return { session: null, term: null };
+
+  const terms = (session.terms ?? []) as { id: string; name: string; is_current: boolean }[];
+  const term =
+    terms.find((t) => t.is_current) ?? terms[0] ?? null;
+
+  return {
+    session: { id: session.id, name: session.name },
+    term: term ? { id: term.id, name: term.name } : null,
+  };
+}
+
 /**
  * Sets a school's education level.
  *
