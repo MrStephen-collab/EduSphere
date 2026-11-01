@@ -251,6 +251,19 @@ export async function getAdmissionApplications(
 /** Counts for the inbox header. */
 export async function getAdmissionCounts(): Promise<Record<string, number>> {
   const { schoolId } = await requireSchoolAdmin();
+  return countAdmissions(schoolId);
+}
+
+/**
+ * Admission application counts by status for one school.
+ *
+ * Split out of `getAdmissionCounts` so a dashboard that has already established
+ * school-staff access (and may be serving a principal, whom `requireSchoolAdmin`
+ * rejects) can read the same numbers without the manager-only gate.
+ */
+export async function countAdmissions(
+  schoolId: string,
+): Promise<Record<string, number>> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("admission_applications")

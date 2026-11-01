@@ -840,6 +840,61 @@ export async function confirmFeePayment(reference: string): Promise<FeeConfirmRe
 // School view
 // ---------------------------------------------------------------------------
 
+export type SchoolFeeHeadline = {
+  invoiced: number;
+  collected: number;
+  outstanding: number;
+  overdueCount: number;
+  /** Currency of the school's invoices; Naira when none have been raised. */
+  currency: string;
+};
+
+/**
+ * The school's fee headline, for a dashboard card.
+ *
+ * One read of the invoice scalars and no ledger: the dashboard needs "collected"
+ * and "outstanding", not the queue. The figures are computed exactly as the fees
+ * page does, so the card and the page can never disagree.
+ *
+ * Trusts its caller to have verified school-staff access — it reads with the
+ * service role so it also works for a principal, whom `requireSchoolAdmin`
+ * would turn away.
+ */
+export async function getSchoolFeeHeadline(
+  schoolId: string,
+): Promise<SchoolFeeHeadline> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("fee_invoices")
+    .select("amount, amount_paid, status, due_date, currency")
+    .eq("school_id", schoolId);
+
+  if (error) throw new Error(error.message);
+
+  const invoices = (data ?? []) as Pick<
+    FeeInvoice,
+    "amount" | "amount_paid" | "status" | "due_date" | "currency"
+  >[];
+  const payable = invoices.filter((invoice) => isPayableStatus(invoice.status));
+  const today = new Date().toISOString().slice(0, 10);
+
+  return {
+    invoiced: roundMoney(
+      invoices.reduce((sum, invoice) => sum + Number(invoice.amount), 0),
+    ),
+    collected: roundMoney(
+      invoices.reduce((sum, invoice) => sum + Number(invoice.amount_paid), 0),
+    ),
+    outstanding: roundMoney(
+      payable.reduce((sum, invoice) => sum + outstandingFor(invoice), 0),
+    ),
+    overdueCount: payable.filter(
+      (invoice) => invoice.due_date !== null && invoice.due_date < today,
+    ).length,
+    currency: invoices.find((invoice) => invoice.currency)?.currency ?? "NGN",
+  };
+}
+
 export async function getSchoolFees(): Promise<{
   stats: SchoolFeeStats;
   reviewQueue: SchoolFeeReviewRow[];

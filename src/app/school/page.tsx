@@ -10,15 +10,20 @@ import {
   CheckCircle2,
   ChevronRight,
   HeartHandshake,
+  Wallet,
+  FileText,
 } from "lucide-react";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { getServerData } from "@/lib/server-cache";
+import { formatNaira } from "@/lib/fee-labels";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { WelcomeHeader } from "@/components/dashboard/welcome-header";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import { ImportantAlerts } from "@/components/dashboard/important-alerts";
 import { getSchoolAlerts } from "@/services/school-alerts";
+import { getSchoolFeeHeadline } from "@/services/fees";
+import { countAdmissions } from "@/services/admissions";
 import { Card, CardContent } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
@@ -67,11 +72,30 @@ async function getSchoolDashboardCounts(schoolId: string | undefined): Promise<S
   });
 }
 
+/**
+ * The two money/recruitment numbers on the dashboard.
+ *
+ * Money in and applications awaiting a decision are the two things an admin
+ * checks every morning and neither had a home on this page. Both reads are
+ * scoped to the caller's school by id, and both services read with the service
+ * role, so the cards behave the same for an owner, an admin and a principal.
+ */
+async function getSchoolDashboardPulse(schoolId: string | undefined) {
+  if (!schoolId) return null;
+  return getServerData(`dash:school-pulse:${schoolId}`, 15_000, async () => {
+    const [fees, applications] = await Promise.all([
+      getSchoolFeeHeadline(schoolId),
+      countAdmissions(schoolId),
+    ]);
+    return { fees, applications };
+  });
+}
+
 function SchoolDashboardSkeleton() {
   return (
     <>
-      <div className="grid grid-cols-2 gap-3">
-        {[0, 1].map((i) => (
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
           <StatCardSkeleton key={i} index={i} />
         ))}
       </div>
@@ -95,10 +119,20 @@ async function SchoolDashboardContent({
   welcome: boolean;
   schoolName: string | undefined;
 }) {
-  const [counts, alerts] = await Promise.all([
+  const [counts, alerts, pulse] = await Promise.all([
     getSchoolDashboardCounts(schoolId),
     schoolId ? getSchoolAlerts(schoolId) : Promise.resolve(null),
+    getSchoolDashboardPulse(schoolId),
   ]);
+
+  const fees = pulse?.fees ?? null;
+  const applications = pulse?.applications ?? null;
+  // Everything before an offer (or a rejection) still needs a decision.
+  const pendingApplications = applications
+    ? (applications.submitted ?? 0) +
+      (applications.under_review ?? 0) +
+      (applications.entrance ?? 0)
+    : 0;
 
   const setupSteps = [
     { label: "Create an academic session", done: counts.sessions > 0, href: "/school/sessions" },
@@ -118,9 +152,35 @@ async function SchoolDashboardContent({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard title="Students" value={counts.students} icon={Users} href="/school/students" tone="emerald" />
         <StatCard title="Teachers" value={counts.teachers} icon={GraduationCap} href="/school/teachers" tone="sky" index={1} />
+        <StatCard
+          title="Fees collected"
+          value={fees ? formatNaira(fees.collected, fees.currency) : "—"}
+          icon={Wallet}
+          href="/school/fees"
+          tone="emerald"
+          index={2}
+          hint={
+            fees
+              ? `${formatNaira(fees.outstanding, fees.currency)} outstanding`
+              : "No invoices yet"
+          }
+        />
+        <StatCard
+          title="Applications"
+          value={pendingApplications}
+          icon={FileText}
+          href="/school/admissions"
+          tone="fuchsia"
+          index={3}
+          hint={
+            applications
+              ? `${applications.all ?? 0} in total · awaiting decision`
+              : "No applications yet"
+          }
+        />
       </div>
 
       {alerts && (

@@ -118,7 +118,7 @@ export function StatCard({
       </div>
       <div
         className={cn(
-          "mt-2.5 bg-gradient-to-r bg-clip-text font-bold leading-none tracking-tight tabular-nums text-transparent",
+          "mt-2.5 truncate bg-gradient-to-r bg-clip-text font-bold leading-none tracking-tight tabular-nums text-transparent",
           compact ? "text-lg sm:text-xl lg:text-2xl" : "text-xl lg:text-2xl",
           styles.value,
         )}
