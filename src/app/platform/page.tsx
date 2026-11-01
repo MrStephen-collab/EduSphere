@@ -70,7 +70,7 @@ async function PlatformDashboardContent() {
         description="Schools that recently joined the platform"
         defaultOpen
       >
-        <Card className="animate-card-enter" style={{ animationDelay: "240ms" }}>
+        <Card tone="sky" className="animate-card-enter" style={{ animationDelay: "240ms" }}>
           <CardContent className="grid gap-1.5">
             {data.recentSchools.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -99,7 +99,7 @@ async function PlatformDashboardContent() {
         title="Plan distribution"
         description="Active subscriptions by plan"
       >
-        <Card className="animate-card-enter" style={{ animationDelay: "320ms" }}>
+        <Card tone="indigo" className="animate-card-enter" style={{ animationDelay: "320ms" }}>
           <CardContent className="grid gap-2">
             {data.planDistribution.length === 0 ? (
               <p className="text-sm text-muted-foreground">

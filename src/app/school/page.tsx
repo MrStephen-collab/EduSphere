@@ -135,7 +135,7 @@ async function SchoolDashboardContent({
         description={`${setupDone} of ${setupSteps.length} steps complete`}
         defaultOpen
       >
-        <Card className="animate-card-enter" style={{ animationDelay: "200ms" }}>
+        <Card tone="emerald" className="animate-card-enter" style={{ animationDelay: "200ms" }}>
           <CardContent>
             <ul className="grid gap-1.5">
               {setupSteps.map((step) => (
@@ -166,7 +166,7 @@ async function SchoolDashboardContent({
         title="Quick actions"
         description="Common things you do every day"
       >
-        <Card className="animate-card-enter" style={{ animationDelay: "280ms" }}>
+        <Card tone="indigo" className="animate-card-enter" style={{ animationDelay: "280ms" }}>
           <CardContent>
             <div className="grid gap-1.5 sm:grid-cols-2">
               {QUICK_ACTIONS.map((action) => (

@@ -136,7 +136,7 @@ async function TeacherDashboardContent() {
         defaultOpen
       >
       <div className="grid gap-3 lg:grid-cols-2">
-        <Card className="animate-card-enter" style={{ animationDelay: "220ms" }}>
+        <Card tone="rose" className="animate-card-enter" style={{ animationDelay: "220ms" }}>
           <CardHeader>
             <CardTitle>Needs grading</CardTitle>
             <CardDescription>Submissions waiting for your feedback</CardDescription>
@@ -180,7 +180,7 @@ async function TeacherDashboardContent() {
           </CardContent>
         </Card>
 
-        <Card className="animate-card-enter" style={{ animationDelay: "300ms" }}>
+        <Card tone="sky" className="animate-card-enter" style={{ animationDelay: "300ms" }}>
           <CardHeader>
             <CardTitle>My classes</CardTitle>
             <CardDescription>Classes you teach this term</CardDescription>
@@ -230,7 +230,7 @@ async function TeacherDashboardContent() {
             : "Add lessons for your classes, set work, and keep an eye on submissions."
         }
       >
-      <Card className="animate-card-enter" style={{ animationDelay: "380ms" }}>
+      <Card tone="indigo" className="animate-card-enter" style={{ animationDelay: "380ms" }}>
         <CardContent className="grid gap-2 sm:grid-cols-2">
           {bundle.offersCourses && (
             <>

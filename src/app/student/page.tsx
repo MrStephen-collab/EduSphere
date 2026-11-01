@@ -42,6 +42,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  type CardTone,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
@@ -50,6 +51,18 @@ export const metadata: Metadata = {
   title: "Student dashboard",
   robots: { index: false, follow: false },
 };
+
+// Lesson tiles cycle through the accent palette, so a grid of them does not
+// read as a wall of identical white cards. The order walks the brand's cool
+// colours first, then the warmer accents.
+const CARD_TONE_CYCLE: readonly CardTone[] = [
+  "cyan",
+  "violet",
+  "teal",
+  "blue",
+  "fuchsia",
+  "emerald",
+];
 
 async function getStudentDashboardBundle() {
   const { schoolId, studentId, classId } = await requireStudent();
@@ -203,7 +216,7 @@ async function StudentDashboardContent() {
         defaultOpen
       >
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <Card className="animate-card-enter" style={{ animationDelay: "220ms" }}>
+        <Card tone="sky" className="animate-card-enter" style={{ animationDelay: "220ms" }}>
           <CardHeader>
             <CardTitle>Continue Learning</CardTitle>
             <CardDescription>Pick up where you left off</CardDescription>
@@ -250,7 +263,7 @@ async function StudentDashboardContent() {
           </CardContent>
         </Card>
 
-        <Card className="animate-card-enter" style={{ animationDelay: "300ms" }}>
+        <Card tone="amber" className="animate-card-enter" style={{ animationDelay: "300ms" }}>
           <CardHeader>
             <CardTitle>Upcoming Deadlines</CardTitle>
             <CardDescription>Assignments that still need you</CardDescription>
@@ -317,9 +330,12 @@ async function StudentDashboardContent() {
       >
         {myCourses.length > 0 ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {myCourses.map((course) => (
+            {myCourses.map((course, index) => (
               <Link key={course.id} href={`/student/courses/${course.id}`} className="group min-w-0">
-                <Card className="h-full transition-shadow hover:shadow-card">
+                <Card
+                  tone={CARD_TONE_CYCLE[index % CARD_TONE_CYCLE.length]}
+                  className="h-full transition-shadow hover:shadow-card"
+                >
                   <CardContent className="grid grid-cols-1 gap-3 p-4">
                     <div className="flex min-w-0 items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -373,9 +389,12 @@ async function StudentDashboardContent() {
           }
         >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {practiceExams.map((series) => (
+            {practiceExams.map((series, index) => (
               <Link key={series.id} href={`/student/exam-series/${series.id}`} className="group min-w-0">
-                <Card className="h-full transition-shadow hover:shadow-card">
+                <Card
+                  tone={index % 2 === 0 ? "fuchsia" : "violet"}
+                  className="h-full transition-shadow hover:shadow-card"
+                >
                   <CardContent className="grid grid-cols-1 gap-2 p-4">
                     <p className="truncate font-medium group-hover:text-primary">{series.title}</p>
                     <p className="text-xs text-muted-foreground">

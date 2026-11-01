@@ -68,7 +68,7 @@ export function StudentOverviewCard({
   const outstandingTint = outstanding > 0 ? "text-destructive" : "text-success";
 
   return (
-    <Card>
+    <Card tone="indigo">
       <CardHeader>
         <CardTitle className="text-base">{displayName}</CardTitle>
         <CardDescription>

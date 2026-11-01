@@ -18,7 +18,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { WelcomeHeader } from "@/components/dashboard/welcome-header";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, type CardTone } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
@@ -26,6 +26,10 @@ export const metadata: Metadata = {
   title: "Parent dashboard",
   robots: { index: false, follow: false },
 };
+
+// Each child gets their own accent, so a parent with several children can tell
+// the cards apart at a glance.
+const CHILD_TONES: readonly CardTone[] = ["indigo", "sky", "violet", "teal", "fuchsia", "emerald"];
 
 function avg(values: (number | null)[]): number | null {
   const valid = values.filter((v): v is number => v != null);
@@ -110,8 +114,8 @@ async function ParentDashboardContent() {
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {rows.map(({ child, data }) => (
-            <Card key={child.studentId}>
+          {rows.map(({ child, data }, index) => (
+            <Card key={child.studentId} tone={CHILD_TONES[index % CHILD_TONES.length]}>
               <CardContent className="grid gap-3 pt-4">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
