@@ -6,7 +6,8 @@ import {
   type LearningAccessDecision,
 } from "@/lib/fee-gate";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireSchoolAdmin } from "@/services/shared";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireFeeOfficer } from "@/services/shared";
 
 /**
  * Reads a school's fee gate and a student's standing under it.
@@ -79,15 +80,18 @@ export async function getStudentLearningAccess(
 export async function setSchoolLearningThreshold(
   input: { schoolId: string; thresholdPct: number | string },
 ): Promise<{ thresholdPct: number }> {
-  const { schoolId } = await requireSchoolAdmin();
+  const { schoolId } = await requireFeeOfficer();
   if (schoolId !== input.schoolId) {
     throw new Error("You can only change this for your own school.");
   }
 
   const thresholdPct = normaliseThreshold(input.thresholdPct);
-  const supabase = await createSupabaseServerClient();
+  // The schools write policy names school admins only, and a principal is a
+  // legitimate fee officer. The guard above plus the school-id check scope this
+  // to their own school.
+  const admin = createAdminClient();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("schools")
     .update({ learning_access_threshold_pct: thresholdPct })
     .eq("id", schoolId);

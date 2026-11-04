@@ -60,6 +60,52 @@ export function isManagerRole(
   return !!role && (MANAGER_ROLES as readonly string[]).includes(role);
 }
 
+/**
+ * Roles that may run the school's fee desk.
+ *
+ * Owners and admins always could. A principal is the official a small school
+ * leans on for bursary work, and the fees menu was already shown to them while
+ * every fee route bounced them back to the dashboard — this closes that gap.
+ * Nothing else about the principal role changes.
+ */
+const FEE_OFFICER_ROLES = ["SCHOOL_OWNER", "SCHOOL_ADMIN", "PRINCIPAL"] as const;
+
+export type FeeOfficerContext = SchoolAdminContext & {
+  role: (typeof FEE_OFFICER_ROLES)[number];
+};
+
+/**
+ * Enforces that the caller is allowed to see and act on school fees.
+ *
+ * The money queries downstream run with the service role (scoped to
+ * `schoolId`), because the row-level policies on fee tables only name school
+ * admins. Keeping the check here — in one place — is what stops a principal
+ * from seeing a different school's ledger, or a teacher from touching it at all.
+ */
+export async function requireFeeOfficer(): Promise<FeeOfficerContext> {
+  const context = await getAuthContext();
+
+  if (!context.user) {
+    redirect("/auth/login");
+  }
+
+  const membership = context.memberships.find((m) =>
+    (FEE_OFFICER_ROLES as readonly string[]).includes(m.role),
+  );
+
+  if (!membership) {
+    redirect("/school");
+  }
+
+  return {
+    context,
+    userId: context.user.id,
+    schoolId: membership.school.id,
+    schoolName: membership.school.name,
+    role: membership.role as (typeof FEE_OFFICER_ROLES)[number],
+  };
+}
+
 const CONTENT_EDITOR_ROLES = ["SCHOOL_OWNER", "SCHOOL_ADMIN", "TEACHER"] as const;
 
 export type ContentEditorContext = SchoolAdminContext & {

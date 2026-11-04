@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AlertCircle, Inbox, Receipt, Wallet } from "lucide-react";
-import { requireSchoolAdmin } from "@/services/shared";
+import { requireFeeOfficer } from "@/services/shared";
 import { getClasses, getSchoolTerms } from "@/services/academics";
 import { getStudents } from "@/services/people";
 import { getSchoolFees } from "@/services/fees";
@@ -48,7 +48,7 @@ function initials(name: string | null | undefined): string {
 }
 
 export default async function SchoolFeesPage() {
-  const { schoolId } = await requireSchoolAdmin();
+  const { schoolId } = await requireFeeOfficer();
 
   const [{ stats, reviewQueue, invoices }, classes, terms, students, learningThreshold] =
     await Promise.all([

@@ -6,7 +6,7 @@ import { asArray } from "@/lib/embed";
 import { getAuthContext } from "@/lib/auth/auth-context";
 import { requireParent } from "@/services/parent";
 import { requireStudent } from "@/services/learning";
-import { requireSchoolAdmin } from "@/services/shared";
+import { requireFeeOfficer } from "@/services/shared";
 import { isPaystackConfigured, initializePayment, verifyPayment } from "@/lib/paystack";
 import {
   applyApproval,
@@ -856,9 +856,8 @@ export type SchoolFeeHeadline = {
  * and "outstanding", not the queue. The figures are computed exactly as the fees
  * page does, so the card and the page can never disagree.
  *
- * Trusts its caller to have verified school-staff access — it reads with the
- * service role so it also works for a principal, whom `requireSchoolAdmin`
- * would turn away.
+ * Trusts its caller to have verified fee access — it reads with the service
+ * role so it also works for a principal, whom `requireFeeOfficer` admits.
  */
 export async function getSchoolFeeHeadline(
   schoolId: string,
@@ -900,8 +899,10 @@ export async function getSchoolFees(): Promise<{
   reviewQueue: SchoolFeeReviewRow[];
   invoices: InvoiceWithStudent[];
 }> {
-  const { schoolId } = await requireSchoolAdmin();
-  const supabase = await createSupabaseServerClient();
+  const { schoolId } = await requireFeeOfficer();
+  // Service role, scoped to the caller's school below: a principal may run the
+  // fee desk but the fee tables' RLS names only school admins.
+  const supabase = createAdminClient();
 
   // Three reads with different shapes, deliberately:
   //  - every invoice, bare scalar columns, to total the school's money exactly;
@@ -983,7 +984,7 @@ export async function getSchoolFees(): Promise<{
 
 /** Issues a single one-off invoice to one child. */
 export async function issueFeeInvoice(input: FeeIssueInput): Promise<{ invoiceId: string }> {
-  const { schoolId, userId } = await requireSchoolAdmin();
+  const { schoolId, userId } = await requireFeeOfficer();
   const parsed = feeIssueSchema.parse(input);
 
   const admin = createAdminClient();
@@ -1053,7 +1054,7 @@ export async function issueFeeInvoice(input: FeeIssueInput): Promise<{ invoiceId
 export async function generateTermInvoices(
   input: FeeGenerateInput,
 ): Promise<{ created: number; skipped: number }> {
-  const { schoolId, userId } = await requireSchoolAdmin();
+  const { schoolId, userId } = await requireFeeOfficer();
   const parsed = feeGenerateSchema.parse(input);
 
   const admin = createAdminClient();
@@ -1143,7 +1144,7 @@ export async function generateTermInvoices(
 
 /** Cancels an invoice that was raised in error. Keeps the row for the record. */
 export async function voidFeeInvoice(invoiceId: string): Promise<void> {
-  const { schoolId } = await requireSchoolAdmin();
+  const { schoolId } = await requireFeeOfficer();
   const admin = createAdminClient();
 
   const { data: invoice } = await admin
@@ -1191,7 +1192,7 @@ export async function reviewFeePayment(input: {
   decision: "approve" | "reject";
   note?: string | null;
 }): Promise<{ credited: number; uncredited: number }> {
-  const { schoolId, userId } = await requireSchoolAdmin();
+  const { schoolId, userId } = await requireFeeOfficer();
   const parsed = feeReviewSchema.parse(input);
 
   const admin = createAdminClient();
