@@ -23,7 +23,14 @@ function isActive(href: string, pathname: string): boolean {
   return false;
 }
 
-export function SidebarNav({ sections }: { sections: NavSection[] }) {
+export function SidebarNav({
+  sections,
+  onNavigate,
+}: {
+  sections: NavSection[];
+  /** Called after a destination is chosen, so a drawer can close itself. */
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
 
   const pinned: NavItem[] = [];
@@ -43,24 +50,38 @@ export function SidebarNav({ sections }: { sections: NavSection[] }) {
       {pinned.length > 0 && (
         <div className="flex flex-col gap-1">
           {pinned.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} />
+            <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
           ))}
         </div>
       )}
       {groups.map((group) => (
-        <NavGroup key={group.label ?? "group"} group={group} pathname={pathname} />
+        <NavGroup
+          key={group.label ?? "group"}
+          group={group}
+          pathname={pathname}
+          onNavigate={onNavigate}
+        />
       ))}
     </nav>
   );
 }
 
-function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+function NavLink({
+  item,
+  pathname,
+  onNavigate,
+}: {
+  item: NavItem;
+  pathname: string;
+  onNavigate?: () => void;
+}) {
   const Icon = navIcons[item.icon];
   const active = isActive(item.href, pathname);
 
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       className={cn(
         "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
         active
@@ -80,7 +101,15 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
-function NavGroup({ group, pathname }: { group: NavSection; pathname: string }) {
+function NavGroup({
+  group,
+  pathname,
+  onNavigate,
+}: {
+  group: NavSection;
+  pathname: string;
+  onNavigate?: () => void;
+}) {
   // On refresh every group starts collapsed except the one holding the current
   // page, so the sidebar unextends but you still see where you are. State is
   // not persisted: the next refresh re-applies the same rule.
@@ -109,7 +138,12 @@ function NavGroup({ group, pathname }: { group: NavSection; pathname: string }) 
       {open && (
         <div className="flex flex-col gap-1 pt-0.5">
           {group.items.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} />
+            <NavLink
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
           ))}
         </div>
       )}

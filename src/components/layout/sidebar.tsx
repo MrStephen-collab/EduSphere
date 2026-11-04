@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
-import { CircleHelp, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "cn";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EduSphereLogo, LogoMark } from "@/components/brand/logo";
-import { siteConfig } from "@/config/site";
 import type { NavItem, NavSection } from "@/config/nav";
 import { navIcons } from "@/config/nav";
+import { SidebarAccount } from "./sidebar-account";
 import { SidebarNav } from "./sidebar-nav";
 
 const PINNED_TITLES = new Set(["Dashboard", "Home"]);
@@ -108,7 +107,7 @@ export function Sidebar({
       className={cn(
         "sticky top-0 hidden h-dvh shrink-0 flex-col border-r bg-card/60 lg:flex",
         "transition-[width] duration-200 ease-out",
-        collapsed ? "w-[76px]" : "w-64",
+        collapsed ? "w-[68px]" : "w-56",
       )}
     >
       <div
@@ -172,45 +171,15 @@ export function Sidebar({
         )}
       </div>
 
-      <div className={cn("shrink-0 border-t", collapsed ? "p-2" : "p-3")}>
-        <a
-          href={`mailto:${siteConfig.supportEmail}`}
-          title="Help & support"
-          className={cn(
-            "flex items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-            collapsed ? "justify-center py-2" : "px-3 py-2",
-          )}
-        >
-          <CircleHelp className="size-4 shrink-0" aria-hidden="true" />
-          {!collapsed && "Help & support"}
-        </a>
-
-        <Link
-          href={profileHref ?? "/dashboard"}
-          title={userName ?? "Account"}
-          className={cn(
-            "mt-1 flex items-center gap-3 rounded-lg transition-colors hover:bg-muted",
-            collapsed ? "justify-center py-2" : "p-2",
-          )}
-        >
-          <Avatar className="size-8 shrink-0">
-            {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate text-sm font-medium">
-                {userName ?? "Account"}
-              </span>
-              {(roleLabel || schoolName) && (
-                <span className="truncate text-xs text-muted-foreground">
-                  {roleLabel ?? schoolName}
-                </span>
-              )}
-            </span>
-          )}
-        </Link>
-      </div>
+      <SidebarAccount
+        collapsed={collapsed}
+        avatarUrl={avatarUrl}
+        initials={initials}
+        userName={userName}
+        roleLabel={roleLabel}
+        schoolName={schoolName}
+        profileHref={profileHref}
+      />
     </aside>
   );
 }

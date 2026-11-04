@@ -28,6 +28,7 @@ import { EduSphereLogo } from "@/components/brand/logo";
 import { logoutAction } from "@/lib/auth/actions";
 import { siteConfig } from "@/config/site";
 import type { NavSection } from "@/config/nav";
+import { SidebarAccount } from "./sidebar-account";
 import { SidebarNav } from "./sidebar-nav";
 
 export function Header({
@@ -78,14 +79,23 @@ export function Header({
           >
             <Menu className="size-5" />
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
+          <SheetContent side="left" className="w-64 gap-0 p-0">
             <SheetHeader className="flex h-16 flex-row items-center gap-3 border-b px-5 text-left">
               <EduSphereLogo variant="icon" size="md" className="shrink-0" />
               <SheetTitle>EduSphere</SheetTitle>
             </SheetHeader>
-            <div className="overflow-y-auto">
-              <SidebarNav sections={sections} />
+            <div className="flex-1 overflow-y-auto">
+              <SidebarNav sections={sections} onNavigate={() => setOpen(false)} />
             </div>
+            <SidebarAccount
+              avatarUrl={avatarUrl}
+              initials={initials}
+              userName={userName}
+              roleLabel={roleLabel}
+              schoolName={schoolName}
+              profileHref={profileHref}
+              onNavigate={() => setOpen(false)}
+            />
           </SheetContent>
         </Sheet>
       </div>
