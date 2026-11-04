@@ -68,11 +68,11 @@ export function StudentOverviewCard({
 
   return (
     <Card tone="indigo">
-      <CardContent className="grid gap-3 p-3 sm:flex sm:items-center sm:gap-5">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <Avatar className="size-10 shrink-0 ring-2 ring-primary/15">
+      <CardContent className="grid gap-2.5 p-3 sm:flex sm:items-center sm:gap-5">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <Avatar className="size-9 shrink-0 ring-2 ring-primary/15">
             {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
-            <AvatarFallback className="text-xs font-semibold">
+            <AvatarFallback className="text-[11px] font-semibold">
               {initialsOf(displayName)}
             </AvatarFallback>
           </Avatar>
@@ -80,37 +80,48 @@ export function StudentOverviewCard({
             <p className="truncate text-sm font-semibold leading-tight">
               {displayName}
             </p>
-            <p className="truncate text-[11px] leading-tight text-muted-foreground">
-              {levelRegistrationNoun(level)} {admissionNumber || "—"}
-              {className ? ` · ${className}` : ""}
-              {streamName ? ` · ${streamName}` : ""}
-              {` · ${levelLabel}`}
+            {/* Two short lines on a phone instead of one that truncates the
+                class or the level; back to a single line from `sm` up. */}
+            <p className="text-[10px] leading-tight text-muted-foreground sm:text-[11px]">
+              <span className="block truncate sm:inline">
+                {levelRegistrationNoun(level)} {admissionNumber || "—"}
+              </span>
+              <span className="hidden sm:inline"> · </span>
+              <span className="block truncate sm:inline">
+                {className ? className : "No class"}
+                {streamName ? ` · ${streamName}` : ""}
+                {` · ${levelLabel}`}
+              </span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-end justify-between gap-4 sm:items-center sm:gap-6">
+        <div className="grid grid-cols-3 items-end gap-x-2 gap-y-1 sm:flex sm:items-center sm:gap-6">
           {facts.map((fact) => (
             <div key={fact.label} className="min-w-0">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="whitespace-nowrap text-[9px] font-medium uppercase tracking-wide text-muted-foreground sm:text-[10px]">
                 {fact.label}
               </p>
-              <p className="truncate text-xs font-medium">{fact.value || "—"}</p>
+              <p className="truncate text-[11px] font-medium sm:text-xs">
+                {fact.value || "—"}
+              </p>
             </div>
           ))}
 
-          <div className="text-right">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="min-w-0 text-right">
+            <p className="whitespace-nowrap text-[9px] font-medium uppercase tracking-wide text-muted-foreground sm:text-[10px]">
               Outstanding
             </p>
-            <p className={`text-sm font-semibold tabular-nums ${outstandingTint}`}>
+            <p
+              className={`whitespace-nowrap text-[13px] font-semibold tabular-nums sm:text-sm ${outstandingTint}`}
+            >
               {formatNaira(outstanding, currency)}
             </p>
           </div>
 
           <Link
             href="/student/fees"
-            className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
+            className="col-start-3 row-start-2 inline-flex items-center justify-self-end gap-1 text-[11px] font-medium text-primary underline-offset-4 hover:underline sm:text-xs"
           >
             Fees
             <ArrowRight className="size-3" aria-hidden="true" />
