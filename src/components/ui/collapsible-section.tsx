@@ -22,6 +22,7 @@ export function CollapsibleSection({
   action,
   children,
   defaultOpen = false,
+  compact = false,
   className,
   contentClassName,
 }: {
@@ -31,6 +32,8 @@ export function CollapsibleSection({
   action?: ReactNode;
   children: ReactNode;
   defaultOpen?: boolean;
+  /** A tighter header, for dashboards stacking several sections. */
+  compact?: boolean;
   className?: string;
   contentClassName?: string;
 }) {
@@ -39,7 +42,7 @@ export function CollapsibleSection({
 
   return (
     <section className={className}>
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className={cn("flex items-start justify-between gap-3", compact ? "mb-2" : "mb-3")}>
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
@@ -48,15 +51,30 @@ export function CollapsibleSection({
           className="flex min-w-0 flex-1 items-start justify-between gap-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 rounded-md"
         >
           <span className="min-w-0">
-            <span className="block text-lg font-semibold tracking-tight">{title}</span>
+            <span
+              className={cn(
+                "block font-semibold tracking-tight",
+                compact ? "text-base" : "text-lg",
+              )}
+            >
+              {title}
+            </span>
             {description ? (
-              <span className="mt-0.5 block text-sm text-muted-foreground">{description}</span>
+              <span
+                className={cn(
+                  "mt-0.5 block text-muted-foreground",
+                  compact ? "text-xs" : "text-sm",
+                )}
+              >
+                {description}
+              </span>
             ) : null}
           </span>
           <ChevronDown
             aria-hidden="true"
             className={cn(
-              "mt-0.5 size-5 shrink-0 text-muted-foreground transition-transform duration-200",
+              "mt-0.5 shrink-0 text-muted-foreground transition-transform duration-200",
+              compact ? "size-4" : "size-5",
               open && "rotate-180",
             )}
           />

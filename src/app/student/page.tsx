@@ -68,6 +68,7 @@ async function getStudentDashboardBundle() {
   const { schoolId, studentId, classId } = await requireStudent();
   return getServerData(`dash:student:${schoolId}:${studentId}`, 20_000, async () => {
     const supabase = await createSupabaseServerClient();
+    const context = await getAuthContext();
     const [coursesRes, assignments, continueItem, announcements, progress, courses, examSeries, level, profile, balance, period] =
       await Promise.all([
         supabase
@@ -102,6 +103,7 @@ async function getStudentDashboardBundle() {
       profile,
       balance,
       period,
+      avatarUrl: context.profile?.avatar_url ?? null,
     };
   });
 }
@@ -157,45 +159,10 @@ async function StudentDashboardContent() {
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
-          title={bundle.offersCourses ? "My Courses" : "My Lessons"}
-          value={bundle.courseCount}
-          icon={BookOpen}
-          href="/student/courses"
-          tone="indigo"
-        />
-        <StatCard
-          title="Pending Assignments"
-          value={bundle.pendingCount}
-          icon={ClipboardList}
-          href="/student/assignments"
-          tone="amber"
-          index={1}
-          hint="Awaiting submission or grade"
-        />
-        <StatCard
-          title="Average Score"
-          value={avgScore == null ? "—" : `${avgScore}%`}
-          icon={BarChart3}
-          href="/student/results"
-          tone="emerald"
-          index={2}
-          hint={gradedCount ? `Across ${gradedCount} graded` : "No graded work yet"}
-        />
-        <StatCard
-          title="Learning Streak"
-          value={`${streak} ${streak === 1 ? "day" : "days"}`}
-          icon={Flame}
-          tone="sky"
-          index={3}
-          hint="Consecutive active days"
-        />
-      </div>
-
       {bundle.profile && bundle.period && bundle.balance ? (
         <StudentOverviewCard
           displayName={bundle.profile.displayName}
+          avatarUrl={bundle.avatarUrl}
           admissionNumber={bundle.profile.admissionNumber}
           className={bundle.profile.className}
           streamName={bundle.profile.streamName}
@@ -207,19 +174,60 @@ async function StudentDashboardContent() {
         />
       ) : null}
 
-      <AnnouncementBanner announcements={bundle.announcements} className="mt-5" />
+      <div className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <StatCard
+          dense
+          title={bundle.offersCourses ? "My Courses" : "My Lessons"}
+          value={bundle.courseCount}
+          icon={BookOpen}
+          href="/student/courses"
+          tone="indigo"
+        />
+        <StatCard
+          dense
+          title="Pending Assignments"
+          value={bundle.pendingCount}
+          icon={ClipboardList}
+          href="/student/assignments"
+          tone="amber"
+          index={1}
+          hint="Awaiting submission or grade"
+        />
+        <StatCard
+          dense
+          title="Average Score"
+          value={avgScore == null ? "—" : `${avgScore}%`}
+          icon={BarChart3}
+          href="/student/results"
+          tone="emerald"
+          index={2}
+          hint={gradedCount ? `Across ${gradedCount} graded` : "No graded work yet"}
+        />
+        <StatCard
+          dense
+          title="Learning Streak"
+          value={`${streak} ${streak === 1 ? "day" : "days"}`}
+          icon={Flame}
+          tone="sky"
+          index={3}
+          hint="Consecutive active days"
+        />
+      </div>
+
+      <AnnouncementBanner announcements={bundle.announcements} className="mt-4" />
 
       <CollapsibleSection
-        className="mt-5"
+        className="mt-4"
         title="This week"
         description="Continue where you left off and catch what's due."
         defaultOpen
+        compact
       >
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card tone="sky" className="animate-card-enter" style={{ animationDelay: "220ms" }}>
           <CardHeader>
-            <CardTitle>Continue Learning</CardTitle>
-            <CardDescription>Pick up where you left off</CardDescription>
+            <CardTitle className="text-sm">Continue Learning</CardTitle>
+            <CardDescription className="text-xs">Pick up where you left off</CardDescription>
           </CardHeader>
           <CardContent>
             {bundle.continueItem ? (
@@ -265,8 +273,8 @@ async function StudentDashboardContent() {
 
         <Card tone="amber" className="animate-card-enter" style={{ animationDelay: "300ms" }}>
           <CardHeader>
-            <CardTitle>Upcoming Deadlines</CardTitle>
-            <CardDescription>Assignments that still need you</CardDescription>
+            <CardTitle className="text-sm">Upcoming Deadlines</CardTitle>
+            <CardDescription className="text-xs">Assignments that still need you</CardDescription>
           </CardHeader>
           <CardContent>
             {upcoming.length > 0 ? (
@@ -317,26 +325,27 @@ async function StudentDashboardContent() {
       </CollapsibleSection>
 
       <CollapsibleSection
-        className="mt-6"
+        className="mt-5"
+        compact
         title={bundle.offersCourses ? "My Courses" : "My Lessons"}
         action={
           <Link
             href="/student/courses"
-            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+            className="text-xs font-medium text-primary underline-offset-4 hover:underline"
           >
             View all
           </Link>
         }
       >
         {myCourses.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {myCourses.map((course, index) => (
               <Link key={course.id} href={`/student/courses/${course.id}`} className="group min-w-0">
                 <Card
                   tone={CARD_TONE_CYCLE[index % CARD_TONE_CYCLE.length]}
                   className="h-full transition-shadow hover:shadow-card"
                 >
-                  <CardContent className="grid grid-cols-1 gap-3 p-4">
+                  <CardContent className="grid grid-cols-1 gap-2 p-3">
                     <div className="flex min-w-0 items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate font-medium group-hover:text-primary">{course.title}</p>
@@ -377,25 +386,26 @@ async function StudentDashboardContent() {
 
       {practiceExams.length > 0 && (
         <CollapsibleSection
-          className="mt-6"
+          className="mt-5"
+          compact
           title="Practice & mock exams"
           action={
             <Link
               href="/student/exam-series"
-              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+              className="text-xs font-medium text-primary underline-offset-4 hover:underline"
             >
               View all
             </Link>
           }
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {practiceExams.map((series, index) => (
               <Link key={series.id} href={`/student/exam-series/${series.id}`} className="group min-w-0">
                 <Card
                   tone={index % 2 === 0 ? "fuchsia" : "violet"}
                   className="h-full transition-shadow hover:shadow-card"
                 >
-                  <CardContent className="grid grid-cols-1 gap-2 p-4">
+                  <CardContent className="grid grid-cols-1 gap-2 p-3">
                     <p className="truncate font-medium group-hover:text-primary">{series.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {series.questionCount} questions
@@ -415,7 +425,8 @@ async function StudentDashboardContent() {
       )}
 
       <CollapsibleSection
-        className="mt-6"
+        className="mt-5"
+        compact
         title="Explore"
         description={
           bundle.offersCourses
@@ -425,7 +436,7 @@ async function StudentDashboardContent() {
       >
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Link href="/student/courses" className="inline-flex">
-            <Button variant="outline" className="h-11 w-full justify-between">
+            <Button variant="outline" className="h-10 w-full justify-between">
               <span className="flex items-center gap-2">
                 <BookOpen className="size-4" aria-hidden="true" />
                 {bundle.offersCourses ? "Browse my courses" : "Browse My Lessons"}
@@ -434,7 +445,7 @@ async function StudentDashboardContent() {
             </Button>
           </Link>
           <Link href="/student/assignments" className="inline-flex">
-            <Button variant="outline" className="h-11 w-full justify-between">
+            <Button variant="outline" className="h-10 w-full justify-between">
               <span className="flex items-center gap-2">
                 <ClipboardList className="size-4" aria-hidden="true" />
                 My assignments
@@ -443,7 +454,7 @@ async function StudentDashboardContent() {
             </Button>
           </Link>
           <Link href="/student/exam-series" className="inline-flex">
-            <Button variant="outline" className="h-11 w-full justify-between">
+            <Button variant="outline" className="h-10 w-full justify-between">
               <span className="flex items-center gap-2">
                 <FileText className="size-4" aria-hidden="true" />
                 Practise exam series
@@ -452,7 +463,7 @@ async function StudentDashboardContent() {
             </Button>
           </Link>
           <Link href="/student/results" className="inline-flex">
-            <Button variant="outline" className="h-11 w-full justify-between">
+            <Button variant="outline" className="h-10 w-full justify-between">
               <span className="flex items-center gap-2">
                 <BarChart3 className="size-4" aria-hidden="true" />
                 My results
@@ -461,7 +472,7 @@ async function StudentDashboardContent() {
             </Button>
           </Link>
           <Link href="/student/report-cards" className="inline-flex sm:col-span-2">
-            <Button variant="outline" className="h-11 w-full justify-between">
+            <Button variant="outline" className="h-10 w-full justify-between">
               <span className="flex items-center gap-2">
                 <ScrollText className="size-4" aria-hidden="true" />
                 Report cards
