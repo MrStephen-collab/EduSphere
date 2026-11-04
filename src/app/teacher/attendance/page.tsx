@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { CalendarDays, UsersRound } from "lucide-react";
 import { requireContentEditor } from "@/services/shared";
 import { getReportOptions } from "@/services/report-cards";
 import type { ReportOptions } from "@/services/report-cards";
 import { getClassRegister } from "@/services/attendance";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { Card, CardContent } from "@/components/ui/card";
 import { AttendanceFilters } from "@/components/attendance/attendance-filters";
 import { AttendanceRegister } from "@/components/attendance/attendance-register";
 
@@ -39,6 +42,17 @@ function validDateParam(value: string | undefined): value is string {
   );
 }
 
+function prettyDate(date: string): string {
+  const parsed = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export default async function TeacherAttendancePage({
   searchParams,
 }: {
@@ -58,9 +72,11 @@ export default async function TeacherAttendancePage({
   if (!options.classes.length) {
     return (
       <DashboardShell title="Attendance">
-        <p className="text-sm text-muted-foreground">
-          No classes assigned yet — ask your school admin to link you to a class.
-        </p>
+        <EmptyState
+          icon={UsersRound}
+          title="No classes assigned yet"
+          description="Ask your school admin to link you to a class and its register will appear here."
+        />
       </DashboardShell>
     );
   }
@@ -71,13 +87,21 @@ export default async function TeacherAttendancePage({
   const register = await getClassRegister(editor.schoolId, cls!.id, date, teacherId);
 
   return (
-    <DashboardShell title="Attendance">
+    <DashboardShell title="Attendance" badge="Register">
       <div className="grid gap-4">
-        <AttendanceFilters
-          classes={options.classes}
-          classId={cls!.id}
-          date={date}
-        />
+        <Card tone="sky">
+          <CardContent className="flex flex-wrap items-end justify-between gap-3 p-3">
+            <AttendanceFilters
+              classes={options.classes}
+              classId={cls!.id}
+              date={date}
+            />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-background/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+              <CalendarDays className="size-3.5" aria-hidden="true" />
+              {cls!.name} · {prettyDate(date)}
+            </span>
+          </CardContent>
+        </Card>
 
         {register ? (
           <AttendanceRegister
@@ -87,7 +111,7 @@ export default async function TeacherAttendancePage({
             entries={register.entries}
           />
         ) : (
-          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+          <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
             Attendance for this class and date isn&apos;t available.
           </p>
         )}

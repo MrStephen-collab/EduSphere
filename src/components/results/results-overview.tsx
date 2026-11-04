@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   GraduationCap,
 } from "lucide-react";
+import { cn } from "cn";
 import { examTypeLabels } from "@/services/exam";
 import type { StudentResults } from "@/services/analytics";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -25,17 +26,60 @@ function formatDate(value: string | null): string | null {
   });
 }
 
+/** Green when strong, amber on the fence, rose when it needs work. */
+function scoreTone(value: number): string {
+  if (value >= 75) return "from-emerald-500 to-teal-500";
+  if (value >= 50) return "from-amber-500 to-orange-500";
+  return "from-rose-500 to-pink-500";
+}
+
 function PercentBar({ value }: { value: number }) {
+  const clamped = Math.max(0, Math.min(100, value));
   return (
     <div className="flex items-center gap-2">
-      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-primary"
-          style={{ width: `${Math.min(100, value)}%` }}
+          className={cn("h-full rounded-full bg-gradient-to-r", scoreTone(clamped))}
+          style={{ width: `${clamped}%` }}
         />
       </div>
-      <span className="w-10 shrink-0 text-right text-xs font-medium">{value}%</span>
+      <span className="w-9 shrink-0 text-right text-[11px] font-semibold tabular-nums">
+        {value}%
+      </span>
     </div>
+  );
+}
+
+function ScoreChip({
+  children,
+  tone = "primary",
+}: {
+  children: React.ReactNode;
+  tone?: "primary" | "emerald" | "fuchsia" | "violet";
+}) {
+  const tones = {
+    primary: "bg-primary/10 text-primary",
+    emerald: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    fuchsia: "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
+    violet: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  };
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+        tones[tone],
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function EmptyLine({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+      {children}
+    </p>
   );
 }
 
@@ -56,13 +100,13 @@ export function ResultsOverview({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <StatCard
           title="Overall Average"
           value={data.overallAverage != null ? `${data.overallAverage}%` : "—"}
           icon={GraduationCap}
           tone="indigo"
-          compact
+          dense
         />
         <StatCard
           title="Practice Average"
@@ -70,7 +114,7 @@ export function ResultsOverview({
           icon={BookOpenCheck}
           tone="rose"
           index={1}
-          compact
+          dense
           hint={`${data.practiceAttempts} attempt${data.practiceAttempts === 1 ? "" : "s"} across ${data.seriesPracticed} series`}
         />
         <StatCard
@@ -79,7 +123,7 @@ export function ResultsOverview({
           icon={BarChart3}
           tone="sky"
           index={2}
-          compact
+          dense
         />
         <StatCard
           title="Graded Assignments"
@@ -87,13 +131,13 @@ export function ResultsOverview({
           icon={ClipboardCheck}
           tone="emerald"
           index={3}
-          compact
+          dense
           hint={data.grade ? `Overall grade: ${data.grade}` : "No grade band yet"}
         />
       </div>
 
       {isEmpty ? (
-        <div className="mt-6">
+        <div className="mt-4">
           <EmptyState
             icon={GraduationCap}
             title="No results yet"
@@ -101,26 +145,28 @@ export function ResultsOverview({
           />
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance by subject</CardTitle>
-              <CardDescription>
+        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <Card tone="indigo">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Performance by subject</CardTitle>
+              <CardDescription className="text-xs">
                 Combines practice scores and assignment grades.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-3">
               {data.subjectPerformance.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No scored work yet — your subject breakdown appears after your first practice or graded assignment.
-                </p>
+                <EmptyLine>
+                  No scored work yet — your subject breakdown appears after your
+                  first practice or graded assignment.
+                </EmptyLine>
               ) : (
                 data.subjectPerformance.map((s) => (
-                  <div key={s.subject} className="grid gap-1">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">{s.subject}</span>
-                      <span>
-                        practice {s.practiceAverage ?? "—"}% · assignments {s.assignmentAverage ?? "—"}%
+                  <div key={s.subject} className="grid gap-1.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-xs font-medium">{s.subject}</span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        practice {s.practiceAverage ?? "—"}% · assignments{" "}
+                        {s.assignmentAverage ?? "—"}%
                       </span>
                     </div>
                     <PercentBar value={s.practiceAverage ?? s.assignmentAverage ?? 0} />
@@ -130,91 +176,97 @@ export function ResultsOverview({
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Practice series</CardTitle>
-              <CardDescription>Best score per exam series.</CardDescription>
+          <Card tone="sky">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Practice series</CardTitle>
+              <CardDescription className="text-xs">Best score per exam series.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-2">
               {data.perSeries.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No exam series practiced yet.
-                </p>
+                <EmptyLine>No exam series practiced yet.</EmptyLine>
               ) : (
                 data.perSeries.map((s) => (
                   <div
                     key={s.seriesId}
-                    className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2"
+                    className="flex items-center justify-between gap-2 rounded-lg border bg-background/60 px-3 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{s.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {examTypeLabels[s.examType as keyof typeof examTypeLabels]} · {s.subject ?? "General"} · {s.attempts} attempt{s.attempts === 1 ? "" : "s"}
+                      <p className="truncate text-xs font-medium">{s.title}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {examTypeLabels[s.examType as keyof typeof examTypeLabels]} ·{" "}
+                        {s.subject ?? "General"} · {s.attempts} attempt
+                        {s.attempts === 1 ? "" : "s"}
                       </p>
                     </div>
-                    <span className="shrink-0 text-sm font-semibold">
+                    <ScoreChip tone="fuchsia">
                       {s.best != null ? `${s.best}%` : "—"}
-                    </span>
+                    </ScoreChip>
                   </div>
                 ))
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Graded assignments</CardTitle>
-              <CardDescription>Scored work returned by teachers.</CardDescription>
+          <Card tone="emerald">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Graded assignments</CardTitle>
+              <CardDescription className="text-xs">
+                Scored work returned by teachers.
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-2">
               {data.gradedAssignments.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No graded assignments yet.
-                </p>
+                <EmptyLine>No graded assignments yet.</EmptyLine>
               ) : (
                 data.gradedAssignments.map((a) => (
                   <div
                     key={a.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background px-3 py-2"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background/60 px-3 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{a.title}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="truncate text-xs font-medium">{a.title}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">
                         {a.subject ?? "General"} · graded {formatDate(a.gradedAt)}
                       </p>
                     </div>
-                    <span className="shrink-0 text-sm font-semibold">
+                    <ScoreChip tone="emerald">
                       {a.percentage != null ? `${a.percentage}%` : `${a.score} / ${a.maxScore}`}
-                    </span>
+                    </ScoreChip>
                   </div>
                 ))
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Exam results</CardTitle>
-              <CardDescription>Formal results published by the school.</CardDescription>
+          <Card tone="violet">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Exam results</CardTitle>
+              <CardDescription className="text-xs">
+                Formal results published by the school.
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-2">
               {data.results.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No formal exam results published yet.
-                </p>
+                <EmptyLine>No formal exam results published yet.</EmptyLine>
               ) : (
                 data.results.map((r) => (
                   <div
                     key={r.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background px-3 py-2"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background/60 px-3 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{r.subject ?? "General"}</p>
-                      <p className="text-xs text-muted-foreground">Published {formatDate(r.publishedAt)}</p>
+                      <p className="truncate text-xs font-medium">{r.subject ?? "General"}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        Published {formatDate(r.publishedAt)}
+                      </p>
                     </div>
-                    <span className="shrink-0 text-sm font-semibold">
-                      {r.percentage != null ? `${r.percentage}%` : r.score != null ? String(r.score) : "—"}
-                    </span>
+                    <ScoreChip tone="violet">
+                      {r.percentage != null
+                        ? `${r.percentage}%`
+                        : r.score != null
+                          ? String(r.score)
+                          : "—"}
+                    </ScoreChip>
                   </div>
                 ))
               )}

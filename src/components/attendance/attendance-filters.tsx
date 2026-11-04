@@ -3,8 +3,8 @@
 import { useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-const selectClass =
-  "h-9 rounded-md border bg-background px-3 text-sm";
+const fieldClass =
+  "h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-xs transition-colors outline-none hover:border-ring/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export function AttendanceFilters({
   classes,
@@ -33,10 +33,10 @@ export function AttendanceFilters({
 
   return (
     <div className="flex flex-wrap items-end gap-3 print:hidden">
-      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+      <label className="grid gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         Class
         <select
-          className={selectClass}
+          className={fieldClass}
           value={classId ?? classes[0]?.id ?? ""}
           onChange={(e) => nav({ class: e.target.value, date: date ?? "" })}
         >
@@ -47,11 +47,11 @@ export function AttendanceFilters({
           ))}
         </select>
       </label>
-      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+      <label className="grid gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         Date
         <input
           type="date"
-          className={selectClass}
+          className={fieldClass}
           value={date ?? ""}
           onChange={(e) => nav({ date: e.target.value })}
         />
