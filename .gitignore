@@ -55,6 +55,14 @@ next-env.d.ts
 .prod-*
 .verify-*
 
+# local build / deploy scratch output (generated while debugging; never commit)
+nxt.*.txt
+vb2.*.txt
+vbuild.*.txt
+vercel_prod.*.txt
+build_final.*.txt
+env_for_vercel.txt
+
 # supabase cli temp state
 /supabase/.temp/
 
