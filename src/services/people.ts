@@ -140,6 +140,70 @@ export type TeacherRow = Teacher & {
   profile: ProfileEmbed;
 };
 
+/** Non-teaching staff accounts: leadership and the bursary. */
+export type StaffAccountRole = "PRINCIPAL" | "BURSAR";
+
+/**
+ * Issues a login for a principal or a bursar.
+ *
+ * These are staff roles, not teaching posts: the account gets a user, a profile
+ * and a `user_roles` row, and deliberately no `teachers` row. That table is the
+ * teaching roster and the seat counter, so a bursar must not inflate it.
+ *
+ * Only an owner or admin can issue an account, and it always belongs to their
+ * own school.
+ */
+export async function createStaffAccount(input: {
+  fullName: string;
+  email: string;
+  role: StaffAccountRole;
+}): Promise<void> {
+  const { schoolId } = await requireSchoolAdmin();
+
+  const fullName = input.fullName.trim();
+  const email = input.email.trim().toLowerCase();
+  if (fullName.length < 2) throw new Error("Enter the person's full name.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("Enter a valid email so the person can sign in.");
+  }
+  if (input.role !== "PRINCIPAL" && input.role !== "BURSAR") {
+    throw new Error("Choose principal or bursar.");
+  }
+
+  const userId = await createOrGetAuthUser({ email, fullName });
+  if (!userId) throw new Error("We couldn't create the account.");
+
+  const admin = createAdminClient();
+
+  // Keep the display name current when the account already existed.
+  await admin.from("profiles").update({ full_name: fullName }).eq("id", userId);
+
+  const { error } = await admin.from("user_roles").insert({
+    school_id: schoolId,
+    user_id: userId,
+    role: input.role,
+  });
+  if (error && error.code === "22P02") {
+    throw new Error(
+      "The bursar role isn't available on this database yet. Apply supabase/migrations/0037_bursar_role.sql, then try again.",
+    );
+  }
+  if (error && error.code !== "23505") {
+    throw new Error("We couldn't assign that role.");
+  }
+
+  invalidateAuthContexts(userId);
+  invalidatePeopleCounts();
+
+  await logAudit({
+    schoolId,
+    action: "staff_account_created",
+    entityType: "user_roles",
+    entityId: userId,
+    metadata: { role: input.role, email },
+  });
+}
+
 export async function getTeachers(schoolId: string): Promise<TeacherRow[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -149,6 +213,56 @@ export async function getTeachers(schoolId: string): Promise<TeacherRow[]> {
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as TeacherRow[];
+}
+
+export type StaffAccount = {
+  userId: string;
+  role: StaffAccountRole;
+  fullName: string | null;
+  email: string | null;
+};
+
+/**
+ * The non-teaching accounts that can open the fee desk: principals and bursars.
+ *
+ * Read separately from the teacher roster on purpose — these people have no
+ * `teachers` row, and listing them under "Teachers" is how an admin loses track
+ * of who still has a login after someone leaves.
+ */
+export async function getStaffAccounts(schoolId: string): Promise<StaffAccount[]> {
+  const supabase = await createSupabaseServerClient();
+  // Read every role row and filter here rather than with `.in("role", [...])`:
+  // naming BURSAR in a SQL filter fails on a database that has not yet applied
+  // migration 0037, and that error would take the whole page down.
+  const { data: roleRows, error } = await supabase
+    .from("user_roles")
+    .select("user_id, role")
+    .eq("school_id", schoolId);
+  if (error) throw new Error(error.message);
+
+  const roles = ((roleRows ?? []) as { user_id: string; role: string }[]).filter(
+    (row): row is { user_id: string; role: StaffAccountRole } =>
+      row.role === "PRINCIPAL" || row.role === "BURSAR",
+  );
+  if (roles.length === 0) return [];
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name, email")
+    .in("id", roles.map((row) => row.user_id));
+
+  const byId = new Map(
+    ((profiles ?? []) as { id: string; full_name: string | null; email: string | null }[]).map(
+      (profile) => [profile.id, profile],
+    ),
+  );
+
+  return roles.map((row) => ({
+    userId: row.user_id,
+    role: row.role,
+    fullName: byId.get(row.user_id)?.full_name ?? null,
+    email: byId.get(row.user_id)?.email ?? null,
+  }));
 }
 
 // ---------------------------------------------------------------------------

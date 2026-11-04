@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Building2, MapPin, Phone, Mail, Globe } from "lucide-react";
-import { requireSchoolAdmin } from "@/services/shared";
+import { requireAnySchoolMember } from "@/services/shared";
 import { primaryRoleLabel } from "@/lib/auth/roles";
 import { formatMemberSince } from "@/lib/format";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -16,12 +16,16 @@ export const metadata: Metadata = {
 };
 
 export default async function SchoolProfilePage() {
-  const { context, schoolName } = await requireSchoolAdmin();
+  // Any school staff member can see their own account — including a bursar,
+  // whose menu points here. The page only shows their profile and school contact
+  // details, never an editable admin surface.
+  const context = await requireAnySchoolMember();
   if (!context.user) redirect("/auth/login");
 
-  const school = context.memberships.find(
-    (m) => m.role === "SCHOOL_OWNER" || m.role === "SCHOOL_ADMIN" || m.role === "PRINCIPAL",
+  const school = context.memberships.find((m) =>
+    ["SCHOOL_OWNER", "SCHOOL_ADMIN", "PRINCIPAL", "BURSAR"].includes(m.role),
   )?.school;
+  const schoolName = context.schoolName;
 
   const displayName = context.profile?.full_name ?? "School administrator";
   const location = [school?.city, school?.state, school?.country]

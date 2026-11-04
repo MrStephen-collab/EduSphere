@@ -64,11 +64,12 @@ export function isManagerRole(
  * Roles that may run the school's fee desk.
  *
  * Owners and admins always could. A principal is the official a small school
- * leans on for bursary work, and the fees menu was already shown to them while
- * every fee route bounced them back to the dashboard — this closes that gap.
- * Nothing else about the principal role changes.
+ * leans on for bursary work; the BURSAR role exists for the dedicated
+ * accountant who should not also hold the keys to people and settings. The fees
+ * menu was already shown to these staff while every fee route bounced them back
+ * to the dashboard — this closes that gap.
  */
-const FEE_OFFICER_ROLES = ["SCHOOL_OWNER", "SCHOOL_ADMIN", "PRINCIPAL"] as const;
+const FEE_OFFICER_ROLES = ["SCHOOL_OWNER", "SCHOOL_ADMIN", "PRINCIPAL", "BURSAR"] as const;
 
 export type FeeOfficerContext = SchoolAdminContext & {
   role: (typeof FEE_OFFICER_ROLES)[number];

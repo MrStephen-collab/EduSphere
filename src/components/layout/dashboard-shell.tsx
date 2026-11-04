@@ -4,6 +4,7 @@ import { getAuthContext, type AuthContext, type Membership } from "@/lib/auth/au
 import { AppShell } from "./app-shell";
 import { getUnreadNotificationCount } from "@/services/notifications";
 import {
+  bursarNav,
   parentNav,
   platformNav,
   schoolNav,
@@ -17,6 +18,7 @@ import { levelOffersCourses, levelStaffNoun } from "@/lib/education/levels";
 type ShellKind =
   | "platform"
   | "school"
+  | "bursar"
   | "teacher"
   | "student"
   | "parent"
@@ -28,6 +30,7 @@ function resolveKind(context: AuthContext): ShellKind {
   if (roles.includes("SCHOOL_OWNER") || roles.includes("SCHOOL_ADMIN") || roles.includes("PRINCIPAL")) {
     return "school";
   }
+  if (roles.includes("BURSAR")) return "bursar";
   if (roles.includes("TEACHER")) return "teacher";
   if (roles.includes("STUDENT")) return "student";
   if (roles.includes("PARENT")) return "parent";
@@ -58,6 +61,15 @@ const navFor = (
           { title: "Students", href: "/school/students", icon: "students" },
           { title: "Classes", href: "/school/classes", icon: "classes" },
           { title: "Settings", href: "/school/settings", icon: "settings" },
+        ],
+      };
+    case "bursar":
+      return {
+        sections: bursarNav,
+        profileHref: "/school/profile",
+        bottom: [
+          { title: "Fees", href: "/school/fees", icon: "wallet" },
+          { title: "Profile", href: "/school/profile", icon: "profile" },
         ],
       };
     case "teacher": {
@@ -136,6 +148,7 @@ const navFor = (
 const ROLE_LABELS: Record<ShellKind, string> = {
   platform: "Platform admin",
   school: "School admin",
+  bursar: "Bursar",
   // The teacher entry is a fallback only: the shell overrides it with the
   // school level's staff noun ("Teacher" up to secondary, "Lecturer" above).
   teacher: "Teacher",

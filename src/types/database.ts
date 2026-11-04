@@ -96,6 +96,7 @@ export type UserRoleName =
   | "SCHOOL_OWNER"
   | "SCHOOL_ADMIN"
   | "PRINCIPAL"
+  | "BURSAR"
   | "TEACHER"
   | "STUDENT"
   | "PARENT";

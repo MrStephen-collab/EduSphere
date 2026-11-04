@@ -17,6 +17,8 @@ import {
   createTeacher,
   createStudent,
   createParent,
+  createStaffAccount,
+  type StaffAccountRole,
   importStudents,
   type ImportRow,
   type ImportSummary,
@@ -207,6 +209,19 @@ export async function createTeacherAction(input: {
   title?: string | null;
 }): Promise<ActionState> {
   return run(async () => createTeacher(input), "/school/teachers");
+}
+
+/**
+ * Issues a principal or bursar login. Revalidates the teachers page because the
+ * form lives there, and the school dashboard because its fee cards can now be
+ * reached by one more role.
+ */
+export async function createStaffAccountAction(input: {
+  fullName: string;
+  email: string;
+  role: StaffAccountRole;
+}): Promise<ActionState> {
+  return run(async () => createStaffAccount(input), "/school/teachers");
 }
 
 export async function createStudentAction(input: {

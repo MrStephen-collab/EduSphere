@@ -5,6 +5,10 @@ const roleHierarchy: Record<UserRoleName, number> = {
   SCHOOL_OWNER: 90,
   SCHOOL_ADMIN: 80,
   PRINCIPAL: 70,
+  // Staff, but not a manager: senior enough to sit above a teacher, and
+  // deliberately below a principal so `canUser` never promotes a bursar into
+  // academic decisions.
+  BURSAR: 65,
   TEACHER: 60,
   STUDENT: 40,
   PARENT: 30,

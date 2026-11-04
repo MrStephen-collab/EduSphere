@@ -188,6 +188,8 @@ export function redirectToRoleHome(context: AuthContext): never {
   ) {
     redirect("/school");
   }
+  // The bursar's home is the fee desk, not the school dashboard.
+  if (roles.includes("BURSAR")) redirect("/school/fees");
   if (roles.includes("TEACHER")) redirect("/teacher");
   if (roles.includes("STUDENT")) redirect("/student");
   if (roles.includes("PARENT")) redirect("/parent");

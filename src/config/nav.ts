@@ -87,6 +87,26 @@ export const platformNav: NavSection[] = [
   },
 ];
 
+/**
+ * The bursar's menu: money and their own account.
+ *
+ * Deliberately short. Everything a bursar does lives on the fee desk, and the
+ * pages behind people/classes/settings stay out of reach — they are admin
+ * surfaces, not accounting ones.
+ */
+export const bursarNav: NavSection[] = [
+  {
+    label: "Fees",
+    items: [
+      { title: "Fee desk", href: "/school/fees", icon: "wallet" },
+    ],
+  },
+  {
+    label: "Account",
+    items: [{ title: "Profile", href: "/school/profile", icon: "profile" }],
+  },
+];
+
 export const schoolNav: NavSection[] = [
   {
     label: "Overview",

@@ -23,6 +23,13 @@ describe("roles", () => {
     expect(canUser(undefined, "TEACHER")).toBe(false);
   });
 
+  it("keeps a bursar below a principal and above a teacher", () => {
+    expect(canUser("BURSAR", "TEACHER")).toBe(true);
+    expect(canUser("BURSAR", "PRINCIPAL")).toBe(false);
+    expect(canUser("PRINCIPAL", "BURSAR")).toBe(true);
+    expect(canUser("TEACHER", "BURSAR")).toBe(false);
+  });
+
   it("distinguishes platform from school roles", () => {
     expect(isPlatformRole("SUPER_ADMIN")).toBe(true);
     expect(isPlatformRole("TEACHER")).toBe(false);
@@ -55,6 +62,16 @@ describe("permissions", () => {
     expect(perms).toContain(PERMISSIONS.CHILDREN_VIEW);
     expect(perms).toContain(PERMISSIONS.RESULTS_VIEW);
     expect(perms).not.toContain(PERMISSIONS.STUDENTS_MANAGE);
+  });
+
+  it("gives a bursar the fee desk and nothing academic or administrative", () => {
+    const perms = getPermissionsForRole("BURSAR");
+    expect(perms).toContain(PERMISSIONS.FEES_MANAGE);
+    expect(perms).toContain(PERMISSIONS.FEES_APPROVE);
+    expect(perms).toContain(PERMISSIONS.FEES_VIEW);
+    expect(perms).not.toContain(PERMISSIONS.STUDENTS_MANAGE);
+    expect(perms).not.toContain(PERMISSIONS.SCHOOL_SETTINGS);
+    expect(perms).not.toContain(PERMISSIONS.RESULTS_MANAGE);
   });
 
   it("returns no permissions for a missing role", () => {

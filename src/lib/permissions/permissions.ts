@@ -137,6 +137,20 @@ const ROLE_PERMISSIONS: Record<UserRoleName, Permission[]> = {
     PERMISSIONS.ANNOUNCEMENTS_MANAGE,
     PERMISSIONS.ANNOUNCEMENTS_VIEW,
     PERMISSIONS.NOTIFICATIONS_VIEW,
+    // The fee desk is part of the principal's remit in a small school.
+    PERMISSIONS.FEES_MANAGE,
+    PERMISSIONS.FEES_APPROVE,
+    PERMISSIONS.FEES_VIEW,
+  ],
+
+  // Runs the money, nothing else: invoices, payment approval and the fee gate.
+  // No people, classes, settings or results.
+  BURSAR: [
+    PERMISSIONS.FEES_MANAGE,
+    PERMISSIONS.FEES_APPROVE,
+    PERMISSIONS.FEES_VIEW,
+    PERMISSIONS.ANNOUNCEMENTS_VIEW,
+    PERMISSIONS.NOTIFICATIONS_VIEW,
   ],
 
   TEACHER: [

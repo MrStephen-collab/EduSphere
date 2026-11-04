@@ -538,6 +538,8 @@ export const USER_ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super admin",
   SCHOOL_OWNER: "Owner",
   SCHOOL_ADMIN: "Admin",
+  PRINCIPAL: "Principal",
+  BURSAR: "Bursar",
   TEACHER: "Teacher",
   STUDENT: "Student",
   PARENT: "Parent",

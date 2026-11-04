@@ -48,7 +48,8 @@ function initials(name: string | null | undefined): string {
 }
 
 export default async function SchoolFeesPage() {
-  const { schoolId } = await requireFeeOfficer();
+  const officer = await requireFeeOfficer();
+  const { schoolId } = officer;
 
   const [{ stats, reviewQueue, invoices }, classes, terms, students, learningThreshold] =
     await Promise.all([
@@ -71,7 +72,10 @@ export default async function SchoolFeesPage() {
   const termOptions = terms.map((t) => ({ id: t.id, label: t.name }));
 
   return (
-    <DashboardShell title="Fees" badge="Administrator">
+    <DashboardShell
+      title="Fees"
+      badge={officer.role === "BURSAR" ? "Bursar" : "Administrator"}
+    >
       <div className="grid gap-4">
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           <StatCard

@@ -262,6 +262,10 @@ export default async function SchoolDashboardPage({
   const isSchoolStaff = context.roles.some((role) =>
     ["SCHOOL_OWNER", "SCHOOL_ADMIN", "PRINCIPAL"].includes(role),
   );
+  // A bursar's work starts on the fee desk; the school overview is not theirs.
+  if (!isSchoolStaff && context.roles.includes("BURSAR")) {
+    redirect("/school/fees");
+  }
   if (!isSchoolStaff) redirect("/dashboard");
 
   const membership = context.memberships[0];
