@@ -189,9 +189,23 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-background text-foreground;
     text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background-color: color-mix(in oklab, var(--primary) 24%, transparent);
+  }
+  /* A thin, theme-aware scrollbar instead of the chunky default. */
+  @media (pointer: fine) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent)
+        transparent;
+    }
   }
 }
 
@@ -213,6 +227,56 @@
   .bg-brand-gradient {
     background-image: linear-gradient(110deg, #4338ca 0%, #2563eb 55%, #06b6d4 100%);
   }
+
+  /*
+   * The app canvas: three very soft brand washes behind every dashboard. One
+   * element, no blur filters, so it costs nothing on a phone.
+   */
+  .app-canvas {
+    background-image:
+      radial-gradient(
+        38rem 28rem at 100% -5%,
+        color-mix(in oklab, var(--brand-500) 13%, transparent),
+        transparent 62%
+      ),
+      radial-gradient(
+        32rem 24rem at -5% 35%,
+        color-mix(in oklab, var(--cyan) 11%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(
+        30rem 24rem at 55% 110%,
+        color-mix(in oklab, var(--violet) 9%, transparent),
+        transparent 60%
+      );
+  }
+  .dark .app-canvas {
+    background-image:
+      radial-gradient(
+        38rem 28rem at 100% -5%,
+        color-mix(in oklab, var(--brand-500) 18%, transparent),
+        transparent 62%
+      ),
+      radial-gradient(
+        32rem 24rem at -5% 35%,
+        color-mix(in oklab, var(--cyan) 12%, transparent),
+        transparent 60%
+      );
+  }
+
+  /*
+   * Data tables live inside cards throughout the app and are hand-rolled per
+   * page. One shared hover row keeps every one of them feeling alive without
+   * every page having to remember it.
+   */
+  [data-slot="card"] table tbody tr {
+    transition: background-color 150ms ease;
+  }
+  @media (hover: hover) {
+    [data-slot="card"] table tbody tr:hover {
+      background-color: color-mix(in oklab, var(--muted) 60%, transparent);
+    }
+  }
 }
 
 @media print {
@@ -224,6 +288,9 @@
   }
   body {
     background: #fff !important;
+  }
+  .app-canvas {
+    background-image: none !important;
   }
   main {
     margin: 0 !important;

@@ -64,7 +64,7 @@ export function Header({
     .toUpperCase();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur md:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b bg-background/70 px-4 backdrop-blur-xl md:px-6 lg:px-8">
       <div className="lg:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger
@@ -101,6 +101,10 @@ export function Header({
       </div>
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="hidden h-5 w-1 shrink-0 rounded-full bg-gradient-to-b from-indigo-500 to-cyan-500 sm:block"
+        />
         <h1 className="truncate text-base font-semibold md:text-lg">{title}</h1>
         {badge && <Badge variant="secondary" className="hidden sm:inline-flex">{badge}</Badge>}
       </div>

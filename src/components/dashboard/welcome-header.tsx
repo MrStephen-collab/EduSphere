@@ -23,9 +23,15 @@ export function WelcomeHeader({
     <div className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
       <div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          {greeting}, {name} <span aria-hidden="true">👋</span>
+          {greeting},{" "}
+          <span className="bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500 bg-clip-text text-transparent dark:from-indigo-300 dark:via-blue-300 dark:to-cyan-300">
+            {name}
+          </span>{" "}
+          <span aria-hidden="true">👋</span>
         </h1>
-        {subtitle && <p className="mt-1 text-muted-foreground">{subtitle}</p>}
+        {subtitle && (
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">{subtitle}</p>
+        )}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>

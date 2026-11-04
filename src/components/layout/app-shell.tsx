@@ -34,7 +34,7 @@ export function AppShell({
   profileHref,
 }: ShellProps) {
   return (
-    <div className="flex min-h-dvh bg-background">
+    <div className="app-canvas flex min-h-dvh bg-background">
       <Sidebar
         sections={sections}
         schoolName={schoolName}

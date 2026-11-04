@@ -83,16 +83,16 @@ function NavLink({
       href={item.href}
       onClick={onNavigate}
       className={cn(
-        "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
         active
-          ? "bg-primary/10 text-primary"
+          ? "bg-gradient-to-r from-primary/15 via-primary/10 to-blue-500/10 text-primary shadow-xs"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
       {active && (
         <span
           aria-hidden="true"
-          className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary"
+          className="absolute inset-y-1.5 left-0 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"
         />
       )}
       <Icon className="size-4" aria-hidden="true" />
